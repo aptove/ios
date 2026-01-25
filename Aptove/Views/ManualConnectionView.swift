@@ -25,6 +25,13 @@ struct ManualConnectionView: View {
             ZStack {
                 Form {
                     Section {
+                        TextField("URL", text: $url)
+                            .textContentType(.URL)
+                            .keyboardType(.URL)
+                            .autocapitalization(.none)
+                            .autocorrectionDisabled()
+                            .focused($focusedField, equals: .url)
+                        
                         TextField("Client ID (optional for local)", text: $clientId)
                             .textContentType(.username)
                             .autocapitalization(.none)

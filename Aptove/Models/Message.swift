@@ -16,17 +16,33 @@ enum MessageType: String, Codable {
     case toolApprovalRequest
 }
 
+struct PermissionOptionInfo: Codable, Identifiable {
+    let id: String
+    let optionId: String
+    let name: String
+    let kind: String
+    
+    init(optionId: String, name: String, kind: String) {
+        self.id = optionId
+        self.optionId = optionId
+        self.name = name
+        self.kind = kind
+    }
+}
+
 struct ToolApprovalInfo: Codable {
     let toolCallId: String
     let title: String
     let command: String?
     let approved: Bool?
+    let options: [PermissionOptionInfo]
     
-    init(toolCallId: String, title: String, command: String?, approved: Bool? = nil) {
+    init(toolCallId: String, title: String, command: String?, approved: Bool? = nil, options: [PermissionOptionInfo] = []) {
         self.toolCallId = toolCallId
         self.title = title
         self.command = command
         self.approved = approved
+        self.options = options
     }
 }
 

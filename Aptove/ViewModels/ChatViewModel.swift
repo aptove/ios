@@ -18,11 +18,21 @@ class ChatViewModel: ObservableObject {
         
         // Set up tool approval handler once during initialization
         if let client = manager.getClient(for: agentId) {
-            client.onToolApprovalRequest = { [weak self] toolCallId, title, command in
+            client.onToolApprovalRequest = { [weak self] toolCallId, title, command, permissions in
                 Task { @MainActor in
                     guard let self = self else { return }
                     
                     let commandText = command.map { "\n\n`\($0)`" } ?? ""
+                    
+                    // Convert permissions to PermissionOptionInfo
+                    let options = permissions.map { permission in
+                        PermissionOptionInfo(
+                            optionId: permission.optionId.value,
+                            name: permission.name,
+                            kind: permission.kind.rawValue
+                        )
+                    }
+                    
                     let approvalMessage = Message(
                         text: "⚠️ **Permission Required**\n\n\(title)\(commandText)",
                         sender: .agent,
@@ -31,7 +41,8 @@ class ChatViewModel: ObservableObject {
                         toolApproval: ToolApprovalInfo(
                             toolCallId: toolCallId,
                             title: title,
-                            command: command
+                            command: command,
+                            options: options
                         )
                     )
                     
@@ -187,7 +198,7 @@ class ChatViewModel: ObservableObject {
         }
     }
     
-    func approveTool(messageId: String) async {
+    func approveTool(messageId: String, optionId: String = "allow_once") async {
         guard let message = messages.first(where: { $0.id == messageId }),
               let toolApproval = message.toolApproval,
               let client = agentManager?.getClient(for: agentId) else {
@@ -195,7 +206,7 @@ class ChatViewModel: ObservableObject {
         }
         
         do {
-            try await client.approveTool(toolCallId: toolApproval.toolCallId)
+            try await client.approveTool(toolCallId: toolApproval.toolCallId, optionId: optionId)
             
             // Update message to show approval
             if let index = messages.firstIndex(where: { $0.id == messageId }) {
@@ -204,7 +215,8 @@ class ChatViewModel: ObservableObject {
                     toolCallId: toolApproval.toolCallId,
                     title: toolApproval.title,
                     command: toolApproval.command,
-                    approved: true
+                    approved: true,
+                    options: toolApproval.options
                 )
                 
                 messages[index] = Message(
@@ -240,7 +252,8 @@ class ChatViewModel: ObservableObject {
                     toolCallId: toolApproval.toolCallId,
                     title: toolApproval.title,
                     command: toolApproval.command,
-                    approved: false
+                    approved: false,
+                    options: toolApproval.options
                 )
                 
                 messages[index] = Message(

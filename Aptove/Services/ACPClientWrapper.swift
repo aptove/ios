@@ -19,6 +19,7 @@ private class AptoveClient: Client, ClientSessionOperations {
     
     //Store pending permission requests with continuations
     var pendingPermissions: [String: CheckedContinuation<RequestPermissionResponse, Error>] = [:]
+    var pendingPermissionOptions: [String: [PermissionOption]] = [:]
     var onPermissionRequest: ((String, ToolCallUpdateData, [PermissionOption]) -> Void)?
     
     // Terminal approval
@@ -51,6 +52,7 @@ private class AptoveClient: Client, ClientSessionOperations {
         return try await withCheckedThrowingContinuation { continuation in
             let requestId = toolCall.toolCallId.value
             pendingPermissions[requestId] = continuation
+            pendingPermissionOptions[requestId] = permissions
             print("🔐 Calling onPermissionRequest handler")
             onPermissionRequest?(requestId, toolCall, permissions)
         }
@@ -203,8 +205,8 @@ class ACPClientWrapper: ObservableObject {
                         }
                         
                         let title = toolCall.title ?? "Tool Approval Required"
-                        print("⚠️ Permission request: \(title)")
-                        self.onToolApprovalRequest?(requestId, title, command)
+                        print("⚠️ Permission request: \(title), options: \(permissions.count)")
+                        self.onToolApprovalRequest?(requestId, title, command, permissions)
                     }
                 }
                 
@@ -261,7 +263,7 @@ class ACPClientWrapper: ObservableObject {
     var onThought: ((String) -> Void)?
     var onToolCall: ((String) -> Void)?
     var onComplete: ((StopReason) -> Void)?
-    var onToolApprovalRequest: ((String, String, String?) -> Void)? // toolCallId, title, command
+    var onToolApprovalRequest: ((String, String, String?, [PermissionOption]) -> Void)? // toolCallId, title, command, options
     
     // Store pending tool approval requests
     private var pendingToolRequests: [String: ToolCallUpdateData] = [:] // toolCallId -> ToolCallUpdateData
@@ -325,21 +327,22 @@ class ACPClientWrapper: ObservableObject {
         }
     }
     
-    func approveTool(toolCallId: String) async throws {
+    func approveTool(toolCallId: String, optionId: String = "allow_once") async throws {
         guard let client = client,
               let continuation = client.pendingPermissions[toolCallId] else {
             throw ClientError.invalidToolCall
         }
         
-        print("✅ Tool approved: \(toolCallId)")
+        print("✅ Tool approved: \(toolCallId) with option: \(optionId)")
         
-        // Resume the continuation with approval
+        // Resume the continuation with the selected option
         let response = RequestPermissionResponse(
-            outcome: .selected("approve") // Default approval
+            outcome: .selected(PermissionOptionId(value: optionId))
         )
         
         continuation.resume(returning: response)
         client.pendingPermissions.removeValue(forKey: toolCallId)
+        client.pendingPermissionOptions.removeValue(forKey: toolCallId)
     }
     
     func rejectTool(toolCallId: String) async throws {
@@ -350,13 +353,18 @@ class ACPClientWrapper: ObservableObject {
         
         print("❌ Tool rejected: \(toolCallId)")
         
-        // Resume the continuation with cancellation
+        // Resume the continuation with reject_once option
         let response = RequestPermissionResponse(
-            outcome: .cancelled
+            outcome: .selected(PermissionOptionId(value: "reject_once"))
         )
         
         continuation.resume(returning: response)
         client.pendingPermissions.removeValue(forKey: toolCallId)
+        client.pendingPermissionOptions.removeValue(forKey: toolCallId)
+    }
+    
+    func getPermissionOptions(for toolCallId: String) -> [PermissionOption]? {
+        return client?.pendingPermissionOptions[toolCallId]
     }
     
     enum ClientError: LocalizedError {

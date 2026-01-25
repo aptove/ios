@@ -177,37 +177,62 @@ struct MessageBubble: View {
             
             // Show approval buttons if not yet decided
             if let toolApproval = message.toolApproval, toolApproval.approved == nil {
-                HStack(spacing: 12) {
-                    Button {
-                        Task {
-                            await viewModel.approveTool(messageId: message.id)
+                // Show dynamic options if available
+                if !toolApproval.options.isEmpty {
+                    VStack(spacing: 8) {
+                        ForEach(toolApproval.options) { option in
+                            Button {
+                                Task {
+                                    await viewModel.approveTool(messageId: message.id, optionId: option.optionId)
+                                }
+                            } label: {
+                                HStack {
+                                    Image(systemName: option.kind.hasPrefix("allow") ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    Text(option.name)
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .frame(maxWidth: .infinity)
+                                .background(option.kind.hasPrefix("allow") ? Color.green : Color.red)
+                                .foregroundColor(.white)
+                                .cornerRadius(8)
+                            }
                         }
-                    } label: {
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                            Text("Approve")
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(Color.green)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
                     }
-                    
-                    Button {
-                        Task {
-                            await viewModel.rejectTool(messageId: message.id)
+                } else {
+                    // Fallback to simple approve/reject if no options provided
+                    HStack(spacing: 12) {
+                        Button {
+                            Task {
+                                await viewModel.approveTool(messageId: message.id)
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                Text("Approve")
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(Color.green)
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
                         }
-                    } label: {
-                        HStack {
-                            Image(systemName: "xmark.circle.fill")
-                            Text("Reject")
+                        
+                        Button {
+                            Task {
+                                await viewModel.rejectTool(messageId: message.id)
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: "xmark.circle.fill")
+                                Text("Reject")
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(Color.red)
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(Color.red)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
                     }
                 }
             } else if let toolApproval = message.toolApproval {
