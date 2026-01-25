@@ -93,7 +93,8 @@ class QRScannerViewModel: ObservableObject {
     }
     
     private func testConnection(config: ConnectionConfig) async -> Bool {
-        let wrapper = ACPClientWrapper(config: config, agentId: "test")
+        // Use extended timeout (5 minutes) and 2 retries for QR code connections
+        let wrapper = ACPClientWrapper(config: config, agentId: "test", connectionTimeout: 300, maxRetries: 2)
         
         await wrapper.connect()
         
@@ -101,6 +102,10 @@ class QRScannerViewModel: ObservableObject {
         switch wrapper.connectionState {
         case .connected:
             isConnected = true
+        case .error(let message):
+            // Store detailed error message
+            self.errorMessage = message
+            isConnected = false
         default:
             isConnected = false
         }

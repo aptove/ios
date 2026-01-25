@@ -20,7 +20,7 @@ struct ChatView: View {
                 ScrollView {
                     LazyVStack(spacing: 12) {
                         ForEach(viewModel.messages) { message in
-                            MessageBubble(message: message)
+                            MessageBubble(message: message, viewModel: viewModel)
                                 .id(message.id)
                         }
                     }
@@ -77,11 +77,17 @@ struct ChatView: View {
         agentManager.agents.first { $0.id == agentId }
     }
     
+    private var client: ACPClientWrapper? {
+        agentManager.getClient(for: agentId)
+    }
+    
     private var connectionStatusText: String {
-        guard let agent = agent else { return "Unknown" }
-        switch agent.status {
+        guard let client = client else { return "Unknown" }
+        switch client.connectionState {
         case .connected:
             return "Connected"
+        case .connecting:
+            return "Connecting..."
         case .disconnected:
             return "Disconnected"
         case .error:
@@ -90,10 +96,12 @@ struct ChatView: View {
     }
     
     private var connectionStatusColor: Color {
-        guard let agent = agent else { return .gray }
-        switch agent.status {
+        guard let client = client else { return .gray }
+        switch client.connectionState {
         case .connected:
             return .green
+        case .connecting:
+            return .orange
         case .disconnected:
             return .gray
         case .error:
@@ -116,6 +124,7 @@ struct ChatView: View {
 
 struct MessageBubble: View {
     let message: Message
+    let viewModel: ChatViewModel
     
     var body: some View {
         HStack {
@@ -124,11 +133,11 @@ struct MessageBubble: View {
             }
             
             VStack(alignment: message.sender == .user ? .trailing : .leading, spacing: 4) {
-                Text(message.text)
-                    .padding(12)
-                    .background(backgroundColor)
-                    .foregroundColor(textColor)
-                    .cornerRadius(16)
+                if message.type == .toolApprovalRequest {
+                    toolApprovalView
+                } else {
+                    textBubbleView
+                }
                 
                 HStack(spacing: 4) {
                     Text(timeString)
@@ -145,6 +154,83 @@ struct MessageBubble: View {
                 Spacer(minLength: 60)
             }
         }
+    }
+    
+    @ViewBuilder
+    private var textBubbleView: some View {
+        Text(message.text)
+            .padding(12)
+            .background(backgroundColor)
+            .foregroundColor(textColor)
+            .cornerRadius(16)
+    }
+    
+    @ViewBuilder
+    private var toolApprovalView: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Show the tool request text
+            Text(message.text)
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(12)
+            
+            // Show approval buttons if not yet decided
+            if let toolApproval = message.toolApproval, toolApproval.approved == nil {
+                HStack(spacing: 12) {
+                    Button {
+                        Task {
+                            await viewModel.approveTool(messageId: message.id)
+                        }
+                    } label: {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                            Text("Approve")
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.green)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
+                    }
+                    
+                    Button {
+                        Task {
+                            await viewModel.rejectTool(messageId: message.id)
+                        }
+                    } label: {
+                        HStack {
+                            Image(systemName: "xmark.circle.fill")
+                            Text("Reject")
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.red)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
+                    }
+                }
+            } else if let toolApproval = message.toolApproval {
+                // Show approval status
+                HStack {
+                    Image(systemName: toolApproval.approved == true ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    Text(toolApproval.approved == true ? "Approved" : "Rejected")
+                }
+                .font(.caption)
+                .foregroundColor(toolApproval.approved == true ? .green : .red)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.secondary.opacity(0.1))
+                .cornerRadius(8)
+            }
+        }
+        .padding(12)
+        .background(Color.orange.opacity(0.05))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.orange.opacity(0.3), lineWidth: 2)
+        )
     }
     
     private var backgroundColor: Color {

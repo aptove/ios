@@ -4,7 +4,10 @@ import CodeScanner
 struct QRScannerView: View {
     @Binding var isPresented: Bool
     @StateObject private var viewModel = QRScannerViewModel()
+    @EnvironmentObject private var agentManager: AgentManager
     @State private var showingManualEntry = false
+    @State private var isConnecting = false
+    @State private var connectionMessage = ""
     
     var body: some View {
         NavigationStack {
@@ -24,6 +27,31 @@ struct QRScannerView: View {
                         .background(.ultraThinMaterial)
                         .cornerRadius(10)
                         .padding(.bottom, 100)
+                }
+                
+                // Connection progress overlay
+                if isConnecting {
+                    Color.black.opacity(0.7)
+                        .ignoresSafeArea()
+                    
+                    VStack(spacing: 20) {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(1.5)
+                        
+                        Text(connectionMessage)
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+                            .padding()
+                        
+                        Text("Please wait...")
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    .padding(40)
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(20)
                 }
             }
             .navigationTitle("Scan QR Code")
@@ -67,17 +95,37 @@ struct QRScannerView: View {
             } message: {
                 Text("Agent connected successfully")
             }
+            .onChange(of: viewModel.showingError) { showing in
+                if showing {
+                    isConnecting = false
+                }
+            }
+            .onChange(of: viewModel.showingSuccess) { showing in
+                if showing {
+                    isConnecting = false
+                }
+            }
+            .onAppear {
+                viewModel.setAgentManager(agentManager)
+            }
         }
     }
     
     private func handleScan(result: Result<ScanResult, ScanError>) {
         switch result {
         case .success(let result):
+            isConnecting = true
+            connectionMessage = "Connecting to agent..."
             Task {
                 await viewModel.handleQRCode(result.string)
+                // Update connection message if still connecting
+                if isConnecting && !viewModel.showingError && !viewModel.showingSuccess {
+                    connectionMessage = "This may take up to 5 minutes..."
+                }
             }
         case .failure(let error):
             viewModel.errorMessage = error.localizedDescription
+            viewModel.showingError = true
         }
     }
 }

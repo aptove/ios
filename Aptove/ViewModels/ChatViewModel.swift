@@ -15,6 +15,31 @@ class ChatViewModel: ObservableObject {
     
     func setAgentManager(_ manager: AgentManager) {
         self.agentManager = manager
+        
+        // Set up tool approval handler once during initialization
+        if let client = manager.getClient(for: agentId) {
+            client.onToolApprovalRequest = { [weak self] toolCallId, title, command in
+                Task { @MainActor in
+                    guard let self = self else { return }
+                    
+                    let commandText = command.map { "\n\n`\($0)`" } ?? ""
+                    let approvalMessage = Message(
+                        text: "⚠️ **Permission Required**\n\n\(title)\(commandText)",
+                        sender: .agent,
+                        status: .sent,
+                        type: .toolApprovalRequest,
+                        toolApproval: ToolApprovalInfo(
+                            toolCallId: toolCallId,
+                            title: title,
+                            command: command
+                        )
+                    )
+                    
+                    self.messages.append(approvalMessage)
+                    self.updateConversation()
+                }
+            }
+        }
     }
     
     func loadMessages() {
@@ -42,21 +67,91 @@ class ChatViewModel: ObservableObject {
             return
         }
         
-        await client.connect()
+        // Only connect if not already connected
+        if case .connected = client.connectionState {
+            // Already connected, continue
+        } else {
+            // Need to connect
+            await client.connect()
+            
+            // Check if connection was successful
+            guard case .connected = client.connectionState else {
+                let errorMsg = if case .error(let msg) = client.connectionState {
+                    msg
+                } else {
+                    "Failed to connect to agent"
+                }
+                
+                updateMessageStatus(userMessage.id, to: .error)
+                
+                let errorMessage = Message(
+                    text: "Connection error: \(errorMsg)",
+                    sender: .agent,
+                    status: .error,
+                    type: .text
+                )
+                
+                messages.append(errorMessage)
+                updateConversation()
+                isSending = false
+                return
+            }
+        }
         
         do {
-            let response = try await client.sendMessage(text)
-            
-            updateMessageStatus(userMessage.id, to: .sent)
-            
-            let agentMessage = Message(
-                text: response,
+            // Create agent message that will be updated incrementally
+            var agentMessage = Message(
+                text: "",
                 sender: .agent,
-                status: .sent
+                status: .sending,
+                type: .text
             )
-            
             messages.append(agentMessage)
+            let agentMessageIndex = messages.count - 1
+            var accumulatedText = "" // Track accumulated text separately
             updateConversation()
+            
+            // Send message with streaming callbacks
+            try await client.sendMessage(text,
+                onChunk: { chunk in
+                    // Update agent message incrementally on main thread
+                    Task { @MainActor in
+                        accumulatedText += chunk
+                        if agentMessageIndex < self.messages.count {
+                            self.messages[agentMessageIndex] = Message(
+                                id: agentMessage.id,
+                                text: accumulatedText,
+                                sender: .agent,
+                                status: .sending,
+                                type: .text
+                            )
+                            self.updateConversation()
+                        }
+                    }
+                },
+                onComplete: { stopReason in
+                    // Mark messages as complete
+                    Task { @MainActor in
+                        self.updateMessageStatus(userMessage.id, to: .sent)
+                        
+                        if agentMessageIndex < self.messages.count {
+                            // If agent message is empty, it might be a tool-only response
+                            let finalText = accumulatedText.isEmpty ? (stopReason == nil ? "Request failed" : "(Tool execution pending or cancelled)") : accumulatedText
+                            
+                            self.messages[agentMessageIndex] = Message(
+                                id: self.messages[agentMessageIndex].id,
+                                text: finalText,
+                                sender: .agent,
+                                status: stopReason != nil ? .sent : .error,
+                                type: .text
+                            )
+                            self.updateConversation()
+                        }
+                        
+                        self.isSending = false
+                    }
+                }
+            )
             
         } catch {
             updateMessageStatus(userMessage.id, to: .error)
@@ -64,11 +159,13 @@ class ChatViewModel: ObservableObject {
             let errorMessage = Message(
                 text: "Error: \(error.localizedDescription)",
                 sender: .agent,
-                status: .error
+                status: .error,
+                type: .text
             )
             
             messages.append(errorMessage)
             updateConversation()
+            isSending = false
         }
         
         isSending = false
@@ -76,14 +173,89 @@ class ChatViewModel: ObservableObject {
     
     private func updateMessageStatus(_ messageId: String, to status: MessageStatus) {
         if let index = messages.firstIndex(where: { $0.id == messageId }) {
+            let msg = messages[index]
             messages[index] = Message(
-                id: messages[index].id,
-                text: messages[index].text,
-                sender: messages[index].sender,
-                timestamp: messages[index].timestamp,
-                status: status
+                id: msg.id,
+                text: msg.text,
+                sender: msg.sender,
+                timestamp: msg.timestamp,
+                status: status,
+                type: msg.type,
+                toolApproval: msg.toolApproval
             )
             updateConversation()
+        }
+    }
+    
+    func approveTool(messageId: String) async {
+        guard let message = messages.first(where: { $0.id == messageId }),
+              let toolApproval = message.toolApproval,
+              let client = agentManager?.getClient(for: agentId) else {
+            return
+        }
+        
+        do {
+            try await client.approveTool(toolCallId: toolApproval.toolCallId)
+            
+            // Update message to show approval
+            if let index = messages.firstIndex(where: { $0.id == messageId }) {
+                var updatedApproval = toolApproval
+                updatedApproval = ToolApprovalInfo(
+                    toolCallId: toolApproval.toolCallId,
+                    title: toolApproval.title,
+                    command: toolApproval.command,
+                    approved: true
+                )
+                
+                messages[index] = Message(
+                    id: message.id,
+                    text: message.text,
+                    sender: message.sender,
+                    timestamp: message.timestamp,
+                    status: .sent,
+                    type: message.type,
+                    toolApproval: updatedApproval
+                )
+                updateConversation()
+            }
+        } catch {
+            print("Error approving tool: \(error)")
+        }
+    }
+    
+    func rejectTool(messageId: String) async {
+        guard let message = messages.first(where: { $0.id == messageId }),
+              let toolApproval = message.toolApproval,
+              let client = agentManager?.getClient(for: agentId) else {
+            return
+        }
+        
+        do {
+            try await client.rejectTool(toolCallId: toolApproval.toolCallId)
+            
+            // Update message to show rejection
+            if let index = messages.firstIndex(where: { $0.id == messageId }) {
+                var updatedApproval = toolApproval
+                updatedApproval = ToolApprovalInfo(
+                    toolCallId: toolApproval.toolCallId,
+                    title: toolApproval.title,
+                    command: toolApproval.command,
+                    approved: false
+                )
+                
+                messages[index] = Message(
+                    id: message.id,
+                    text: message.text,
+                    sender: message.sender,
+                    timestamp: message.timestamp,
+                    status: .sent,
+                    type: message.type,
+                    toolApproval: updatedApproval
+                )
+                updateConversation()
+            }
+        } catch {
+            print("Error rejecting tool: \(error)")
         }
     }
     

@@ -2,8 +2,8 @@ import Foundation
 
 struct ConnectionConfig: Codable {
     let url: String
-    let clientId: String
-    let clientSecret: String
+    let clientId: String?
+    let clientSecret: String?
     let protocolVersion: String
     let version: String
     
@@ -15,7 +15,7 @@ struct ConnectionConfig: Codable {
         case version
     }
     
-    init(url: String, clientId: String, clientSecret: String, protocolVersion: String = "acp", version: String = "1.0.0") {
+    init(url: String, clientId: String? = nil, clientSecret: String? = nil, protocolVersion: String = "acp", version: String = "1.0.0") {
         self.url = url
         self.clientId = clientId
         self.clientSecret = clientSecret
@@ -24,25 +24,31 @@ struct ConnectionConfig: Codable {
     }
     
     func validate() throws {
-        guard url.hasPrefix("https://") else {
-            throw ValidationError.invalidURL("URL must use HTTPS")
+        // Allow both ws:// (local development) and wss:// (production)
+        guard url.hasPrefix("wss://") || url.hasPrefix("ws://") || url.hasPrefix("https://") || url.hasPrefix("http://") else {
+            throw ValidationError.invalidURL("URL must use WebSocket (ws:// or wss://) or HTTP (http:// or https://) protocol")
         }
         
         guard protocolVersion == "acp" else {
             throw ValidationError.invalidProtocol("Protocol version must be 'acp'")
         }
         
-        guard !clientId.isEmpty else {
-            throw ValidationError.missingField("Client ID is required")
-        }
-        
-        guard !clientSecret.isEmpty else {
-            throw ValidationError.missingField("Client secret is required")
+        // Only require credentials for secure connections
+        let isSecure = url.hasPrefix("wss://") || url.hasPrefix("https://")
+        if isSecure {
+            guard let clientId = clientId, !clientId.isEmpty else {
+                throw ValidationError.missingField("Client ID is required for secure connections")
+            }
+            
+            guard let clientSecret = clientSecret, !clientSecret.isEmpty else {
+                throw ValidationError.missingField("Client secret is required for secure connections")
+            }
         }
     }
     
     var websocketURL: String {
         url.replacingOccurrences(of: "https://", with: "wss://")
+            .replacingOccurrences(of: "http://", with: "ws://")
     }
     
     enum ValidationError: LocalizedError {
