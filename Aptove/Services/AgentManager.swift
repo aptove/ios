@@ -6,7 +6,8 @@ class AgentManager: ObservableObject {
     @Published var agents: [Agent] = []
     @Published var conversations: [String: Conversation] = [:]
     
-    private var clients: [String: ACPClientWrapper] = [:]
+    nonisolated(unsafe) private var clients: [String: ACPClientWrapper] = [:]
+    private let clientsLock = NSLock()
     
     init() {
         print("📱 AgentManager: Initializing...")
@@ -35,9 +36,13 @@ class AgentManager: ObservableObject {
     }
     
     func removeAgent(agentId: String) async {
-        if let client = clients[agentId] {
+        clientsLock.lock()
+        let client = clients[agentId]
+        clients.removeValue(forKey: agentId)
+        clientsLock.unlock()
+        
+        if let client = client {
             await client.disconnect()
-            clients.removeValue(forKey: agentId)
         }
         
         agents.removeAll { $0.id == agentId }
@@ -48,22 +53,36 @@ class AgentManager: ObservableObject {
         saveAgents()
     }
     
-    func getClient(for agentId: String) -> ACPClientWrapper? {
+    nonisolated func getClient(for agentId: String) -> ACPClientWrapper? {
+        let startTime = CFAbsoluteTimeGetCurrent()
+        print("📱 AgentManager.getClient: START for \(agentId)")
+        
+        clientsLock.lock()
+        print("📱 AgentManager.getClient: Lock acquired (\(Int((CFAbsoluteTimeGetCurrent() - startTime) * 1000))ms)")
+        defer { 
+            clientsLock.unlock()
+            print("📱 AgentManager.getClient: Lock released, TOTAL TIME: \(Int((CFAbsoluteTimeGetCurrent() - startTime) * 1000))ms")
+        }
+        
         if let existingClient = clients[agentId] {
-            print("📱 AgentManager: Reusing existing client for agent \(agentId)")
+            print("📱 AgentManager.getClient: Cache HIT (\(Int((CFAbsoluteTimeGetCurrent() - startTime) * 1000))ms)")
             return existingClient
         }
         
-        print("📱 AgentManager: Creating new client for agent \(agentId)")
+        print("📱 AgentManager.getClient: Cache MISS, creating new client...")
         
+        let keychainStart = CFAbsoluteTimeGetCurrent()
         guard let config = try? KeychainManager.retrieve(for: agentId) else {
-            print("❌ AgentManager: Failed to retrieve config for agent \(agentId)")
+            print("❌ AgentManager.getClient: Keychain FAILED (\(Int((CFAbsoluteTimeGetCurrent() - keychainStart) * 1000))ms)")
             return nil
         }
+        print("📱 AgentManager.getClient: Keychain retrieved (\(Int((CFAbsoluteTimeGetCurrent() - keychainStart) * 1000))ms)")
         
+        let initStart = CFAbsoluteTimeGetCurrent()
         let client = ACPClientWrapper(config: config, agentId: agentId)
+        print("📱 AgentManager.getClient: Client created (\(Int((CFAbsoluteTimeGetCurrent() - initStart) * 1000))ms)")
+        
         clients[agentId] = client
-        print("✅ AgentManager: Client created and cached for agent \(agentId)")
         return client
     }
     

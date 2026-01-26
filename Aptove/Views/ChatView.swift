@@ -54,59 +54,16 @@ struct ChatView: View {
             }
             .padding()
         }
-        .navigationTitle(agent?.name ?? "Chat")
+        .navigationTitle(agentName)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                VStack(spacing: 2) {
-                    Text(agent?.name ?? "Chat")
-                        .font(.headline)
-                    Text(connectionStatusText)
-                        .font(.caption2)
-                        .foregroundColor(connectionStatusColor)
-                }
-            }
-        }
         .onAppear {
             viewModel.setAgentManager(agentManager)
             viewModel.loadMessages()
         }
     }
     
-    private var agent: Agent? {
-        agentManager.agents.first { $0.id == agentId }
-    }
-    
-    private var client: ACPClientWrapper? {
-        agentManager.getClient(for: agentId)
-    }
-    
-    private var connectionStatusText: String {
-        guard let client = client else { return "Unknown" }
-        switch client.connectionState {
-        case .connected:
-            return "Connected"
-        case .connecting:
-            return "Connecting..."
-        case .disconnected:
-            return "Disconnected"
-        case .error:
-            return "Error"
-        }
-    }
-    
-    private var connectionStatusColor: Color {
-        guard let client = client else { return .gray }
-        switch client.connectionState {
-        case .connected:
-            return .green
-        case .connecting:
-            return .orange
-        case .disconnected:
-            return .gray
-        case .error:
-            return .red
-        }
+    private var agentName: String {
+        agentManager.agents.first { $0.id == agentId }?.name ?? "Chat"
     }
     
     private func sendMessage() {

@@ -8,6 +8,9 @@ class ChatViewModel: ObservableObject {
     
     let agentId: String
     private var agentManager: AgentManager?
+    private var isToolApprovalHandlerSetup = false
+    private var cachedClient: ACPClientWrapper?
+    private var isPrewarmingClient = false
     
     init(agentId: String) {
         self.agentId = agentId
@@ -17,51 +20,110 @@ class ChatViewModel: ObservableObject {
         self.agentManager = manager
         print("💬 ChatViewModel: AgentManager set for agent \(agentId)")
         
-        // Don't create client yet - defer until first message or async setup
-        Task {
-            await setupToolApprovalHandler()
+        // Pre-warm client in background (fire-and-forget, don't await!)
+        prewarmClient()
+    }
+    
+    /// Pre-warm the client in background without blocking the main thread
+    /// This includes establishing the WebSocket connection so first message is instant
+    private func prewarmClient() {
+        guard !isPrewarmingClient, cachedClient == nil else { return }
+        isPrewarmingClient = true
+        
+        print("🔥 ChatViewModel: Starting client pre-warm for agent \(agentId)")
+        
+        // Fire-and-forget - don't await!
+        Task.detached { [weak self, agentManager, agentId] in
+            print("🔥 ChatViewModel: Pre-warm task started (background thread)")
+            let client = agentManager?.getClient(for: agentId)
+            print("🔥 ChatViewModel: Pre-warm got client: \(client != nil)")
+            
+            // Also establish connection in background so first message is instant
+            if let client = client {
+                print("🔥 ChatViewModel: Pre-warm connecting to agent...")
+                await client.connect()
+                print("🔥 ChatViewModel: Pre-warm connection attempt complete")
+            }
+            
+            // Update cached client and set up tool handler on main actor
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
+                self.cachedClient = client
+                self.isPrewarmingClient = false
+                
+                if let client = client {
+                    print("🔥 ChatViewModel: Pre-warm complete, client cached, state: \(client.connectionState)")
+                    
+                    // Set up tool approval handler now that we have the client
+                    if !self.isToolApprovalHandlerSetup {
+                        self.setupToolApprovalHandlerSync(client: client)
+                    }
+                } else {
+                    print("🔥 ChatViewModel: Pre-warm complete but no client")
+                }
+            }
+        }
+    }
+    
+    /// Synchronous version of tool approval handler setup (call from MainActor)
+    private func setupToolApprovalHandlerSync(client: ACPClientWrapper) {
+        guard !isToolApprovalHandlerSetup else { return }
+        isToolApprovalHandlerSetup = true
+        
+        print("💬 ChatViewModel: Setting up tool approval handler for agent \(agentId)")
+        client.onToolApprovalRequest = { [weak self] toolCallId, title, command, permissions in
+            Task { @MainActor in
+                guard let self = self else { return }
+                
+                let commandText = command.map { "\n\n`\($0)`" } ?? ""
+                
+                // Convert permissions to PermissionOptionInfo
+                let options = permissions.map { permission in
+                    PermissionOptionInfo(
+                        optionId: permission.optionId.value,
+                        name: permission.name,
+                        kind: permission.kind.rawValue
+                    )
+                }
+                
+                let approvalMessage = Message(
+                    text: "⚠️ **Permission Required**\n\n\(title)\(commandText)",
+                    sender: .agent,
+                    status: .sent,
+                    type: .toolApprovalRequest,
+                    toolApproval: ToolApprovalInfo(
+                        toolCallId: toolCallId,
+                        title: title,
+                        command: command,
+                        options: options
+                    )
+                )
+                
+                self.messages.append(approvalMessage)
+                self.updateConversation()
+            }
         }
     }
     
     private func setupToolApprovalHandler() async {
-        guard let manager = agentManager else { return }
+        // Only set up once
+        guard !isToolApprovalHandlerSetup else { return }
         
-        // Get client (may create if needed) - stays on main actor but doesn't block UI
-        guard let client = manager.getClient(for: agentId) else { return }
+        // Use cached client or get it (should be pre-warmed by now)
+        let client: ACPClientWrapper?
+        if let cached = cachedClient {
+            client = cached
+            print("💬 ChatViewModel: Using pre-warmed client for tool approval handler")
+        } else {
+            print("💬 ChatViewModel: Client not pre-warmed, getting now...")
+            client = await Task.detached { [agentManager, agentId] in
+                agentManager?.getClient(for: agentId)
+            }.value
+        }
         
-        print("💬 ChatViewModel: Setting up tool approval handler for agent \(agentId)")
-        client.onToolApprovalRequest = { [weak self] toolCallId, title, command, permissions in
-                Task { @MainActor in
-                    guard let self = self else { return }
-                    
-                    let commandText = command.map { "\n\n`\($0)`" } ?? ""
-                    
-                    // Convert permissions to PermissionOptionInfo
-                    let options = permissions.map { permission in
-                        PermissionOptionInfo(
-                            optionId: permission.optionId.value,
-                            name: permission.name,
-                            kind: permission.kind.rawValue
-                        )
-                    }
-                    
-                    let approvalMessage = Message(
-                        text: "⚠️ **Permission Required**\n\n\(title)\(commandText)",
-                        sender: .agent,
-                        status: .sent,
-                        type: .toolApprovalRequest,
-                        toolApproval: ToolApprovalInfo(
-                            toolCallId: toolCallId,
-                            title: title,
-                            command: command,
-                            options: options
-                        )
-                    )
-                    
-                    self.messages.append(approvalMessage)
-                    self.updateConversation()
-                }
-            }
+        guard let client = client else { return }
+        
+        setupToolApprovalHandlerSync(client: client)
     }
     
     func loadMessages() {
@@ -72,6 +134,7 @@ class ChatViewModel: ObservableObject {
     }
     
     func sendMessage(_ text: String) async {
+        print("📤 ChatViewModel.sendMessage: Starting...")
         isSending = true
         
         let userMessage = Message(
@@ -83,10 +146,30 @@ class ChatViewModel: ObservableObject {
         messages.append(userMessage)
         updateConversation()
         
-        guard let client = agentManager?.getClient(for: agentId) else {
+        // Use cached client if available (should be pre-warmed)
+        let client: ACPClientWrapper?
+        if let cached = cachedClient {
+            print("📤 ChatViewModel.sendMessage: Using pre-warmed client")
+            client = cached
+        } else {
+            print("📤 ChatViewModel.sendMessage: Client not pre-warmed, getting now...")
+            // Get client off main thread to avoid blocking
+            client = await Task.detached { [agentManager, agentId] in
+                agentManager?.getClient(for: agentId)
+            }.value
+            cachedClient = client
+        }
+        
+        guard let client = client else {
+            print("❌ ChatViewModel.sendMessage: No client available")
             updateMessageStatus(userMessage.id, to: .error)
             isSending = false
             return
+        }
+        
+        // Set up tool approval handler lazily on first message
+        if !isToolApprovalHandlerSetup {
+            await setupToolApprovalHandler()
         }
         
         // Only connect if not already connected
@@ -299,10 +382,12 @@ class ChatViewModel: ObservableObject {
     
     func approveTool(messageId: String, optionId: String = "allow_once") async {
         guard let message = messages.first(where: { $0.id == messageId }),
-              let toolApproval = message.toolApproval,
-              let client = agentManager?.getClient(for: agentId) else {
+              let toolApproval = message.toolApproval else {
             return
         }
+        
+        // Use cached client
+        guard let client = cachedClient else { return }
         
         do {
             try await client.approveTool(toolCallId: toolApproval.toolCallId, optionId: optionId)
@@ -336,10 +421,12 @@ class ChatViewModel: ObservableObject {
     
     func rejectTool(messageId: String) async {
         guard let message = messages.first(where: { $0.id == messageId }),
-              let toolApproval = message.toolApproval,
-              let client = agentManager?.getClient(for: agentId) else {
+              let toolApproval = message.toolApproval else {
             return
         }
+        
+        // Use cached client
+        guard let client = cachedClient else { return }
         
         do {
             try await client.rejectTool(toolCallId: toolApproval.toolCallId)

@@ -145,7 +145,7 @@ class ACPClientWrapper: ObservableObject {
     // Store for collecting agent responses
     private var currentResponse: String = ""
     
-    init(config: ConnectionConfig, agentId: String, connectionTimeout: TimeInterval = 300, maxRetries: Int = 3) {
+    nonisolated init(config: ConnectionConfig, agentId: String, connectionTimeout: TimeInterval = 300, maxRetries: Int = 3) {
         print("🔌 ACPClientWrapper: Initializing for agent \(agentId)")
         print("🔌 ACPClientWrapper: URL: \(config.websocketURL)")
         print("🔌 ACPClientWrapper: Timeout: \(connectionTimeout)s, Max retries: \(maxRetries)")
@@ -184,8 +184,10 @@ class ACPClientWrapper: ObservableObject {
                 // Create URLSession with optional CF-Access headers
                 print("🔌 ACPClientWrapper.connect(): Configuring URLSession...")
                 let configuration = URLSessionConfiguration.default
-                configuration.timeoutIntervalForRequest = connectionTimeout
-                configuration.timeoutIntervalForResource = connectionTimeout
+                // Don't set timeouts for WebSocket connections - they need to stay open indefinitely
+                // Only use connectionTimeout for the initial connection attempt
+                configuration.timeoutIntervalForRequest = TimeInterval.infinity
+                configuration.timeoutIntervalForResource = TimeInterval.infinity
                 
                 var headers: [String: String] = [:]
                 
