@@ -301,6 +301,7 @@ class ACPClientWrapper: ObservableObject {
     var onResponseChunk: ((String) -> Void)?
     var onThought: ((String) -> Void)?
     var onToolCall: ((String) -> Void)?
+    var onToolUpdate: ((String, String) -> Void)? // (toolCallId, content)
     var onComplete: ((StopReason) -> Void)?
     var onToolApprovalRequest: ((String, String, String?, [PermissionOption]) -> Void)? // toolCallId, title, command, options
     
