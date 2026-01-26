@@ -8,15 +8,21 @@ struct QRScannerView: View {
     @State private var showingManualEntry = false
     @State private var isConnecting = false
     @State private var connectionMessage = ""
+    @State private var isScannerActive = true
     
     var body: some View {
         NavigationStack {
             ZStack {
-                CodeScannerView(
-                    codeTypes: [.qr],
-                    simulatedData: "Mock QR Code Data",
-                    completion: handleScan
-                )
+                if isScannerActive && !isConnecting {
+                    CodeScannerView(
+                        codeTypes: [.qr],
+                        simulatedData: "Mock QR Code Data",
+                        completion: handleScan
+                    )
+                } else {
+                    Color.black
+                        .ignoresSafeArea()
+                }
                 
                 VStack {
                     Spacer()
@@ -79,6 +85,10 @@ struct QRScannerView: View {
                     }
                 )
             }
+            .onChange(of: showingManualEntry) { isShowing in
+                // Stop scanner when manual entry is shown, restart when dismissed
+                isScannerActive = !isShowing && !isConnecting
+            }
             .alert("Connection Error", isPresented: $viewModel.showingError) {
                 Button("OK") {
                     viewModel.errorMessage = nil
@@ -98,20 +108,35 @@ struct QRScannerView: View {
             .onChange(of: viewModel.showingError) { showing in
                 if showing {
                     isConnecting = false
+                    // Reactivate scanner after error so user can try again
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        if !showingManualEntry {
+                            isScannerActive = true
+                        }
+                    }
                 }
             }
             .onChange(of: viewModel.showingSuccess) { showing in
                 if showing {
                     isConnecting = false
+                    // Keep scanner deactivated on success
                 }
             }
             .onAppear {
                 viewModel.setAgentManager(agentManager)
+                isScannerActive = true
+            }
+            .onDisappear {
+                // Stop the scanner when view disappears to release camera resources
+                isScannerActive = false
             }
         }
     }
     
     private func handleScan(result: Result<ScanResult, ScanError>) {
+        // Deactivate scanner immediately to release camera
+        isScannerActive = false
+        
         switch result {
         case .success(let result):
             isConnecting = true
@@ -126,6 +151,7 @@ struct QRScannerView: View {
         case .failure(let error):
             viewModel.errorMessage = error.localizedDescription
             viewModel.showingError = true
+            // Scanner will be reactivated by onChange handler
         }
     }
 }
