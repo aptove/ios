@@ -120,6 +120,8 @@ class ChatViewModel: ObservableObject {
             messages.append(agentMessage)
             let agentMessageIndex = messages.count - 1
             var accumulatedText = "" // Track accumulated text separately
+            var currentThoughtId: String? = nil // Track current thought message
+            var currentToolId: String? = nil // Track current tool message
             updateConversation()
             
             // Send message with streaming callbacks
@@ -138,6 +140,62 @@ class ChatViewModel: ObservableObject {
                             )
                             self.updateConversation()
                         }
+                    }
+                },
+                onThought: { thought in
+                    // Display thought message
+                    Task { @MainActor in
+                        if let thinkingId = currentThoughtId,
+                           let index = self.messages.firstIndex(where: { $0.id == thinkingId }) {
+                            // Update existing thought message
+                            self.messages[index] = Message(
+                                id: thinkingId,
+                                text: thought,
+                                sender: .agent,
+                                status: .sent,
+                                type: .thought,
+                                isThinking: true
+                            )
+                        } else {
+                            // Create new thought message
+                            let thinkingMsg = Message(
+                                text: thought,
+                                sender: .agent,
+                                status: .sent,
+                                type: .thought,
+                                isThinking: true
+                            )
+                            self.messages.append(thinkingMsg)
+                            currentThoughtId = thinkingMsg.id
+                        }
+                        self.updateConversation()
+                    }
+                },
+                onToolCall: { toolTitle in
+                    // Display tool status message
+                    Task { @MainActor in
+                        if let toolId = currentToolId,
+                           let index = self.messages.firstIndex(where: { $0.id == toolId }) {
+                            // Update existing tool message
+                            self.messages[index] = Message(
+                                id: toolId,
+                                text: toolTitle,
+                                sender: .agent,
+                                status: .sent,
+                                type: .toolStatus
+                            )
+                        } else {
+                            // Create new tool message
+                            let toolMsg = Message(
+                                text: toolTitle,
+                                sender: .agent,
+                                status: .sent,
+                                type: .toolStatus
+                            )
+                            self.messages.append(toolMsg)
+                            currentToolId = toolMsg.id
+                        }
+                        self.updateConversation()
                     }
                 },
                 onComplete: { stopReason in

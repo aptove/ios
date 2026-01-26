@@ -14,6 +14,8 @@ enum MessageStatus: String, Codable {
 enum MessageType: String, Codable {
     case text
     case toolApprovalRequest
+    case thought
+    case toolStatus
 }
 
 struct PermissionOptionInfo: Codable, Identifiable {
@@ -54,8 +56,9 @@ struct Message: Identifiable, Codable {
     var status: MessageStatus
     let type: MessageType
     let toolApproval: ToolApprovalInfo?
+    var isThinking: Bool // For thought/tool status messages
     
-    init(id: String = UUID().uuidString, text: String, sender: MessageSender, timestamp: Date = Date(), status: MessageStatus = .sent, type: MessageType = .text, toolApproval: ToolApprovalInfo? = nil) {
+    init(id: String = UUID().uuidString, text: String, sender: MessageSender, timestamp: Date = Date(), status: MessageStatus = .sent, type: MessageType = .text, toolApproval: ToolApprovalInfo? = nil, isThinking: Bool = false) {
         self.id = id
         self.text = text
         self.sender = sender
@@ -63,5 +66,6 @@ struct Message: Identifiable, Codable {
         self.status = status
         self.type = type
         self.toolApproval = toolApproval
+        self.isThinking = isThinking
     }
 }

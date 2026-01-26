@@ -135,6 +135,10 @@ struct MessageBubble: View {
             VStack(alignment: message.sender == .user ? .trailing : .leading, spacing: 4) {
                 if message.type == .toolApprovalRequest {
                     toolApprovalView
+                } else if message.type == .thought {
+                    thoughtBubbleView
+                } else if message.type == .toolStatus {
+                    toolStatusBubbleView
                 } else {
                     textBubbleView
                 }
@@ -163,6 +167,34 @@ struct MessageBubble: View {
             .background(backgroundColor)
             .foregroundColor(textColor)
             .cornerRadius(16)
+    }
+    
+    @ViewBuilder
+    private var thoughtBubbleView: some View {
+        HStack(spacing: 8) {
+            ProgressView()
+                .scaleEffect(0.8)
+            Text(message.text)
+                .font(.subheadline)
+                .italic()
+        }
+        .padding(10)
+        .background(Color.purple.opacity(0.1))
+        .foregroundColor(.purple)
+        .cornerRadius(12)
+    }
+    
+    @ViewBuilder
+    private var toolStatusBubbleView: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "gear")
+            Text(message.text)
+                .font(.subheadline)
+        }
+        .padding(10)
+        .background(Color.blue.opacity(0.1))
+        .foregroundColor(.blue)
+        .cornerRadius(12)
     }
     
     @ViewBuilder

@@ -18,8 +18,10 @@ private class AptoveClient: Client, ClientSessionOperations {
         Implementation(name: "Aptove", version: "1.0.0")
     }
     
-    // Callback to handle session updates
+    // Callbacks to handle session updates
     var onUpdate: ((SessionUpdate) -> Void)?
+    var onThought: ((String) -> Void)?
+    var onToolCall: ((String) -> Void)?
     
     //Store pending permission requests with continuations
     var pendingPermissions: [String: CheckedContinuation<RequestPermissionResponse, Error>] = [:]
@@ -304,13 +306,17 @@ class ACPClientWrapper: ObservableObject {
     // Store pending tool approval requests
     private var pendingToolRequests: [String: ToolCallUpdateData] = [:] // toolCallId -> ToolCallUpdateData
     
-    func sendMessage(_ text: String, onChunk: @escaping (String) -> Void, onComplete: @escaping (StopReason?) -> Void = { _ in }) async throws {
+    func sendMessage(_ text: String, onChunk: @escaping (String) -> Void, onThought: ((String) -> Void)? = nil, onToolCall: ((String) -> Void)? = nil, onComplete: @escaping (StopReason?) -> Void = { _ in }) async throws {
         guard let conn = connection, let sessionId = currentSessionId, let client = client else {
             throw ClientError.noActiveSession
         }
         
         print("📤 Sending prompt to session: \(sessionId.value)")
         print("📤 Message: \(text)")
+        
+        // Store callbacks
+        self.onThought = onThought
+        self.onToolCall = onToolCall
         
         // Set up streaming response collector
         client.onUpdate = { [weak self] update in
