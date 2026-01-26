@@ -138,6 +138,9 @@ class ACPClientWrapper: ObservableObject {
     let connectionTimeout: TimeInterval
     let maxRetries: Int
     
+    /// The agent's self-reported name (from InitializeResponse)
+    private(set) var connectedAgentName: String?
+    
     private var connection: ClientConnection?
     private var currentSessionId: SessionId?
     private var client: AptoveClient?
@@ -250,8 +253,14 @@ class ACPClientWrapper: ObservableObject {
                 // Connect and initialize with extended timeout
                 connectionMessage = "Initializing agent...\nPlease wait, this can take up to \(Int(connectionTimeout)) seconds."
                 print("🔌 ACPClientWrapper.connect(): Calling conn.connect()...")
-                _ = try await conn.connect()
+                let agentInfo = try await conn.connect()
                 print("✅ ACPClientWrapper.connect(): Connection established!")
+                
+                // Store the agent's self-reported name from the InitializeResponse
+                self.connectedAgentName = agentInfo?.name
+                if let name = self.connectedAgentName {
+                    print("🤖 ACPClientWrapper.connect(): Agent name: \(name)")
+                }
                 
                 // Always try to create a session (loadSession:false just means can't load old sessions)
                 connectionMessage = "Creating session..."

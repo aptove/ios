@@ -15,6 +15,30 @@ class AgentManager: ObservableObject {
         print("📱 AgentManager: Initialization complete, loaded \(agents.count) agents")
     }
     
+    /// Check if an agent with the same URL (and clientId for Cloudflare) already exists
+    func hasAgent(withURL url: String, clientId: String?) -> Bool {
+        // Normalize URL for comparison (remove trailing slash)
+        let normalizedURL = url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        
+        return agents.contains { agent in
+            let agentURL = agent.url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            
+            // For local connections (no clientId), just compare URLs
+            if clientId == nil || clientId?.isEmpty == true {
+                return agentURL == normalizedURL
+            }
+            
+            // For Cloudflare connections, need to match both URL and clientId
+            // But we don't store clientId in Agent, so we check via Keychain
+            if agentURL == normalizedURL {
+                if let storedConfig = try? KeychainManager.retrieve(for: agent.id) {
+                    return storedConfig.clientId == clientId
+                }
+            }
+            return false
+        }
+    }
+    
     func addAgent(config: ConnectionConfig, agentId: String, name: String) throws {
         try config.validate()
         

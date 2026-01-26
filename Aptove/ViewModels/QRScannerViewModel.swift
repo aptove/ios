@@ -39,26 +39,32 @@ class QRScannerViewModel: ObservableObject {
                 throw ScanError.unsupportedProtocol(config.protocolVersion)
             }
             
+            guard let manager = agentManager else {
+                print("❌ QRScannerViewModel.handleQRCode(): No agent manager!")
+                throw ScanError.noAgentManager
+            }
+            
+            // Check for duplicate before testing connection
+            if manager.hasAgent(withURL: config.url, clientId: config.clientId) {
+                print("⚠️ QRScannerViewModel.handleQRCode(): Agent already exists for this URL")
+                throw ScanError.duplicateAgent
+            }
+            
             print("📷 QRScannerViewModel.handleQRCode(): Testing connection...")
-            let success = await testConnection(config: config)
-            print("📷 QRScannerViewModel.handleQRCode(): Connection test result: \(success)")
+            let (success, agentName) = await testConnectionWithName(config: config)
+            print("📷 QRScannerViewModel.handleQRCode(): Connection test result: \(success), name: \(agentName ?? "nil")")
             
             if success {
                 print("✅ QRScannerViewModel.handleQRCode(): Connection successful, adding agent...")
                 let agentId = UUID().uuidString
-                let agentName = extractAgentName(from: config.url)
-                print("📷 QRScannerViewModel.handleQRCode(): Agent ID: \(agentId), Name: \(agentName)")
-                
-                guard let manager = agentManager else {
-                    print("❌ QRScannerViewModel.handleQRCode(): No agent manager!")
-                    throw ScanError.noAgentManager
-                }
+                let finalName = agentName ?? extractAgentName(from: config.url)
+                print("📷 QRScannerViewModel.handleQRCode(): Agent ID: \(agentId), Name: \(finalName)")
                 
                 print("📷 QRScannerViewModel.handleQRCode(): Calling manager.addAgent()...")
                 try manager.addAgent(
                     config: config,
                     agentId: agentId,
-                    name: agentName
+                    name: finalName
                 )
                 print("✅ QRScannerViewModel.handleQRCode(): Agent added successfully")
                 
@@ -88,20 +94,25 @@ class QRScannerViewModel: ObservableObject {
         do {
             try config.validate()
             
-            let success = await testConnection(config: config)
+            guard let manager = agentManager else {
+                throw ScanError.noAgentManager
+            }
+            
+            // Check for duplicate
+            if manager.hasAgent(withURL: config.url, clientId: config.clientId) {
+                throw ScanError.duplicateAgent
+            }
+            
+            let (success, agentName) = await testConnectionWithName(config: config)
             
             if success {
                 let agentId = UUID().uuidString
-                let agentName = extractAgentName(from: config.url)
-                
-                guard let manager = agentManager else {
-                    throw ScanError.noAgentManager
-                }
+                let finalName = agentName ?? extractAgentName(from: config.url)
                 
                 try manager.addAgent(
                     config: config,
                     agentId: agentId,
-                    name: agentName
+                    name: finalName
                 )
                 
                 showingSuccess = true
@@ -115,8 +126,44 @@ class QRScannerViewModel: ObservableObject {
         }
     }
     
+    /// Test connection and return both success status and agent's self-reported name
+    private func testConnectionWithName(config: ConnectionConfig) async -> (success: Bool, agentName: String?) {
+        print("🧪 QRScannerViewModel.testConnectionWithName(): Creating test wrapper...")
+        let wrapper = ACPClientWrapper(config: config, agentId: "test", connectionTimeout: 300, maxRetries: 2)
+        print("🧪 QRScannerViewModel.testConnectionWithName(): Test wrapper created, calling connect()...")
+        
+        await wrapper.connect()
+        print("🧪 QRScannerViewModel.testConnectionWithName(): Connect() returned, checking state...")
+        
+        let isConnected: Bool
+        let agentName: String?
+        
+        switch wrapper.connectionState {
+        case .connected:
+            print("✅ QRScannerViewModel.testConnectionWithName(): Connection successful")
+            isConnected = true
+            agentName = wrapper.connectedAgentName
+            print("🤖 QRScannerViewModel.testConnectionWithName(): Agent name: \(agentName ?? "nil")")
+        case .error(let message):
+            print("❌ QRScannerViewModel.testConnectionWithName(): Connection error: \(message)")
+            self.errorMessage = message
+            isConnected = false
+            agentName = nil
+        default:
+            print("❌ QRScannerViewModel.testConnectionWithName(): Unexpected state: \(wrapper.connectionState)")
+            isConnected = false
+            agentName = nil
+        }
+        
+        print("🧪 QRScannerViewModel.testConnectionWithName(): Disconnecting test wrapper...")
+        await wrapper.disconnect()
+        print("🧪 QRScannerViewModel.testConnectionWithName(): Test complete")
+        
+        return (isConnected, agentName)
+    }
+    
+    @available(*, deprecated, message: "Use testConnectionWithName instead")
     private func testConnection(config: ConnectionConfig) async -> Bool {
-        print("🧪 QRScannerViewModel.testConnection(): Creating test wrapper...")
         // Use extended timeout (5 minutes) and 2 retries for QR code connections
         let wrapper = ACPClientWrapper(config: config, agentId: "test", connectionTimeout: 300, maxRetries: 2)
         print("🧪 QRScannerViewModel.testConnection(): Test wrapper created, calling connect()...")
@@ -165,6 +212,7 @@ class QRScannerViewModel: ObservableObject {
         case unsupportedProtocol(String)
         case connectionFailed
         case noAgentManager
+        case duplicateAgent
         
         var errorDescription: String? {
             switch self {
@@ -176,6 +224,8 @@ class QRScannerViewModel: ObservableObject {
                 return "Failed to connect to agent"
             case .noAgentManager:
                 return "Agent manager not initialized"
+            case .duplicateAgent:
+                return "This agent is already connected"
             }
         }
     }
