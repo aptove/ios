@@ -9,7 +9,6 @@ struct ContentView: View {
     }
     
     var body: some View {
-        print("🖥️  ContentView: body computed")
         NavigationStack {
             Group {
                 if agentManager.agents.isEmpty {
@@ -33,6 +32,9 @@ struct ContentView: View {
             }
         }
         .environmentObject(agentManager)
+        .onAppear {
+            print("🖥️  ContentView: View appeared and rendered")
+        }
     }
 }
 

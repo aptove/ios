@@ -10,8 +10,7 @@ struct AptoveApp: App {
     }
     
     var body: some Scene {
-        print("🚀 AptoveApp: body computed, creating WindowGroup")
-        return WindowGroup {
+        WindowGroup {
             ContentView()
                 .environmentObject(agentManager)
                 .onAppear {
