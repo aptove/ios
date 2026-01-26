@@ -83,6 +83,20 @@ struct ManualConnectionView: View {
                             .font(.subheadline)
                             .foregroundColor(.white.opacity(0.8))
                             .multilineTextAlignment(.center)
+                        
+                        Button {
+                            // Cancel connection
+                            isConnecting = false
+                        } label: {
+                            Text("Cancel")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 32)
+                                .padding(.vertical, 12)
+                                .background(Color.red.opacity(0.8))
+                                .cornerRadius(10)
+                        }
+                        .padding(.top, 8)
                     }
                     .padding(40)
                     .background(.ultraThinMaterial)

@@ -54,6 +54,22 @@ struct QRScannerView: View {
                         Text("Please wait...")
                             .font(.subheadline)
                             .foregroundColor(.white.opacity(0.8))
+                        
+                        Button {
+                            // Cancel connection
+                            isConnecting = false
+                            connectionMessage = ""
+                            isScannerActive = true
+                        } label: {
+                            Text("Cancel")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 32)
+                                .padding(.vertical, 12)
+                                .background(Color.red.opacity(0.8))
+                                .cornerRadius(10)
+                        }
+                        .padding(.top, 8)
                     }
                     .padding(40)
                     .background(.ultraThinMaterial)
