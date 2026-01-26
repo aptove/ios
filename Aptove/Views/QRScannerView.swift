@@ -9,6 +9,7 @@ struct QRScannerView: View {
     @State private var isConnecting = false
     @State private var connectionMessage = ""
     @State private var isScannerActive = true
+    @State private var scannerID = UUID() // Force recreation of scanner
     
     var body: some View {
         NavigationStack {
@@ -19,6 +20,7 @@ struct QRScannerView: View {
                         simulatedData: "Mock QR Code Data",
                         completion: handleScan
                     )
+                    .id(scannerID) // Use ID to force complete recreation
                 } else {
                     Color.black
                         .ignoresSafeArea()
@@ -60,6 +62,7 @@ struct QRScannerView: View {
                             isConnecting = false
                             connectionMessage = ""
                             isScannerActive = true
+                            scannerID = UUID() // Create fresh scanner
                         } label: {
                             Text("Cancel")
                                 .font(.headline)
@@ -128,6 +131,7 @@ struct QRScannerView: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         if !showingManualEntry {
                             isScannerActive = true
+                            scannerID = UUID() // Create fresh scanner
                         }
                     }
                 }
@@ -141,10 +145,15 @@ struct QRScannerView: View {
             .onAppear {
                 viewModel.setAgentManager(agentManager)
                 isScannerActive = true
+                scannerID = UUID() // Force new scanner instance
             }
             .onDisappear {
                 // Stop the scanner when view disappears to release camera resources
                 isScannerActive = false
+                // Give time for camera to fully release
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    scannerID = UUID()
+                }
             }
         }
     }
