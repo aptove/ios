@@ -26,16 +26,11 @@ class ChatViewModel: ObservableObject {
     private func setupToolApprovalHandler() async {
         guard let manager = agentManager else { return }
         
-        // Create client off main thread if needed
-        let client = await Task.detached(priority: .userInitiated) { [agentId, manager] in
-            manager.getClient(for: agentId)
-        }.value
+        // Get client (may create if needed) - stays on main actor but doesn't block UI
+        guard let client = manager.getClient(for: agentId) else { return }
         
-        guard let client = client else { return }
-        
-        await MainActor.run {
-            print("💬 ChatViewModel: Setting up tool approval handler for agent \(agentId)")
-            client.onToolApprovalRequest = { [weak self] toolCallId, title, command, permissions in
+        print("💬 ChatViewModel: Setting up tool approval handler for agent \(agentId)")
+        client.onToolApprovalRequest = { [weak self] toolCallId, title, command, permissions in
                 Task { @MainActor in
                     guard let self = self else { return }
                     
@@ -67,7 +62,6 @@ class ChatViewModel: ObservableObject {
                     self.updateConversation()
                 }
             }
-        }
     }
     
     func loadMessages() {
