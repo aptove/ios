@@ -6,6 +6,10 @@ import ACPModel
 /// Client implementation that collects streaming responses
 @MainActor
 private class AptoveClient: Client, ClientSessionOperations {
+    
+    init() {
+        print("👤 AptoveClient: Initializing...")
+    }
     var capabilities: ClientCapabilities {
         ClientCapabilities(terminal: true) // Enable terminal to see if agent calls us
     }
@@ -139,32 +143,43 @@ class ACPClientWrapper: ObservableObject {
     private var currentResponse: String = ""
     
     init(config: ConnectionConfig, agentId: String, connectionTimeout: TimeInterval = 300, maxRetries: Int = 3) {
+        print("🔌 ACPClientWrapper: Initializing for agent \(agentId)")
+        print("🔌 ACPClientWrapper: URL: \(config.websocketURL)")
+        print("🔌 ACPClientWrapper: Timeout: \(connectionTimeout)s, Max retries: \(maxRetries)")
         self.config = config
         self.agentId = agentId
         self.connectionTimeout = connectionTimeout
         self.maxRetries = maxRetries
+        print("🔌 ACPClientWrapper: Initialization complete")
     }
     
     func connect() async {
+        print("🔌 ACPClientWrapper.connect(): Starting connection flow...")
         connectionState = .connecting
         connectionMessage = "Connecting to agent..."
         
         var lastError: Error?
         
         for attempt in 1...maxRetries {
+            print("🔌 ACPClientWrapper.connect(): Attempt \(attempt)/\(maxRetries)")
             do {
                 if attempt > 1 {
                     connectionMessage = "Retrying connection (\(attempt)/\(maxRetries))..."
+                    print("🔌 ACPClientWrapper.connect(): Waiting 2s before retry...")
                     // Wait a bit before retrying
                     try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
                 }
                 
+                print("🔌 ACPClientWrapper.connect(): Validating URL...")
                 guard let url = URL(string: config.websocketURL) else {
+                    print("❌ ACPClientWrapper.connect(): Invalid URL: \(config.websocketURL)")
                     connectionState = .error("Invalid URL")
                     return
                 }
+                print("🔌 ACPClientWrapper.connect(): URL valid: \(url)")
                 
                 // Create URLSession with optional CF-Access headers
+                print("🔌 ACPClientWrapper.connect(): Configuring URLSession...")
                 let configuration = URLSessionConfiguration.default
                 configuration.timeoutIntervalForRequest = connectionTimeout
                 configuration.timeoutIntervalForResource = connectionTimeout
@@ -173,27 +188,39 @@ class ACPClientWrapper: ObservableObject {
                 
                 // Only add CF-Access headers if credentials are provided
                 if let clientId = config.clientId, !clientId.isEmpty {
+                    print("🔌 ACPClientWrapper.connect(): Adding CF-Access-Client-Id header")
                     headers["CF-Access-Client-Id"] = clientId
                 }
                 
                 if let clientSecret = config.clientSecret, !clientSecret.isEmpty {
+                    print("🔌 ACPClientWrapper.connect(): Adding CF-Access-Client-Secret header")
                     headers["CF-Access-Client-Secret"] = clientSecret
                 }
                 
                 if !headers.isEmpty {
+                    print("🔌 ACPClientWrapper.connect(): Setting \(headers.count) HTTP headers")
                     configuration.httpAdditionalHeaders = headers
+                } else {
+                    print("🔌 ACPClientWrapper.connect(): No additional headers needed")
                 }
                 
+                print("🔌 ACPClientWrapper.connect(): Creating URLSession...")
                 let session = URLSession(configuration: configuration)
                 
                 connectionMessage = "Establishing connection...\nThis may take a moment if authorization is required."
                 
+                print("🔌 ACPClientWrapper.connect(): Creating WebSocketTransport...")
                 let transport = WebSocketTransport(url: url, session: session)
+                
+                print("🔌 ACPClientWrapper.connect(): Creating AptoveClient...")
                 let client = AptoveClient()
                 self.client = client
+                print("🔌 ACPClientWrapper.connect(): Client created")
                 
                 // Set up permission request handler
+                print("🔌 ACPClientWrapper.connect(): Setting up permission request handler...")
                 client.onPermissionRequest = { [weak self] requestId, toolCall, permissions in
+                    print("🔐 Permission request received in handler: \(requestId)")
                     Task { @MainActor in
                         guard let self = self else { return }
                         
@@ -211,11 +238,15 @@ class ACPClientWrapper: ObservableObject {
                 }
                 
                 // Pass the connectionTimeout to ensure Protocol layer respects our extended timeout
+                print("🔌 ACPClientWrapper.connect(): Creating ClientConnection...")
                 let conn = ClientConnection(transport: transport, client: client, defaultTimeoutSeconds: connectionTimeout)
+                print("🔌 ACPClientWrapper.connect(): ClientConnection created")
                 
                 // Connect and initialize with extended timeout
                 connectionMessage = "Initializing agent...\nPlease wait, this can take up to \(Int(connectionTimeout)) seconds."
+                print("🔌 ACPClientWrapper.connect(): Calling conn.connect()...")
                 _ = try await conn.connect()
+                print("✅ ACPClientWrapper.connect(): Connection established!")
                 
                 // Always try to create a session (loadSession:false just means can't load old sessions)
                 connectionMessage = "Creating session..."
@@ -224,6 +255,7 @@ class ACPClientWrapper: ObservableObject {
                     cwd: FileManager.default.currentDirectoryPath,
                     mcpServers: []
                 )
+                print("🔌 ACPClientWrapper.connect(): Calling conn.createSession()...")
                 let sessionResponse = try await conn.createSession(request: sessionRequest)
                 print("✅ Session created with ID: \(sessionResponse.sessionId)")
                 self.currentSessionId = sessionResponse.sessionId
@@ -231,11 +263,14 @@ class ACPClientWrapper: ObservableObject {
                 self.connection = conn
                 connectionMessage = "Connected successfully!"
                 connectionState = .connected
+                print("✅ ACPClientWrapper.connect(): Connection flow complete!")
                 return
                 
             } catch {
                 lastError = error
-                print("Connection attempt \(attempt) failed: \(error.localizedDescription)")
+                print("❌ Connection attempt \(attempt) failed: \(error)")
+                print("❌ Error type: \(type(of: error))")
+                print("❌ Error localized: \(error.localizedDescription)")
                 
                 // Continue to retry on errors unless it's the last attempt
                 // Some errors like network timeouts may succeed on retry
@@ -243,6 +278,7 @@ class ACPClientWrapper: ObservableObject {
         }
         
         // All retries failed
+        print("❌ ACPClientWrapper.connect(): All \(maxRetries) attempts failed")
         let errorMessage = lastError?.localizedDescription ?? "Connection failed"
         connectionMessage = ""
         connectionState = .error("Failed after \(maxRetries) attempts: \(errorMessage)")

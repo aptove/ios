@@ -9,7 +9,9 @@ class AgentManager: ObservableObject {
     private var clients: [String: ACPClientWrapper] = [:]
     
     init() {
+        print("📱 AgentManager: Initializing...")
         loadAgents()
+        print("📱 AgentManager: Initialization complete, loaded \(agents.count) agents")
     }
     
     func addAgent(config: ConnectionConfig, agentId: String, name: String) throws {
@@ -69,14 +71,18 @@ class AgentManager: ObservableObject {
     }
     
     private func loadAgents() {
+        print("📱 AgentManager: Loading saved agents from UserDefaults...")
         guard let data = UserDefaults.standard.data(forKey: "agents"),
               let loadedAgents = try? JSONDecoder().decode([Agent].self, from: data) else {
+            print("📱 AgentManager: No saved agents found or decode failed")
             return
         }
         
+        print("📱 AgentManager: Successfully decoded \(loadedAgents.count) agents")
         agents = loadedAgents
         
         for agent in agents {
+            print("📱 AgentManager: Setting up conversation for agent: \(agent.name) (\(agent.id))")
             if conversations[agent.id] == nil {
                 conversations[agent.id] = Conversation(agentId: agent.id)
             }

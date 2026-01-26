@@ -14,51 +14,74 @@ class QRScannerViewModel: ObservableObject {
     }
     
     func handleQRCode(_ qrString: String) async {
+        print("📷 QRScannerViewModel.handleQRCode(): Starting QR processing...")
+        print("📷 QRScannerViewModel.handleQRCode(): QR string length: \(qrString.count)")
         do {
+            print("📷 QRScannerViewModel.handleQRCode(): Converting to UTF8 data...")
             guard let data = qrString.data(using: .utf8) else {
+                print("❌ QRScannerViewModel.handleQRCode(): Failed to convert to UTF8")
                 throw ScanError.invalidData
             }
             
+            print("📷 QRScannerViewModel.handleQRCode(): Decoding JSON...")
             let decoder = JSONDecoder()
             let config = try decoder.decode(ConnectionConfig.self, from: data)
+            print("✅ QRScannerViewModel.handleQRCode(): Config decoded successfully")
+            print("📷 QRScannerViewModel.handleQRCode(): URL: \(config.url)")
+            print("📷 QRScannerViewModel.handleQRCode(): Protocol: \(config.protocolVersion)")
             
+            print("📷 QRScannerViewModel.handleQRCode(): Validating config...")
             try config.validate()
+            print("✅ QRScannerViewModel.handleQRCode(): Config validated")
             
             guard config.protocolVersion == "acp" else {
+                print("❌ QRScannerViewModel.handleQRCode(): Unsupported protocol: \(config.protocolVersion)")
                 throw ScanError.unsupportedProtocol(config.protocolVersion)
             }
             
+            print("📷 QRScannerViewModel.handleQRCode(): Testing connection...")
             let success = await testConnection(config: config)
+            print("📷 QRScannerViewModel.handleQRCode(): Connection test result: \(success)")
             
             if success {
+                print("✅ QRScannerViewModel.handleQRCode(): Connection successful, adding agent...")
                 let agentId = UUID().uuidString
                 let agentName = extractAgentName(from: config.url)
+                print("📷 QRScannerViewModel.handleQRCode(): Agent ID: \(agentId), Name: \(agentName)")
                 
                 guard let manager = agentManager else {
+                    print("❌ QRScannerViewModel.handleQRCode(): No agent manager!")
                     throw ScanError.noAgentManager
                 }
                 
+                print("📷 QRScannerViewModel.handleQRCode(): Calling manager.addAgent()...")
                 try manager.addAgent(
                     config: config,
                     agentId: agentId,
                     name: agentName
                 )
+                print("✅ QRScannerViewModel.handleQRCode(): Agent added successfully")
                 
                 showingSuccess = true
             } else {
+                print("❌ QRScannerViewModel.handleQRCode(): Connection test failed")
                 throw ScanError.connectionFailed
             }
             
         } catch let error as ConnectionConfig.ValidationError {
+            print("❌ QRScannerViewModel.handleQRCode(): Validation error: \(error)")
             errorMessage = error.localizedDescription
             showingError = true
         } catch let error as ScanError {
+            print("❌ QRScannerViewModel.handleQRCode(): Scan error: \(error)")
             errorMessage = error.localizedDescription
             showingError = true
         } catch {
+            print("❌ QRScannerViewModel.handleQRCode(): Unexpected error: \(error)")
             errorMessage = "Failed to parse QR code: \(error.localizedDescription)"
             showingError = true
         }
+        print("📷 QRScannerViewModel.handleQRCode(): Method complete")
     }
     
     func handleManualConnection(_ config: ConnectionConfig) async {
@@ -93,24 +116,32 @@ class QRScannerViewModel: ObservableObject {
     }
     
     private func testConnection(config: ConnectionConfig) async -> Bool {
+        print("🧪 QRScannerViewModel.testConnection(): Creating test wrapper...")
         // Use extended timeout (5 minutes) and 2 retries for QR code connections
         let wrapper = ACPClientWrapper(config: config, agentId: "test", connectionTimeout: 300, maxRetries: 2)
+        print("🧪 QRScannerViewModel.testConnection(): Test wrapper created, calling connect()...")
         
         await wrapper.connect()
+        print("🧪 QRScannerViewModel.testConnection(): Connect() returned, checking state...")
         
         let isConnected: Bool
         switch wrapper.connectionState {
         case .connected:
+            print("✅ QRScannerViewModel.testConnection(): Connection successful")
             isConnected = true
         case .error(let message):
+            print("❌ QRScannerViewModel.testConnection(): Connection error: \(message)")
             // Store detailed error message
             self.errorMessage = message
             isConnected = false
         default:
+            print("❌ QRScannerViewModel.testConnection(): Unexpected state: \(wrapper.connectionState)")
             isConnected = false
         }
         
+        print("🧪 QRScannerViewModel.testConnection(): Disconnecting test wrapper...")
         await wrapper.disconnect()
+        print("🧪 QRScannerViewModel.testConnection(): Test complete, result: \(isConnected)")
         
         return isConnected
     }

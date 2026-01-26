@@ -4,7 +4,12 @@ struct ContentView: View {
     @StateObject private var agentManager = AgentManager()
     @State private var showingQRScanner = false
     
+    init() {
+        print("🖥️  ContentView: Initializing...")
+    }
+    
     var body: some View {
+        print("🖥️  ContentView: body computed")
         NavigationStack {
             Group {
                 if agentManager.agents.isEmpty {
