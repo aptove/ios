@@ -2,6 +2,8 @@ import SwiftUI
 
 struct AgentListView: View {
     @EnvironmentObject var agentManager: AgentManager
+    @State private var agentToDelete: Agent?
+    @State private var showingDeleteConfirmation = false
     
     var body: some View {
         List {
@@ -13,14 +15,34 @@ struct AgentListView: View {
                 }
                 .contextMenu {
                     Button(role: .destructive) {
-                        Task {
-                            await agentManager.removeAgent(agentId: agent.id)
-                        }
+                        agentToDelete = agent
+                        showingDeleteConfirmation = true
                     } label: {
-                        Label("Disconnect", systemImage: "link.slash")
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button(role: .destructive) {
+                        agentToDelete = agent
+                        showingDeleteConfirmation = true
+                    } label: {
+                        Label("Delete", systemImage: "trash")
                     }
                 }
             }
+        }
+        .alert("Delete Agent?", isPresented: $showingDeleteConfirmation, presenting: agentToDelete) { agent in
+            Button("Cancel", role: .cancel) {
+                agentToDelete = nil
+            }
+            Button("Delete", role: .destructive) {
+                Task {
+                    await agentManager.removeAgent(agentId: agent.id)
+                }
+                agentToDelete = nil
+            }
+        } message: { agent in
+            Text("Are you sure you want to delete \"\(agent.name)\"? This will remove all conversation history.")
         }
     }
 }
