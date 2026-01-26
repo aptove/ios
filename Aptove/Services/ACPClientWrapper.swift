@@ -22,6 +22,7 @@ private class AptoveClient: Client, ClientSessionOperations {
     var onUpdate: ((SessionUpdate) -> Void)?
     var onThought: ((String) -> Void)?
     var onToolCall: ((String) -> Void)?
+    var onToolUpdate: ((String, String) -> Void)? // (toolCallId, content)
     
     //Store pending permission requests with continuations
     var pendingPermissions: [String: CheckedContinuation<RequestPermissionResponse, Error>] = [:]
@@ -306,7 +307,7 @@ class ACPClientWrapper: ObservableObject {
     // Store pending tool approval requests
     private var pendingToolRequests: [String: ToolCallUpdateData] = [:] // toolCallId -> ToolCallUpdateData
     
-    func sendMessage(_ text: String, onChunk: @escaping (String) -> Void, onThought: ((String) -> Void)? = nil, onToolCall: ((String) -> Void)? = nil, onComplete: @escaping (StopReason?) -> Void = { _ in }) async throws {
+    func sendMessage(_ text: String, onChunk: @escaping (String) -> Void, onThought: ((String) -> Void)? = nil, onToolCall: ((String) -> Void)? = nil, onToolUpdate: ((String, String) -> Void)? = nil, onComplete: @escaping (StopReason?) -> Void = { _ in }) async throws {
         guard let conn = connection, let sessionId = currentSessionId, let client = client else {
             throw ClientError.noActiveSession
         }
@@ -317,6 +318,7 @@ class ACPClientWrapper: ObservableObject {
         // Store callbacks
         self.onThought = onThought
         self.onToolCall = onToolCall
+        self.onToolUpdate = onToolUpdate
         
         // Set up streaming response collector
         client.onUpdate = { [weak self] update in
@@ -334,8 +336,29 @@ class ACPClientWrapper: ObservableObject {
                     self.onThought?(textContent.text)
                 }
             case .toolCall(let toolCall):
-                print("🔧 Tool call: \(toolCall.title) - status: \(String(describing: toolCall.status))")
-                self.onToolCall?(toolCall.title)
+                print("🔧 Tool call: \(toolCall.title ?? "Unknown") - status: \(String(describing: toolCall.status))")
+                self.onToolCall?(toolCall.title ?? "Tool execution")
+            case .toolCallUpdate(let toolUpdate):
+                print("🔧 Tool update: \(toolUpdate.toolCallId.value) - status: \(String(describing: toolUpdate.status))")
+                // Extract text content from the update
+                var textContent = ""
+                if let content = toolUpdate.content {
+                    for item in content {
+                        if case .content(let contentData) = item,
+                           case .text(let textData) = contentData.content {
+                            textContent += textData.text
+                        }
+                    }
+                }
+                // If we have text content, display it
+                if !textContent.isEmpty {
+                    print("📥 Tool output: \(textContent)")
+                    self.onToolUpdate?(toolUpdate.toolCallId.value, textContent)
+                } else if let status = toolUpdate.status {
+                    // Show status change
+                    print("📥 Tool status: \(status)")
+                    self.onToolUpdate?(toolUpdate.toolCallId.value, "Status: \(status)")
+                }
             default:
                 print("📨 Other update: \(update)")
             }

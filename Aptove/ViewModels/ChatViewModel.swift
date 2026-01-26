@@ -122,6 +122,7 @@ class ChatViewModel: ObservableObject {
             var accumulatedText = "" // Track accumulated text separately
             var currentThoughtId: String? = nil // Track current thought message
             var currentToolId: String? = nil // Track current tool message
+            var toolOutputMessages: [String: String] = [:] // Track tool output messages by toolCallId
             updateConversation()
             
             // Send message with streaming callbacks
@@ -194,6 +195,35 @@ class ChatViewModel: ObservableObject {
                             )
                             self.messages.append(toolMsg)
                             currentToolId = toolMsg.id
+                        }
+                        self.updateConversation()
+                    }
+                },
+                onToolUpdate: { toolCallId, content in
+                    // Display or update tool output message
+                    Task { @MainActor in
+                        // Check if we already have a message for this tool
+                        if let existingMsgId = toolOutputMessages[toolCallId],
+                           let index = self.messages.firstIndex(where: { $0.id == existingMsgId }) {
+                            // Update existing tool output message
+                            let existingText = self.messages[index].text
+                            self.messages[index] = Message(
+                                id: existingMsgId,
+                                text: existingText + "\n" + content,
+                                sender: .agent,
+                                status: .sent,
+                                type: .toolStatus
+                            )
+                        } else {
+                            // Create new tool output message
+                            let toolOutputMsg = Message(
+                                text: content,
+                                sender: .agent,
+                                status: .sent,
+                                type: .toolStatus
+                            )
+                            self.messages.append(toolOutputMsg)
+                            toolOutputMessages[toolCallId] = toolOutputMsg.id
                         }
                         self.updateConversation()
                     }
