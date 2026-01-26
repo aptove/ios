@@ -15,9 +15,26 @@ class ChatViewModel: ObservableObject {
     
     func setAgentManager(_ manager: AgentManager) {
         self.agentManager = manager
+        print("💬 ChatViewModel: AgentManager set for agent \(agentId)")
         
-        // Set up tool approval handler once during initialization
-        if let client = manager.getClient(for: agentId) {
+        // Don't create client yet - defer until first message or async setup
+        Task {
+            await setupToolApprovalHandler()
+        }
+    }
+    
+    private func setupToolApprovalHandler() async {
+        guard let manager = agentManager else { return }
+        
+        // Create client off main thread if needed
+        let client = await Task.detached(priority: .userInitiated) { [agentId, manager] in
+            manager.getClient(for: agentId)
+        }.value
+        
+        guard let client = client else { return }
+        
+        await MainActor.run {
+            print("💬 ChatViewModel: Setting up tool approval handler for agent \(agentId)")
             client.onToolApprovalRequest = { [weak self] toolCallId, title, command, permissions in
                 Task { @MainActor in
                     guard let self = self else { return }

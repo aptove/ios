@@ -50,15 +50,20 @@ class AgentManager: ObservableObject {
     
     func getClient(for agentId: String) -> ACPClientWrapper? {
         if let existingClient = clients[agentId] {
+            print("📱 AgentManager: Reusing existing client for agent \(agentId)")
             return existingClient
         }
         
+        print("📱 AgentManager: Creating new client for agent \(agentId)")
+        
         guard let config = try? KeychainManager.retrieve(for: agentId) else {
+            print("❌ AgentManager: Failed to retrieve config for agent \(agentId)")
             return nil
         }
         
         let client = ACPClientWrapper(config: config, agentId: agentId)
         clients[agentId] = client
+        print("✅ AgentManager: Client created and cached for agent \(agentId)")
         return client
     }
     
