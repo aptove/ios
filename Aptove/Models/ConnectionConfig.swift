@@ -4,6 +4,7 @@ struct ConnectionConfig: Codable {
     let url: String
     let clientId: String?
     let clientSecret: String?
+    let authToken: String?
     let protocolVersion: String
     let version: String
     
@@ -11,14 +12,16 @@ struct ConnectionConfig: Codable {
         case url
         case clientId
         case clientSecret
+        case authToken
         case protocolVersion = "protocol"
         case version
     }
     
-    init(url: String, clientId: String? = nil, clientSecret: String? = nil, protocolVersion: String = "acp", version: String = "1.0.0") {
+    init(url: String, clientId: String? = nil, clientSecret: String? = nil, authToken: String? = nil, protocolVersion: String = "acp", version: String = "1.0.0") {
         self.url = url
         self.clientId = clientId
         self.clientSecret = clientSecret
+        self.authToken = authToken
         self.protocolVersion = protocolVersion
         self.version = version
     }

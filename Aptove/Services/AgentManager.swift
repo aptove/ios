@@ -1,13 +1,29 @@
 import Foundation
 import SwiftUI
 
+/// Thread-safe client cache using actor isolation
+actor ClientCache {
+    private var clients: [String: ACPClientWrapper] = [:]
+    
+    func getClient(for agentId: String) -> ACPClientWrapper? {
+        return clients[agentId]
+    }
+    
+    func setClient(_ client: ACPClientWrapper, for agentId: String) {
+        clients[agentId] = client
+    }
+    
+    func removeClient(for agentId: String) -> ACPClientWrapper? {
+        return clients.removeValue(forKey: agentId)
+    }
+}
+
 @MainActor
 class AgentManager: ObservableObject {
     @Published var agents: [Agent] = []
     @Published var conversations: [String: Conversation] = [:]
     
-    nonisolated(unsafe) private var clients: [String: ACPClientWrapper] = [:]
-    private let clientsLock = NSLock()
+    private let clientCache = ClientCache()
     
     init() {
         print("📱 AgentManager: Initializing...")
@@ -60,10 +76,7 @@ class AgentManager: ObservableObject {
     }
     
     func removeAgent(agentId: String) async {
-        clientsLock.lock()
-        let client = clients[agentId]
-        clients.removeValue(forKey: agentId)
-        clientsLock.unlock()
+        let client = await clientCache.removeClient(for: agentId)
         
         if let client = client {
             await client.disconnect()
@@ -77,18 +90,12 @@ class AgentManager: ObservableObject {
         saveAgents()
     }
     
-    nonisolated func getClient(for agentId: String) -> ACPClientWrapper? {
+    func getClient(for agentId: String) async -> ACPClientWrapper? {
         let startTime = CFAbsoluteTimeGetCurrent()
         print("📱 AgentManager.getClient: START for \(agentId)")
         
-        clientsLock.lock()
-        print("📱 AgentManager.getClient: Lock acquired (\(Int((CFAbsoluteTimeGetCurrent() - startTime) * 1000))ms)")
-        defer { 
-            clientsLock.unlock()
-            print("📱 AgentManager.getClient: Lock released, TOTAL TIME: \(Int((CFAbsoluteTimeGetCurrent() - startTime) * 1000))ms")
-        }
-        
-        if let existingClient = clients[agentId] {
+        // Check cache first
+        if let existingClient = await clientCache.getClient(for: agentId) {
             print("📱 AgentManager.getClient: Cache HIT (\(Int((CFAbsoluteTimeGetCurrent() - startTime) * 1000))ms)")
             return existingClient
         }
@@ -106,7 +113,8 @@ class AgentManager: ObservableObject {
         let client = ACPClientWrapper(config: config, agentId: agentId)
         print("📱 AgentManager.getClient: Client created (\(Int((CFAbsoluteTimeGetCurrent() - initStart) * 1000))ms)")
         
-        clients[agentId] = client
+        await clientCache.setClient(client, for: agentId)
+        print("📱 AgentManager.getClient: TOTAL TIME: \(Int((CFAbsoluteTimeGetCurrent() - startTime) * 1000))ms")
         return client
     }
     

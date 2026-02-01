@@ -12,8 +12,18 @@ class ChatViewModel: ObservableObject {
     private var cachedClient: ACPClientWrapper?
     private var isPrewarmingClient = false
     
+    /// Track active tasks for cleanup
+    private var prewarmTask: Task<Void, Never>?
+    private var sendMessageTask: Task<Void, Never>?
+    
     init(agentId: String) {
         self.agentId = agentId
+    }
+    
+    deinit {
+        // Cancel any outstanding tasks
+        prewarmTask?.cancel()
+        sendMessageTask?.cancel()
     }
     
     func setAgentManager(_ manager: AgentManager) {
@@ -24,6 +34,12 @@ class ChatViewModel: ObservableObject {
         prewarmClient()
     }
     
+    /// Cancel any active operations (call when view disappears)
+    func cleanup() {
+        prewarmTask?.cancel()
+        sendMessageTask?.cancel()
+    }
+    
     /// Pre-warm the client in background without blocking the main thread
     /// This includes establishing the WebSocket connection so first message is instant
     private func prewarmClient() {
@@ -32,11 +48,24 @@ class ChatViewModel: ObservableObject {
         
         print("🔥 ChatViewModel: Starting client pre-warm for agent \(agentId)")
         
-        // Fire-and-forget - don't await!
-        Task.detached { [weak self, agentManager, agentId] in
-            print("🔥 ChatViewModel: Pre-warm task started (background thread)")
-            let client = agentManager?.getClient(for: agentId)
+        // Store task for potential cancellation
+        prewarmTask = Task { [weak self, agentManager, agentId] in
+            print("🔥 ChatViewModel: Pre-warm task started")
+            
+            // Check for cancellation before expensive operations
+            guard !Task.isCancelled else {
+                print("🔥 ChatViewModel: Pre-warm cancelled before getClient")
+                return
+            }
+            
+            let client = await agentManager?.getClient(for: agentId)
             print("🔥 ChatViewModel: Pre-warm got client: \(client != nil)")
+            
+            // Check for cancellation again
+            guard !Task.isCancelled else {
+                print("🔥 ChatViewModel: Pre-warm cancelled before connect")
+                return
+            }
             
             // Also establish connection in background so first message is instant
             if let client = client {
@@ -45,22 +74,26 @@ class ChatViewModel: ObservableObject {
                 print("🔥 ChatViewModel: Pre-warm connection attempt complete")
             }
             
-            // Update cached client and set up tool handler on main actor
-            await MainActor.run { [weak self] in
-                guard let self = self else { return }
-                self.cachedClient = client
-                self.isPrewarmingClient = false
+            // Check for cancellation before updating state
+            guard !Task.isCancelled else {
+                print("🔥 ChatViewModel: Pre-warm cancelled before state update")
+                return
+            }
+            
+            // Update cached client and set up tool handler
+            guard let self = self else { return }
+            self.cachedClient = client
+            self.isPrewarmingClient = false
+            
+            if let client = client {
+                print("🔥 ChatViewModel: Pre-warm complete, client cached, state: \(client.connectionState)")
                 
-                if let client = client {
-                    print("🔥 ChatViewModel: Pre-warm complete, client cached, state: \(client.connectionState)")
-                    
-                    // Set up tool approval handler now that we have the client
-                    if !self.isToolApprovalHandlerSetup {
-                        self.setupToolApprovalHandlerSync(client: client)
-                    }
-                } else {
-                    print("🔥 ChatViewModel: Pre-warm complete but no client")
+                // Set up tool approval handler now that we have the client
+                if !self.isToolApprovalHandlerSetup {
+                    self.setupToolApprovalHandlerSync(client: client)
                 }
+            } else {
+                print("🔥 ChatViewModel: Pre-warm complete but no client")
             }
         }
     }
@@ -116,9 +149,7 @@ class ChatViewModel: ObservableObject {
             print("💬 ChatViewModel: Using pre-warmed client for tool approval handler")
         } else {
             print("💬 ChatViewModel: Client not pre-warmed, getting now...")
-            client = await Task.detached { [agentManager, agentId] in
-                agentManager?.getClient(for: agentId)
-            }.value
+            client = await agentManager?.getClient(for: agentId)
         }
         
         guard let client = client else { return }
@@ -153,10 +184,7 @@ class ChatViewModel: ObservableObject {
             client = cached
         } else {
             print("📤 ChatViewModel.sendMessage: Client not pre-warmed, getting now...")
-            // Get client off main thread to avoid blocking
-            client = await Task.detached { [agentManager, agentId] in
-                agentManager?.getClient(for: agentId)
-            }.value
+            client = await agentManager?.getClient(for: agentId)
             cachedClient = client
         }
         

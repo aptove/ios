@@ -205,6 +205,12 @@ class ACPClientWrapper: ObservableObject {
                     headers["CF-Access-Client-Secret"] = clientSecret
                 }
                 
+                // Add bridge auth token if provided
+                if let authToken = config.authToken, !authToken.isEmpty {
+                    print("🔌 ACPClientWrapper.connect(): Adding X-Bridge-Token header")
+                    headers["X-Bridge-Token"] = authToken
+                }
+                
                 if !headers.isEmpty {
                     print("🔌 ACPClientWrapper.connect(): Setting \(headers.count) HTTP headers")
                     configuration.httpAdditionalHeaders = headers
