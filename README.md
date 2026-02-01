@@ -11,7 +11,7 @@ A mobile chat application for iOS that enables users to connect with AI agents u
 - **Message Streaming** - Display agent responses as they stream in real-time
 - **Secure Credentials** - iOS Keychain encryption for connection credentials
 - **Native SwiftUI** - Modern, fluid iOS interface with native look and feel
-- **Full ACP Protocol** - Integrated with official ACP Swift SDK
+- **Full ACP Protocol** - Integrated with (soon to be) official ACP Swift SDK
 
 ## Requirements
 
