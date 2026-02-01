@@ -2,6 +2,7 @@ import Foundation
 import ACP
 import ACPHTTP
 import ACPModel
+import CommonCrypto
 
 /// Client implementation that collects streaming responses
 @MainActor
@@ -218,8 +219,17 @@ class ACPClientWrapper: ObservableObject {
                     print("🔌 ACPClientWrapper.connect(): No additional headers needed")
                 }
                 
-                print("🔌 ACPClientWrapper.connect(): Creating URLSession...")
-                let session = URLSession(configuration: configuration)
+                // Create URLSession with optional certificate pinning delegate
+                let session: URLSession
+                if config.hasSelfSignedCert {
+                    print("🔌 ACPClientWrapper.connect(): Creating URLSession with self-signed cert support...")
+                    print("🔐 Expected fingerprint: \(config.certFingerprint ?? "none")")
+                    let delegate = SelfSignedCertificateDelegate(expectedFingerprint: config.certFingerprint)
+                    session = URLSession(configuration: configuration, delegate: delegate, delegateQueue: nil)
+                } else {
+                    print("🔌 ACPClientWrapper.connect(): Creating standard URLSession...")
+                    session = URLSession(configuration: configuration)
+                }
                 
                 connectionMessage = "Establishing connection...\nThis may take a moment if authorization is required."
                 
@@ -465,5 +475,76 @@ class ACPClientWrapper: ObservableObject {
                 return "Invalid or expired tool call"
             }
         }
+    }
+}
+
+/// URLSession delegate to handle self-signed certificates
+/// When a certificate fingerprint is provided, we validate the certificate matches
+class SelfSignedCertificateDelegate: NSObject, URLSessionDelegate {
+    let expectedFingerprint: String?
+    
+    init(expectedFingerprint: String?) {
+        self.expectedFingerprint = expectedFingerprint
+        super.init()
+    }
+    
+    func urlSession(
+        _ session: URLSession,
+        didReceive challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+        // Only handle server trust challenges
+        guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+              let serverTrust = challenge.protectionSpace.serverTrust else {
+            completionHandler(.performDefaultHandling, nil)
+            return
+        }
+        
+        // If no fingerprint provided, reject self-signed certs
+        guard let expectedFingerprint = expectedFingerprint else {
+            completionHandler(.performDefaultHandling, nil)
+            return
+        }
+        
+        // Get the server certificate
+        if #available(iOS 15.0, *) {
+            guard let certificates = SecTrustCopyCertificateChain(serverTrust) as? [SecCertificate],
+                  let serverCert = certificates.first else {
+                print("🔐 Failed to get server certificate")
+                completionHandler(.cancelAuthenticationChallenge, nil)
+                return
+            }
+            
+            // Calculate SHA256 fingerprint of the certificate
+            let certData = SecCertificateCopyData(serverCert) as Data
+            let fingerprint = sha256Fingerprint(of: certData)
+            
+            print("🔐 Server cert fingerprint: \(fingerprint)")
+            print("🔐 Expected fingerprint: \(expectedFingerprint)")
+            
+            // Compare fingerprints (case-insensitive)
+            if fingerprint.lowercased() == expectedFingerprint.lowercased() {
+                print("🔐 Certificate fingerprint matches! Accepting connection.")
+                let credential = URLCredential(trust: serverTrust)
+                completionHandler(.useCredential, credential)
+            } else {
+                print("🔐 Certificate fingerprint MISMATCH! Rejecting connection.")
+                completionHandler(.cancelAuthenticationChallenge, nil)
+            }
+        } else {
+            // iOS 14 fallback - just trust if we have a fingerprint (less secure)
+            print("🔐 iOS 14: Trusting connection with fingerprint")
+            let credential = URLCredential(trust: serverTrust)
+            completionHandler(.useCredential, credential)
+        }
+    }
+    
+    /// Calculate SHA256 fingerprint of certificate data, formatted as colon-separated hex
+    private func sha256Fingerprint(of data: Data) -> String {
+        var hash = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
+        data.withUnsafeBytes {
+            _ = CC_SHA256($0.baseAddress, CC_LONG(data.count), &hash)
+        }
+        return hash.map { String(format: "%02X", $0) }.joined(separator: ":")
     }
 }

@@ -5,6 +5,7 @@ struct ConnectionConfig: Codable {
     let clientId: String?
     let clientSecret: String?
     let authToken: String?
+    let certFingerprint: String?
     let protocolVersion: String
     let version: String
     
@@ -13,15 +14,17 @@ struct ConnectionConfig: Codable {
         case clientId
         case clientSecret
         case authToken
+        case certFingerprint
         case protocolVersion = "protocol"
         case version
     }
     
-    init(url: String, clientId: String? = nil, clientSecret: String? = nil, authToken: String? = nil, protocolVersion: String = "acp", version: String = "1.0.0") {
+    init(url: String, clientId: String? = nil, clientSecret: String? = nil, authToken: String? = nil, certFingerprint: String? = nil, protocolVersion: String = "acp", version: String = "1.0.0") {
         self.url = url
         self.clientId = clientId
         self.clientSecret = clientSecret
         self.authToken = authToken
+        self.certFingerprint = certFingerprint
         self.protocolVersion = protocolVersion
         self.version = version
     }
@@ -36,17 +39,28 @@ struct ConnectionConfig: Codable {
             throw ValidationError.invalidProtocol("Protocol version must be 'acp'")
         }
         
-        // Only require credentials for secure connections
-        let isSecure = url.hasPrefix("wss://") || url.hasPrefix("https://")
-        if isSecure {
+        // Only require client credentials for Cloudflare Zero Trust connections (https://)
+        // Local TLS connections (wss://) use auth token instead
+        let isCloudflare = url.hasPrefix("https://")
+        if isCloudflare {
             guard let clientId = clientId, !clientId.isEmpty else {
-                throw ValidationError.missingField("Client ID is required for secure connections")
+                throw ValidationError.missingField("Client ID is required for Cloudflare connections")
             }
             
             guard let clientSecret = clientSecret, !clientSecret.isEmpty else {
-                throw ValidationError.missingField("Client secret is required for secure connections")
+                throw ValidationError.missingField("Client secret is required for Cloudflare connections")
             }
         }
+    }
+    
+    /// Whether this is a secure TLS connection
+    var isSecure: Bool {
+        url.hasPrefix("wss://") || url.hasPrefix("https://")
+    }
+    
+    /// Whether this connection uses a self-signed certificate (has fingerprint)
+    var hasSelfSignedCert: Bool {
+        certFingerprint != nil && !certFingerprint!.isEmpty
     }
     
     var websocketURL: String {
