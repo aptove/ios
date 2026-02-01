@@ -68,7 +68,7 @@ The app uses the ACP Swift SDK via Swift Package Manager:
 
 ```swift
 // Package dependency
-.package(url: "https://github.com/aptove/swift-sdk.git", from: "0.1.0")
+.package(url: "https://github.com/aptove/swift-sdk.git", from: "0.1.13")
 ```
 
 ### Build Commands
