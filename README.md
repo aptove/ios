@@ -4,14 +4,15 @@ A mobile chat application for iOS that enables users to connect with AI agents u
 
 ## Features
 
-- **QR Code Agent Connection** - Scan QR codes to instantly connect to AI agents
-- **Manual URL Entry** - Enter agent URLs manually for flexible connection options
+- **Secure QR Pairing** - Scan QR codes to securely pair with local bridge
+- **Certificate Pinning** - TLS certificate validation prevents MITM attacks
+- **Manual Pairing** - Enter pairing code manually if QR scanning unavailable
 - **Agent Management** - Manage multiple agent connections with easy switching
 - **Real-time Chat** - Send and receive messages with AI agents
 - **Message Streaming** - Display agent responses as they stream in real-time
 - **Secure Credentials** - iOS Keychain encryption for connection credentials
 - **Native SwiftUI** - Modern, fluid iOS interface with native look and feel
-- **Full ACP Protocol** - Integrated with (soon to be) official ACP Swift SDK
+- **Full ACP Protocol** - Integrated with ACP Swift SDK
 
 ## Requirements
 
@@ -32,16 +33,18 @@ Aptove/
 ├── Services/
 │   ├── AgentManager.swift    # Agent connection management
 │   ├── KeychainService.swift # Secure credential storage
+│   ├── PairingService.swift  # Secure pairing with cert pinning
 │   └── ClientCache.swift     # Thread-safe client caching
 ├── ViewModels/
 │   ├── AgentListViewModel.swift
-│   └── ChatViewModel.swift
+│   ├── ChatViewModel.swift
+│   └── QRScannerViewModel.swift
 ├── Views/
 │   ├── ContentView.swift     # Main navigation
 │   ├── AgentListView.swift   # Agent list screen
 │   ├── ChatView.swift        # Chat interface
 │   ├── QRScannerView.swift   # QR code scanner
-│   └── ManualConnectionView.swift # Manual URL entry
+│   └── ManualPairingView.swift # Manual pairing entry
 └── AptoveApp.swift           # App entry point
 ```
 
@@ -50,7 +53,7 @@ Aptove/
 - **UI**: SwiftUI
 - **Architecture**: MVVM
 - **Networking**: ACP Swift SDK with WebSocket transport
-- **Security**: iOS Keychain
+- **Security**: iOS Keychain + Certificate Pinning
 - **QR Scanning**: AVFoundation Camera
 - **Concurrency**: Swift Concurrency (async/await, actors)
 
@@ -85,49 +88,40 @@ xcodebuild -project Aptove.xcodeproj -scheme Aptove \
 
 ## Configuration
 
-The app connects to ACP agents using QR codes or manual entry with the following format:
+The app connects to ACP agents by scanning a pairing QR code from the bridge:
 
-```json
-{
-  "url": "ws://192.168.1.100:8080",
-  "protocol": "acp",
-  "version": "1.0"
-}
+```
+https://192.168.1.100:3001/pair/local?code=123456&fp=SHA256:XXXX...
 ```
 
-For Cloudflare Zero Trust connections:
+The QR code contains:
+- **Pairing URL** - Bridge's HTTPS endpoint
+- **Pairing Code** - 6-digit one-time code (expires in 60 seconds)
+- **Certificate Fingerprint** - For TLS certificate pinning
 
-```json
-{
-  "url": "wss://agent.yourdomain.com",
-  "clientId": "xxxxx.access",
-  "clientSecret": "xxxxxxxxxxxxxx",
-  "protocol": "acp",
-  "version": "1.0"
-}
-```
+After successful pairing, the app receives WebSocket credentials securely.
 
 ## Security
 
 - **Credential Storage**: Uses iOS Keychain for secure credential storage
-- **Network Security**: Supports both ws:// (local) and wss:// (secure) connections
+- **Certificate Pinning**: Validates TLS certificate fingerprint from QR code
+- **Secure Pairing**: One-time codes with 60-second expiry and rate limiting
 - **Actor Isolation**: Thread-safe client management using Swift actors
 
 ## Known Limitations
 
 1. **Background Sync**: Messages are not synced in background. App must be active for real-time communication.
 
-2. **Single Active Chat**: Currently displays one active chat at a time.
+2. **Local Network Only**: Secure pairing requires device to be on same network as bridge.
 
 ## Future Enhancements
 
+- [ ] Cloudflare tunnel support for remote access
 - [ ] Push notifications for messages
 - [ ] File attachments support
 - [ ] Voice input with Speech framework
 - [ ] Session management (fork, resume)
-- [ ] iCloud sync for settings
 - [ ] Widget support
-- [ ] Multiple concurrent agent connections
 
 ## ⚖️ License & Trademarks
 
