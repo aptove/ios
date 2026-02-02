@@ -5,7 +5,6 @@ struct QRScannerView: View {
     @Binding var isPresented: Bool
     @StateObject private var viewModel = QRScannerViewModel()
     @EnvironmentObject private var agentManager: AgentManager
-    @State private var showingManualEntry = false
     @State private var showingPairingEntry = false
     @State private var isConnecting = false
     @State private var isScannerActive = true
@@ -94,26 +93,10 @@ struct QRScannerView: View {
                         } label: {
                             Label("Enter Pairing Code", systemImage: "number")
                         }
-                        
-                        Button {
-                            showingManualEntry = true
-                        } label: {
-                            Label("Manual Connection", systemImage: "link")
-                        }
                     } label: {
                         Image(systemName: "ellipsis.circle")
                     }
                 }
-            }
-            .sheet(isPresented: $showingManualEntry) {
-                ManualConnectionView(
-                    isPresented: $showingManualEntry,
-                    onConnect: { config in
-                        Task {
-                            await viewModel.handleManualConnection(config)
-                        }
-                    }
-                )
             }
             .sheet(isPresented: $showingPairingEntry) {
                 ManualPairingView(
@@ -129,13 +112,9 @@ struct QRScannerView: View {
                     }
                 )
             }
-            .onChange(of: showingManualEntry) { isShowing in
-                // Stop scanner when manual entry is shown, restart when dismissed
-                isScannerActive = !isShowing && !showingPairingEntry && !isConnecting
-            }
             .onChange(of: showingPairingEntry) { isShowing in
                 // Stop scanner when pairing entry is shown, restart when dismissed
-                isScannerActive = !isShowing && !showingManualEntry && !isConnecting
+                isScannerActive = !isShowing && !isConnecting
             }
             .alert("Connection Error", isPresented: $viewModel.showingError) {
                 Button("OK") {
@@ -158,7 +137,7 @@ struct QRScannerView: View {
                     isConnecting = false
                     // Reactivate scanner after error so user can try again
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        if !showingManualEntry && !showingPairingEntry {
+                        if !showingPairingEntry {
                             isScannerActive = true
                             scannerID = UUID() // Create fresh scanner
                         }

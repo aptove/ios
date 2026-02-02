@@ -157,42 +157,6 @@ class QRScannerViewModel: ObservableObject {
         }
     }
     
-    func handleManualConnection(_ config: ConnectionConfig) async {
-        do {
-            try config.validate()
-            
-            guard let manager = agentManager else {
-                throw ScanError.noAgentManager
-            }
-            
-            // Check for duplicate
-            if manager.hasAgent(withURL: config.url, clientId: config.clientId) {
-                throw ScanError.duplicateAgent
-            }
-            
-            let (success, agentName) = await testConnectionWithName(config: config)
-            
-            if success {
-                let agentId = UUID().uuidString
-                let finalName = agentName ?? extractAgentName(from: config.url)
-                
-                try manager.addAgent(
-                    config: config,
-                    agentId: agentId,
-                    name: finalName
-                )
-                
-                showingSuccess = true
-            } else {
-                throw ScanError.connectionFailed
-            }
-            
-        } catch {
-            errorMessage = error.localizedDescription
-            showingError = true
-        }
-    }
-    
     /// Test connection and return both success status and agent's self-reported name
     private func testConnectionWithName(config: ConnectionConfig) async -> (success: Bool, agentName: String?) {
         print("🧪 QRScannerViewModel.testConnectionWithName(): Creating test wrapper...")
