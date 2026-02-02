@@ -28,6 +28,8 @@
 		C8000000000000BE /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80000000000001F /* ChatView.swift */; };
 		C8000000000000C0 /* QRScannerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000021 /* QRScannerViewModel.swift */; };
 		C8000000000000C2 /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000023 /* ChatViewModel.swift */; };
+		C8000000000000C4 /* PairingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000050 /* PairingService.swift */; };
+		C8000000000000C6 /* ManualPairingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000051 /* ManualPairingView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -49,6 +51,8 @@
 		C80000000000001F /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		C800000000000021 /* QRScannerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerViewModel.swift; sourceTree = "<group>"; };
 		C800000000000023 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
+		C800000000000050 /* PairingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingService.swift; sourceTree = "<group>"; };
+		C800000000000051 /* ManualPairingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualPairingView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -102,6 +106,7 @@
 				C800000000000004 /* ContentView.swift */,
 				C800000000000019 /* QRScannerView.swift */,
 				C80000000000001B /* ManualConnectionView.swift */,
+				C800000000000051 /* ManualPairingView.swift */,
 				C80000000000001D /* AgentListView.swift */,
 				C80000000000001F /* ChatView.swift */,
 			);
@@ -134,6 +139,7 @@
 				C800000000000013 /* KeychainManager.swift */,
 				C800000000000015 /* AgentManager.swift */,
 				C800000000000017 /* ACPClientWrapper.swift */,
+				C800000000000050 /* PairingService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -235,8 +241,10 @@
 				C8000000000000B2 /* KeychainManager.swift in Sources */,
 				C8000000000000B4 /* AgentManager.swift in Sources */,
 				C8000000000000B6 /* ACPClientWrapper.swift in Sources */,
+				C8000000000000C4 /* PairingService.swift in Sources */,
 				C8000000000000B8 /* QRScannerView.swift in Sources */,
 				C8000000000000BA /* ManualConnectionView.swift in Sources */,
+				C8000000000000C6 /* ManualPairingView.swift in Sources */,
 				C8000000000000BC /* AgentListView.swift in Sources */,
 				C8000000000000BE /* ChatView.swift in Sources */,
 				C8000000000000C0 /* QRScannerViewModel.swift in Sources */,

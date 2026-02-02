@@ -6,8 +6,10 @@ class QRScannerViewModel: ObservableObject {
     @Published var showingError = false
     @Published var showingSuccess = false
     @Published var errorMessage: String?
+    @Published var pairingStatus: String = ""
     
     private var agentManager: AgentManager?
+    private let pairingService = PairingService()
     
     func setAgentManager(_ manager: AgentManager) {
         self.agentManager = manager
@@ -16,64 +18,29 @@ class QRScannerViewModel: ObservableObject {
     func handleQRCode(_ qrString: String) async {
         print("📷 QRScannerViewModel.handleQRCode(): Starting QR processing...")
         print("📷 QRScannerViewModel.handleQRCode(): QR string length: \(qrString.count)")
+        print("📷 QRScannerViewModel.handleQRCode(): Content preview: \(String(qrString.prefix(100)))")
+        
         do {
-            print("📷 QRScannerViewModel.handleQRCode(): Converting to UTF8 data...")
-            guard let data = qrString.data(using: .utf8) else {
-                print("❌ QRScannerViewModel.handleQRCode(): Failed to convert to UTF8")
-                throw ScanError.invalidData
-            }
+            let config: ConnectionConfig
             
-            print("📷 QRScannerViewModel.handleQRCode(): Decoding JSON...")
-            let decoder = JSONDecoder()
-            let config = try decoder.decode(ConnectionConfig.self, from: data)
-            print("✅ QRScannerViewModel.handleQRCode(): Config decoded successfully")
-            print("📷 QRScannerViewModel.handleQRCode(): URL: \(config.url)")
-            print("📷 QRScannerViewModel.handleQRCode(): Protocol: \(config.protocolVersion)")
-            
-            print("📷 QRScannerViewModel.handleQRCode(): Validating config...")
-            try config.validate()
-            print("✅ QRScannerViewModel.handleQRCode(): Config validated")
-            
-            guard config.protocolVersion == "acp" else {
-                print("❌ QRScannerViewModel.handleQRCode(): Unsupported protocol: \(config.protocolVersion)")
-                throw ScanError.unsupportedProtocol(config.protocolVersion)
-            }
-            
-            guard let manager = agentManager else {
-                print("❌ QRScannerViewModel.handleQRCode(): No agent manager!")
-                throw ScanError.noAgentManager
-            }
-            
-            // Check for duplicate before testing connection
-            if manager.hasAgent(withURL: config.url, clientId: config.clientId) {
-                print("⚠️ QRScannerViewModel.handleQRCode(): Agent already exists for this URL")
-                throw ScanError.duplicateAgent
-            }
-            
-            print("📷 QRScannerViewModel.handleQRCode(): Testing connection...")
-            let (success, agentName) = await testConnectionWithName(config: config)
-            print("📷 QRScannerViewModel.handleQRCode(): Connection test result: \(success), name: \(agentName ?? "nil")")
-            
-            if success {
-                print("✅ QRScannerViewModel.handleQRCode(): Connection successful, adding agent...")
-                let agentId = UUID().uuidString
-                let finalName = agentName ?? extractAgentName(from: config.url)
-                print("📷 QRScannerViewModel.handleQRCode(): Agent ID: \(agentId), Name: \(finalName)")
-                
-                print("📷 QRScannerViewModel.handleQRCode(): Calling manager.addAgent()...")
-                try manager.addAgent(
-                    config: config,
-                    agentId: agentId,
-                    name: finalName
-                )
-                print("✅ QRScannerViewModel.handleQRCode(): Agent added successfully")
-                
-                showingSuccess = true
+            // Determine if this is a pairing URL or legacy JSON format
+            if qrString.hasPrefix("https://") || qrString.hasPrefix("http://") {
+                // New pairing URL format
+                print("📷 QRScannerViewModel.handleQRCode(): Detected pairing URL format")
+                config = try await handlePairingURL(qrString)
             } else {
-                print("❌ QRScannerViewModel.handleQRCode(): Connection test failed")
-                throw ScanError.connectionFailed
+                // Legacy JSON format (for backwards compatibility)
+                print("📷 QRScannerViewModel.handleQRCode(): Detected legacy JSON format")
+                config = try handleLegacyJSON(qrString)
             }
             
+            // Continue with common flow
+            try await connectWithConfig(config)
+            
+        } catch let error as PairingError {
+            print("❌ QRScannerViewModel.handleQRCode(): Pairing error: \(error)")
+            errorMessage = error.localizedDescription
+            showingError = true
         } catch let error as ConnectionConfig.ValidationError {
             print("❌ QRScannerViewModel.handleQRCode(): Validation error: \(error)")
             errorMessage = error.localizedDescription
@@ -84,10 +51,110 @@ class QRScannerViewModel: ObservableObject {
             showingError = true
         } catch {
             print("❌ QRScannerViewModel.handleQRCode(): Unexpected error: \(error)")
-            errorMessage = "Failed to parse QR code: \(error.localizedDescription)"
+            errorMessage = "Failed to process QR code: \(error.localizedDescription)"
             showingError = true
         }
+        
+        pairingStatus = ""
         print("📷 QRScannerViewModel.handleQRCode(): Method complete")
+    }
+    
+    /// Handle new pairing URL format (https://IP:PORT/pair/local?code=XXXX&fp=SHA256:...)
+    private func handlePairingURL(_ urlString: String) async throws -> ConnectionConfig {
+        // Parse the pairing URL
+        pairingStatus = "Parsing pairing URL..."
+        let pairingURL = try PairingURL.parse(urlString)
+        
+        print("📷 QRScannerViewModel: Pairing type: \(pairingURL.pairingType.description)")
+        print("📷 QRScannerViewModel: Code: \(pairingURL.code)")
+        print("📷 QRScannerViewModel: Fingerprint: \(pairingURL.fingerprint ?? "none")")
+        
+        // Update status based on pairing type
+        switch pairingURL.pairingType {
+        case .local:
+            pairingStatus = "Connecting to local bridge...\nValidating certificate..."
+        case .cloudflare:
+            pairingStatus = "Connecting to Cloudflare tunnel..."
+        case .unknown(let path):
+            throw PairingError.unsupportedPairingType(path)
+        }
+        
+        // Complete the pairing flow
+        let config = try await pairingService.pair(with: pairingURL)
+        
+        print("✅ QRScannerViewModel: Pairing successful!")
+        print("📷 QRScannerViewModel: WebSocket URL: \(config.url)")
+        
+        return config
+    }
+    
+    /// Handle legacy JSON format for backwards compatibility
+    private func handleLegacyJSON(_ jsonString: String) throws -> ConnectionConfig {
+        print("📷 QRScannerViewModel: Parsing legacy JSON...")
+        
+        guard let data = jsonString.data(using: .utf8) else {
+            print("❌ QRScannerViewModel: Failed to convert to UTF8")
+            throw ScanError.invalidData
+        }
+        
+        let decoder = JSONDecoder()
+        let config = try decoder.decode(ConnectionConfig.self, from: data)
+        
+        print("✅ QRScannerViewModel: Legacy config decoded")
+        print("📷 QRScannerViewModel: URL: \(config.url)")
+        
+        return config
+    }
+    
+    /// Common flow after obtaining ConnectionConfig
+    private func connectWithConfig(_ config: ConnectionConfig) async throws {
+        pairingStatus = "Validating configuration..."
+        
+        print("📷 QRScannerViewModel.connectWithConfig(): Validating config...")
+        try config.validate()
+        print("✅ QRScannerViewModel.connectWithConfig(): Config validated")
+        
+        guard config.protocolVersion == "acp" else {
+            print("❌ QRScannerViewModel.connectWithConfig(): Unsupported protocol: \(config.protocolVersion)")
+            throw ScanError.unsupportedProtocol(config.protocolVersion)
+        }
+        
+        guard let manager = agentManager else {
+            print("❌ QRScannerViewModel.connectWithConfig(): No agent manager!")
+            throw ScanError.noAgentManager
+        }
+        
+        // Check for duplicate before testing connection
+        if manager.hasAgent(withURL: config.url, clientId: config.clientId) {
+            print("⚠️ QRScannerViewModel.connectWithConfig(): Agent already exists for this URL")
+            throw ScanError.duplicateAgent
+        }
+        
+        pairingStatus = "Testing connection to agent..."
+        print("📷 QRScannerViewModel.connectWithConfig(): Testing connection...")
+        let (success, agentName) = await testConnectionWithName(config: config)
+        print("📷 QRScannerViewModel.connectWithConfig(): Connection test result: \(success), name: \(agentName ?? "nil")")
+        
+        if success {
+            pairingStatus = "Adding agent..."
+            print("✅ QRScannerViewModel.connectWithConfig(): Connection successful, adding agent...")
+            let agentId = UUID().uuidString
+            let finalName = agentName ?? extractAgentName(from: config.url)
+            print("📷 QRScannerViewModel.connectWithConfig(): Agent ID: \(agentId), Name: \(finalName)")
+            
+            print("📷 QRScannerViewModel.connectWithConfig(): Calling manager.addAgent()...")
+            try manager.addAgent(
+                config: config,
+                agentId: agentId,
+                name: finalName
+            )
+            print("✅ QRScannerViewModel.connectWithConfig(): Agent added successfully")
+            
+            showingSuccess = true
+        } else {
+            print("❌ QRScannerViewModel.connectWithConfig(): Connection test failed")
+            throw ScanError.connectionFailed
+        }
     }
     
     func handleManualConnection(_ config: ConnectionConfig) async {

@@ -6,8 +6,8 @@ struct QRScannerView: View {
     @StateObject private var viewModel = QRScannerViewModel()
     @EnvironmentObject private var agentManager: AgentManager
     @State private var showingManualEntry = false
+    @State private var showingPairingEntry = false
     @State private var isConnecting = false
-    @State private var connectionMessage = ""
     @State private var isScannerActive = true
     @State private var scannerID = UUID() // Force recreation of scanner
     
@@ -17,7 +17,7 @@ struct QRScannerView: View {
                 if isScannerActive && !isConnecting {
                     CodeScannerView(
                         codeTypes: [.qr],
-                        simulatedData: "Mock QR Code Data",
+                        simulatedData: "https://192.168.1.100:8080/pair/local?code=123456&fp=SHA256:ABC123",
                         completion: handleScan
                     )
                     .id(scannerID) // Use ID to force complete recreation
@@ -47,7 +47,7 @@ struct QRScannerView: View {
                             .progressViewStyle(CircularProgressViewStyle(tint: .white))
                             .scaleEffect(1.5)
                         
-                        Text(connectionMessage)
+                        Text(viewModel.pairingStatus.isEmpty ? "Connecting..." : viewModel.pairingStatus)
                             .font(.headline)
                             .foregroundColor(.white)
                             .multilineTextAlignment(.center)
@@ -60,7 +60,6 @@ struct QRScannerView: View {
                         Button {
                             // Cancel connection
                             isConnecting = false
-                            connectionMessage = ""
                             isScannerActive = true
                             scannerID = UUID() // Create fresh scanner
                         } label: {
@@ -89,8 +88,20 @@ struct QRScannerView: View {
                 }
                 
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Manual Entry") {
-                        showingManualEntry = true
+                    Menu {
+                        Button {
+                            showingPairingEntry = true
+                        } label: {
+                            Label("Enter Pairing Code", systemImage: "number")
+                        }
+                        
+                        Button {
+                            showingManualEntry = true
+                        } label: {
+                            Label("Manual Connection", systemImage: "link")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
                     }
                 }
             }
@@ -104,9 +115,27 @@ struct QRScannerView: View {
                     }
                 )
             }
+            .sheet(isPresented: $showingPairingEntry) {
+                ManualPairingView(
+                    isPresented: $showingPairingEntry,
+                    onPair: { urlString in
+                        Task {
+                            isConnecting = true
+                            await viewModel.handleQRCode(urlString)
+                            if !viewModel.showingSuccess {
+                                isConnecting = false
+                            }
+                        }
+                    }
+                )
+            }
             .onChange(of: showingManualEntry) { isShowing in
                 // Stop scanner when manual entry is shown, restart when dismissed
-                isScannerActive = !isShowing && !isConnecting
+                isScannerActive = !isShowing && !showingPairingEntry && !isConnecting
+            }
+            .onChange(of: showingPairingEntry) { isShowing in
+                // Stop scanner when pairing entry is shown, restart when dismissed
+                isScannerActive = !isShowing && !showingManualEntry && !isConnecting
             }
             .alert("Connection Error", isPresented: $viewModel.showingError) {
                 Button("OK") {
@@ -129,7 +158,7 @@ struct QRScannerView: View {
                     isConnecting = false
                     // Reactivate scanner after error so user can try again
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        if !showingManualEntry {
+                        if !showingManualEntry && !showingPairingEntry {
                             isScannerActive = true
                             scannerID = UUID() // Create fresh scanner
                         }
@@ -165,13 +194,8 @@ struct QRScannerView: View {
         switch result {
         case .success(let result):
             isConnecting = true
-            connectionMessage = "Connecting to agent..."
             Task {
                 await viewModel.handleQRCode(result.string)
-                // Update connection message if still connecting
-                if isConnecting && !viewModel.showingError && !viewModel.showingSuccess {
-                    connectionMessage = "This may take up to 5 minutes..."
-                }
             }
         case .failure(let error):
             viewModel.errorMessage = error.localizedDescription
