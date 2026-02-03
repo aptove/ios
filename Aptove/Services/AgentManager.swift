@@ -166,8 +166,9 @@ class AgentManager: ObservableObject {
             return nil
         }
         
-        // If already connected, return
+        // If already connected, mark as resumed (reusing existing session) and return
         if case .connected = client.connectionState {
+            client.sessionWasResumed = true
             return client
         }
         

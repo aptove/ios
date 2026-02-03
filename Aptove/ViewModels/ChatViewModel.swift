@@ -13,6 +13,7 @@ class ChatViewModel: ObservableObject {
     private var isToolApprovalHandlerSetup = false
     private var cachedClient: ACPClientWrapper?
     private var isPrewarmingClient = false
+    private var hasShownSessionIndicator = false  // Track if we've already shown the indicator this view session
     
     /// Track active tasks for cleanup
     private var prewarmTask: Task<Void, Never>?
@@ -78,10 +79,12 @@ class ChatViewModel: ObservableObject {
             if let client = client {
                 print("🔥 ChatViewModel: Pre-warm complete, client cached, state: \(client.connectionState)")
                 
-                // Update session status
-                self.sessionWasResumed = client.sessionWasResumed
-                if client.sessionWasResumed != nil {
+                // Only show session indicator on fresh connections, not when returning to an already-connected session
+                // sessionWasResumed is nil until the first connect() call completes
+                if let wasResumed = client.sessionWasResumed, !self.hasShownSessionIndicator {
+                    self.sessionWasResumed = wasResumed
                     self.showSessionIndicator = true
+                    self.hasShownSessionIndicator = true
                     // Hide indicator after 3 seconds
                     Task {
                         try? await Task.sleep(nanoseconds: 3_000_000_000)
