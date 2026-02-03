@@ -56,6 +56,19 @@ struct ChatView: View {
         }
         .navigationTitle(agentName)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                VStack(spacing: 2) {
+                    Text(agentName)
+                        .font(.headline)
+                    if viewModel.showSessionIndicator {
+                        Text(viewModel.sessionWasResumed == true ? "Session resumed" : "New session")
+                            .font(.caption)
+                            .foregroundColor(viewModel.sessionWasResumed == true ? .blue : .secondary)
+                    }
+                }
+            }
+        }
         .onAppear {
             viewModel.setAgentManager(agentManager)
             viewModel.loadMessages()

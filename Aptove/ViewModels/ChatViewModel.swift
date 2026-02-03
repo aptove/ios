@@ -5,6 +5,8 @@ import SwiftUI
 class ChatViewModel: ObservableObject {
     @Published var messages: [Message] = []
     @Published var isSending = false
+    @Published var sessionWasResumed: Bool? = nil  // nil = unknown, true = resumed, false = new
+    @Published var showSessionIndicator = false
     
     let agentId: String
     private var agentManager: AgentManager?
@@ -75,6 +77,17 @@ class ChatViewModel: ObservableObject {
             
             if let client = client {
                 print("🔥 ChatViewModel: Pre-warm complete, client cached, state: \(client.connectionState)")
+                
+                // Update session status
+                self.sessionWasResumed = client.sessionWasResumed
+                if client.sessionWasResumed != nil {
+                    self.showSessionIndicator = true
+                    // Hide indicator after 3 seconds
+                    Task {
+                        try? await Task.sleep(nanoseconds: 3_000_000_000)
+                        self.showSessionIndicator = false
+                    }
+                }
                 
                 // Set up tool approval handler now that we have the client
                 if !self.isToolApprovalHandlerSetup {

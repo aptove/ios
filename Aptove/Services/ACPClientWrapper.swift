@@ -133,6 +133,7 @@ enum ConnectionState {
 class ACPClientWrapper: ObservableObject {
     @Published var connectionState: ConnectionState = .disconnected
     @Published var connectionMessage: String = ""
+    @Published var sessionWasResumed: Bool? = nil // nil = unknown, true = resumed, false = new
     
     let config: ConnectionConfig
     let agentId: String
@@ -313,6 +314,7 @@ class ACPClientWrapper: ObservableObject {
                         _ = try await conn.loadSession(request: loadRequest)
                         self.currentSessionId = SessionId(value: sessionIdToLoad)
                         sessionLoaded = true
+                        self.sessionWasResumed = true
                         print("✅ ACPClientWrapper.connect(): Session loaded successfully: \(sessionIdToLoad)")
                     } catch {
                         print("⚠️ ACPClientWrapper.connect(): Failed to load session: \(error.localizedDescription)")
@@ -332,6 +334,7 @@ class ACPClientWrapper: ObservableObject {
                     let sessionResponse = try await conn.createSession(request: sessionRequest)
                     print("✅ Session created with ID: \(sessionResponse.sessionId)")
                     self.currentSessionId = sessionResponse.sessionId
+                    self.sessionWasResumed = false
                 }
                 
                 self.connection = conn
