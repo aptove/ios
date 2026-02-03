@@ -14,6 +14,12 @@ struct AgentListView: View {
                     AgentRow(agent: agent)
                 }
                 .contextMenu {
+                    NavigationLink {
+                        AgentConfigurationView(agentId: agent.id)
+                    } label: {
+                        Label("Configure", systemImage: "gear")
+                    }
+                    
                     Button(role: .destructive) {
                         agentToDelete = agent
                         showingDeleteConfirmation = true
@@ -28,6 +34,13 @@ struct AgentListView: View {
                     } label: {
                         Label("Delete", systemImage: "trash")
                     }
+                    
+                    NavigationLink {
+                        AgentConfigurationView(agentId: agent.id)
+                    } label: {
+                        Label("Configure", systemImage: "gear")
+                    }
+                    .tint(.blue)
                 }
             }
         }

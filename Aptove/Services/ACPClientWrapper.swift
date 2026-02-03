@@ -142,6 +142,14 @@ class ACPClientWrapper: ObservableObject {
     /// The agent's self-reported name (from InitializeResponse)
     private(set) var connectedAgentName: String?
     
+    /// Whether the agent supports loading sessions
+    private(set) var supportsLoadSession: Bool = false
+    
+    /// Get the current session ID (if connected)
+    var sessionId: String? {
+        currentSessionId?.value
+    }
+    
     private var connection: ClientConnection?
     private var currentSessionId: SessionId?
     private var client: AptoveClient?
@@ -161,7 +169,14 @@ class ACPClientWrapper: ObservableObject {
     }
     
     func connect() async {
+        await connect(existingSessionId: nil)
+    }
+    
+    func connect(existingSessionId: String?) async {
         print("🔌 ACPClientWrapper.connect(): Starting connection flow...")
+        if let sessionId = existingSessionId {
+            print("🔌 ACPClientWrapper.connect(): Will try to load session: \(sessionId)")
+        }
         connectionState = .connecting
         connectionMessage = "Connecting to agent..."
         
@@ -278,17 +293,46 @@ class ACPClientWrapper: ObservableObject {
                     print("🤖 ACPClientWrapper.connect(): Agent name: \(name)")
                 }
                 
-                // Always try to create a session (loadSession:false just means can't load old sessions)
-                connectionMessage = "Creating session..."
-                print("🔧 Creating session with cwd: \(FileManager.default.currentDirectoryPath)")
-                let sessionRequest = NewSessionRequest(
-                    cwd: FileManager.default.currentDirectoryPath,
-                    mcpServers: []
-                )
-                print("🔌 ACPClientWrapper.connect(): Calling conn.createSession()...")
-                let sessionResponse = try await conn.createSession(request: sessionRequest)
-                print("✅ Session created with ID: \(sessionResponse.sessionId)")
-                self.currentSessionId = sessionResponse.sessionId
+                // Store loadSession capability
+                let capabilities = await conn.agentCapabilities
+                self.supportsLoadSession = capabilities?.loadSession ?? false
+                print("🔄 ACPClientWrapper.connect(): Agent supports loadSession: \(self.supportsLoadSession)")
+                
+                // Try to load existing session if provided and supported
+                var sessionLoaded = false
+                if let sessionIdToLoad = existingSessionId, self.supportsLoadSession {
+                    connectionMessage = "Resuming session..."
+                    print("🔄 ACPClientWrapper.connect(): Attempting to load session: \(sessionIdToLoad)")
+                    
+                    do {
+                        let loadRequest = LoadSessionRequest(
+                            sessionId: SessionId(value: sessionIdToLoad),
+                            cwd: FileManager.default.currentDirectoryPath,
+                            mcpServers: []
+                        )
+                        _ = try await conn.loadSession(request: loadRequest)
+                        self.currentSessionId = SessionId(value: sessionIdToLoad)
+                        sessionLoaded = true
+                        print("✅ ACPClientWrapper.connect(): Session loaded successfully: \(sessionIdToLoad)")
+                    } catch {
+                        print("⚠️ ACPClientWrapper.connect(): Failed to load session: \(error.localizedDescription)")
+                        // Will fall through to create new session
+                    }
+                }
+                
+                // Create new session if we didn't load one
+                if !sessionLoaded {
+                    connectionMessage = "Creating session..."
+                    print("🔧 Creating session with cwd: \(FileManager.default.currentDirectoryPath)")
+                    let sessionRequest = NewSessionRequest(
+                        cwd: FileManager.default.currentDirectoryPath,
+                        mcpServers: []
+                    )
+                    print("🔌 ACPClientWrapper.connect(): Calling conn.createSession()...")
+                    let sessionResponse = try await conn.createSession(request: sessionRequest)
+                    print("✅ Session created with ID: \(sessionResponse.sessionId)")
+                    self.currentSessionId = sessionResponse.sessionId
+                }
                 
                 self.connection = conn
                 connectionMessage = "Connected successfully!"

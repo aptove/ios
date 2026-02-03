@@ -33,10 +33,15 @@ class AgentManager: ObservableObject {
     
     /// Check if an agent with the same URL (and clientId for Cloudflare) already exists
     func hasAgent(withURL url: String, clientId: String?) -> Bool {
+        return findAgent(withURL: url, clientId: clientId) != nil
+    }
+    
+    /// Find an existing agent by URL (and clientId for Cloudflare)
+    func findAgent(withURL url: String, clientId: String?) -> Agent? {
         // Normalize URL for comparison (remove trailing slash)
         let normalizedURL = url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         
-        return agents.contains { agent in
+        return agents.first { agent in
             let agentURL = agent.url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             
             // For local connections (no clientId), just compare URLs
@@ -63,7 +68,10 @@ class AgentManager: ObservableObject {
             name: name,
             url: config.url,
             capabilities: [:],
-            status: .disconnected
+            status: .disconnected,
+            activeSessionId: nil,
+            sessionStartedAt: nil,
+            supportsLoadSession: false
         )
         
         try KeychainManager.save(config: config, for: agentId)
@@ -73,6 +81,34 @@ class AgentManager: ObservableObject {
         
         saveAgents()
         sortAgents()
+    }
+    
+    /// Update credentials for an existing agent (when re-scanning QR after bridge restart)
+    func updateAgentCredentials(agentId: String, config: ConnectionConfig) async throws {
+        try config.validate()
+        
+        print("📱 AgentManager: Updating credentials for agent \(agentId)")
+        
+        // Disconnect and remove cached client
+        if let client = await clientCache.removeClient(for: agentId) {
+            await client.disconnect()
+        }
+        
+        // Update keychain with new credentials
+        try KeychainManager.save(config: config, for: agentId)
+        
+        // Clear session info since credentials changed
+        if let index = agents.firstIndex(where: { $0.id == agentId }) {
+            agents[index].activeSessionId = nil
+            agents[index].sessionStartedAt = nil
+            agents[index].status = .disconnected
+        }
+        
+        // Clear conversation for fresh start
+        conversations[agentId] = Conversation(agentId: agentId)
+        
+        saveAgents()
+        print("📱 AgentManager: Credentials updated successfully for \(agentId)")
     }
     
     func removeAgent(agentId: String) async {
@@ -109,6 +145,12 @@ class AgentManager: ObservableObject {
         }
         print("📱 AgentManager.getClient: Keychain retrieved (\(Int((CFAbsoluteTimeGetCurrent() - keychainStart) * 1000))ms)")
         
+        // Get existing session ID if available
+        let existingSessionId = agents.first(where: { $0.id == agentId })?.activeSessionId
+        if let sessionId = existingSessionId {
+            print("📱 AgentManager.getClient: Found existing session ID: \(sessionId)")
+        }
+        
         let initStart = CFAbsoluteTimeGetCurrent()
         let client = ACPClientWrapper(config: config, agentId: agentId)
         print("📱 AgentManager.getClient: Client created (\(Int((CFAbsoluteTimeGetCurrent() - initStart) * 1000))ms)")
@@ -116,6 +158,66 @@ class AgentManager: ObservableObject {
         await clientCache.setClient(client, for: agentId)
         print("📱 AgentManager.getClient: TOTAL TIME: \(Int((CFAbsoluteTimeGetCurrent() - startTime) * 1000))ms")
         return client
+    }
+    
+    /// Get or create a client and connect with session persistence
+    func getConnectedClient(for agentId: String) async -> ACPClientWrapper? {
+        guard let client = await getClient(for: agentId) else {
+            return nil
+        }
+        
+        // If already connected, return
+        if case .connected = client.connectionState {
+            return client
+        }
+        
+        // Get existing session ID for resumption
+        let existingSessionId = agents.first(where: { $0.id == agentId })?.activeSessionId
+        
+        // Connect with session loading
+        await client.connect(existingSessionId: existingSessionId)
+        
+        // Update agent with session info after connection
+        if case .connected = client.connectionState {
+            updateAgentSessionInfo(
+                agentId: agentId,
+                sessionId: client.sessionId,
+                supportsLoadSession: client.supportsLoadSession
+            )
+        }
+        
+        return client
+    }
+    
+    /// Update agent's session information
+    func updateAgentSessionInfo(agentId: String, sessionId: String?, supportsLoadSession: Bool) {
+        guard let index = agents.firstIndex(where: { $0.id == agentId }) else { return }
+        
+        agents[index].activeSessionId = sessionId
+        agents[index].sessionStartedAt = sessionId != nil ? Date() : nil
+        agents[index].supportsLoadSession = supportsLoadSession
+        
+        saveAgents()
+        print("📱 AgentManager: Updated session info for \(agentId): sessionId=\(sessionId ?? "nil"), supportsLoad=\(supportsLoadSession)")
+    }
+    
+    /// Clear the session for an agent (for "Clear Session" button)
+    func clearSession(for agentId: String) async {
+        guard let index = agents.firstIndex(where: { $0.id == agentId }) else { return }
+        
+        agents[index].activeSessionId = nil
+        agents[index].sessionStartedAt = nil
+        
+        // Also clear the conversation
+        conversations[agentId] = Conversation(agentId: agentId)
+        
+        // Disconnect the client if connected
+        if let client = await clientCache.removeClient(for: agentId) {
+            await client.disconnect()
+        }
+        
+        saveAgents()
+        print("📱 AgentManager: Cleared session for \(agentId)")
     }
     
     func sortAgents() {

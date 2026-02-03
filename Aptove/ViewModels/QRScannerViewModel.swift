@@ -124,10 +124,24 @@ class QRScannerViewModel: ObservableObject {
             throw ScanError.noAgentManager
         }
         
-        // Check for duplicate before testing connection
-        if manager.hasAgent(withURL: config.url, clientId: config.clientId) {
-            print("⚠️ QRScannerViewModel.connectWithConfig(): Agent already exists for this URL")
-            throw ScanError.duplicateAgent
+        // Check if agent already exists - if so, update credentials instead of rejecting
+        if let existingAgent = manager.findAgent(withURL: config.url, clientId: config.clientId) {
+            print("📷 QRScannerViewModel.connectWithConfig(): Agent exists, updating credentials for \(existingAgent.id)")
+            pairingStatus = "Updating existing agent credentials..."
+            
+            try await manager.updateAgentCredentials(agentId: existingAgent.id, config: config)
+            
+            pairingStatus = "Testing connection..."
+            let (success, _) = await testConnectionWithName(config: config)
+            
+            if success {
+                print("✅ QRScannerViewModel.connectWithConfig(): Credentials updated and connection verified")
+                showingSuccess = true
+            } else {
+                print("❌ QRScannerViewModel.connectWithConfig(): Connection test failed after update")
+                throw ScanError.connectionFailed
+            }
+            return
         }
         
         pairingStatus = "Testing connection to agent..."

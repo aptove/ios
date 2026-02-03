@@ -58,21 +58,9 @@ class ChatViewModel: ObservableObject {
                 return
             }
             
-            let client = await agentManager?.getClient(for: agentId)
+            // Use getConnectedClient which handles session persistence
+            let client = await agentManager?.getConnectedClient(for: agentId)
             print("🔥 ChatViewModel: Pre-warm got client: \(client != nil)")
-            
-            // Check for cancellation again
-            guard !Task.isCancelled else {
-                print("🔥 ChatViewModel: Pre-warm cancelled before connect")
-                return
-            }
-            
-            // Also establish connection in background so first message is instant
-            if let client = client {
-                print("🔥 ChatViewModel: Pre-warm connecting to agent...")
-                await client.connect()
-                print("🔥 ChatViewModel: Pre-warm connection attempt complete")
-            }
             
             // Check for cancellation before updating state
             guard !Task.isCancelled else {
@@ -183,8 +171,9 @@ class ChatViewModel: ObservableObject {
             print("📤 ChatViewModel.sendMessage: Using pre-warmed client")
             client = cached
         } else {
-            print("📤 ChatViewModel.sendMessage: Client not pre-warmed, getting now...")
-            client = await agentManager?.getClient(for: agentId)
+            print("📤 ChatViewModel.sendMessage: Client not pre-warmed, getting connected client now...")
+            // Use getConnectedClient which handles session persistence
+            client = await agentManager?.getConnectedClient(for: agentId)
             cachedClient = client
         }
         
@@ -200,12 +189,26 @@ class ChatViewModel: ObservableObject {
             await setupToolApprovalHandler()
         }
         
-        // Only connect if not already connected
+        // Only connect if not already connected (getConnectedClient should handle this but double-check)
         if case .connected = client.connectionState {
             // Already connected, continue
         } else {
-            // Need to connect
-            await client.connect()
+            // Need to connect - use AgentManager to handle session persistence
+            if let manager = agentManager {
+                let existingSessionId = manager.agents.first(where: { $0.id == agentId })?.activeSessionId
+                await client.connect(existingSessionId: existingSessionId)
+                
+                // Update session info after connection
+                if case .connected = client.connectionState {
+                    manager.updateAgentSessionInfo(
+                        agentId: agentId,
+                        sessionId: client.sessionId,
+                        supportsLoadSession: client.supportsLoadSession
+                    )
+                }
+            } else {
+                await client.connect()
+            }
             
             // Check if connection was successful
             guard case .connected = client.connectionState else {

@@ -29,6 +29,8 @@
 		C8000000000000C2 /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000023 /* ChatViewModel.swift */; };
 		C8000000000000C4 /* PairingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000050 /* PairingService.swift */; };
 		C8000000000000C6 /* ManualPairingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000051 /* ManualPairingView.swift */; };
+		C8000000000000C8 /* AgentConfigurationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000052 /* AgentConfigurationView.swift */; };
+		C8000000000000CA /* AgentConfigurationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000053 /* AgentConfigurationViewModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -51,6 +53,8 @@
 		C800000000000023 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
 		C800000000000050 /* PairingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingService.swift; sourceTree = "<group>"; };
 		C800000000000051 /* ManualPairingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualPairingView.swift; sourceTree = "<group>"; };
+		C800000000000052 /* AgentConfigurationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentConfigurationView.swift; sourceTree = "<group>"; };
+		C800000000000053 /* AgentConfigurationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentConfigurationViewModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -106,6 +110,7 @@
 				C800000000000051 /* ManualPairingView.swift */,
 				C80000000000001D /* AgentListView.swift */,
 				C80000000000001F /* ChatView.swift */,
+				C800000000000052 /* AgentConfigurationView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -115,6 +120,7 @@
 			children = (
 				C800000000000021 /* QRScannerViewModel.swift */,
 				C800000000000023 /* ChatViewModel.swift */,
+				C800000000000053 /* AgentConfigurationViewModel.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -245,6 +251,8 @@
 				C8000000000000BE /* ChatView.swift in Sources */,
 				C8000000000000C0 /* QRScannerViewModel.swift in Sources */,
 				C8000000000000C2 /* ChatViewModel.swift in Sources */,
+				C8000000000000C8 /* AgentConfigurationView.swift in Sources */,
+				C8000000000000CA /* AgentConfigurationViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -469,7 +477,7 @@
 			repositoryURL = "https://github.com/aptove/swift-sdk";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 0.1.14;
+				minimumVersion = 0.1.15;
 			};
 		};
 		C80000000000003C /* XCRemoteSwiftPackageReference "CodeScanner" */ = {
