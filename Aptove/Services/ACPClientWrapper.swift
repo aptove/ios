@@ -334,7 +334,14 @@ class ACPClientWrapper: ObservableObject {
                     let sessionResponse = try await conn.createSession(request: sessionRequest)
                     print("✅ Session created with ID: \(sessionResponse.sessionId)")
                     self.currentSessionId = sessionResponse.sessionId
-                    self.sessionWasResumed = false
+                    
+                    // If bridge returned the same session ID we had before, session was resumed transparently
+                    if let previousId = existingSessionId, sessionResponse.sessionId.value == previousId {
+                        print("🔄 ACPClientWrapper.connect(): Bridge resumed session transparently (same session ID returned)")
+                        self.sessionWasResumed = true
+                    } else {
+                        self.sessionWasResumed = false
+                    }
                 }
                 
                 self.connection = conn
