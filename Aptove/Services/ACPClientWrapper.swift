@@ -152,6 +152,7 @@ class ACPClientWrapper: ObservableObject {
     }
     
     private var connection: ClientConnection?
+    private var transport: (any Transport)?
     private var currentSessionId: SessionId?
     private var client: AptoveClient?
     
@@ -251,6 +252,7 @@ class ACPClientWrapper: ObservableObject {
                 
                 print("🔌 ACPClientWrapper.connect(): Creating WebSocketTransport...")
                 let transport = WebSocketTransport(url: url, session: session)
+                self.transport = transport
                 
                 print("🔌 ACPClientWrapper.connect(): Creating AptoveClient...")
                 let client = AptoveClient()
@@ -348,6 +350,12 @@ class ACPClientWrapper: ObservableObject {
                 connectionMessage = "Connected successfully!"
                 connectionState = .connected
                 print("✅ ACPClientWrapper.connect(): Connection flow complete!")
+                
+                // Register push token with bridge after successful connection
+                Task {
+                    await self.registerPushToken()
+                }
+                
                 return
                 
             } catch {
@@ -376,6 +384,63 @@ class ACPClientWrapper: ObservableObject {
         }
         
         connectionState = .disconnected
+    }
+    
+    /// Register the APNs push token with the bridge for background notifications
+    func registerPushToken() async {
+        let pushManager = PushNotificationManager.shared
+        
+        guard let deviceToken = await pushManager.getDeviceToken() else {
+            print("📲 ACPClientWrapper: No push token available, skipping registration")
+            return
+        }
+        
+        guard let transport = self.transport else {
+            print("📲 ACPClientWrapper: No transport, cannot register push token")
+            return
+        }
+        
+        let bundleId = pushManager.bundleId
+        
+        // Build JSON-RPC notification using the SDK's public types
+        let params: JsonValue = .object([
+            "platform": .string("apns"),
+            "deviceToken": .string(deviceToken),
+            "bundleId": .string(bundleId)
+        ])
+        
+        let notification = JsonRpcNotification(method: "bridge/registerPushToken", params: params)
+        let message = JsonRpcMessage.notification(notification)
+        
+        do {
+            print("📲 ACPClientWrapper: Registering push token with bridge (platform=apns, bundleId=\(bundleId))")
+            try await transport.send(message)
+            print("✅ ACPClientWrapper: Push token registered with bridge")
+        } catch {
+            print("❌ ACPClientWrapper: Failed to register push token: \(error)")
+        }
+    }
+    
+    /// Unregister the push token from the bridge
+    func unregisterPushToken() async {
+        let pushManager = PushNotificationManager.shared
+        
+        guard let deviceToken = pushManager.deviceToken else { return }
+        guard let transport = self.transport else { return }
+        
+        let params: JsonValue = .object([
+            "deviceToken": .string(deviceToken)
+        ])
+        
+        let notification = JsonRpcNotification(method: "bridge/unregisterPushToken", params: params)
+        let message = JsonRpcMessage.notification(notification)
+        
+        do {
+            print("📲 ACPClientWrapper: Unregistering push token from bridge")
+            try await transport.send(message)
+        } catch {
+            print("❌ ACPClientWrapper: Failed to unregister push token: \(error)")
+        }
     }
     
     // Streaming callback for real-time updates
