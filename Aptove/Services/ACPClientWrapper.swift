@@ -140,6 +140,10 @@ class ACPClientWrapper: ObservableObject {
     let connectionTimeout: TimeInterval
     let maxRetries: Int
     
+    /// Maximum number of transparent reconnect attempts when a transport error
+    /// is detected during `sendMessage()`. Set to 0 to disable auto-reconnect.
+    let maxReconnectAttempts: Int
+    
     /// The agent's self-reported name (from InitializeResponse)
     private(set) var connectedAgentName: String?
     
@@ -159,14 +163,15 @@ class ACPClientWrapper: ObservableObject {
     // Store for collecting agent responses
     private var currentResponse: String = ""
     
-    nonisolated init(config: ConnectionConfig, agentId: String, connectionTimeout: TimeInterval = 300, maxRetries: Int = 3) {
+    nonisolated init(config: ConnectionConfig, agentId: String, connectionTimeout: TimeInterval = 300, maxRetries: Int = 3, maxReconnectAttempts: Int = 1) {
         print("🔌 ACPClientWrapper: Initializing for agent \(agentId)")
         print("🔌 ACPClientWrapper: URL: \(config.websocketURL)")
-        print("🔌 ACPClientWrapper: Timeout: \(connectionTimeout)s, Max retries: \(maxRetries)")
+        print("🔌 ACPClientWrapper: Timeout: \(connectionTimeout)s, Max retries: \(maxRetries), Max reconnect: \(maxReconnectAttempts)")
         self.config = config
         self.agentId = agentId
         self.connectionTimeout = connectionTimeout
         self.maxRetries = maxRetries
+        self.maxReconnectAttempts = maxReconnectAttempts
         print("🔌 ACPClientWrapper: Initialization complete")
     }
     
@@ -519,6 +524,10 @@ class ACPClientWrapper: ObservableObject {
         print("📤 Prompt request created: \(promptRequest)")
         
         // Send prompt in background - don't block main thread
+        // Captures `sessionId` (the value at call time) for reconnect-retry.
+        let savedSessionId = sessionId.value
+        let reconnectLimit = self.maxReconnectAttempts
+        
         Task {
             do {
                 let response = try await conn.prompt(request: promptRequest)
@@ -532,6 +541,76 @@ class ACPClientWrapper: ObservableObject {
                 }
             } catch {
                 print("❌ Prompt error: \(error)")
+                
+                // --- Auto-reconnect on transport failure ---
+                // If the WebSocket died silently, conn.prompt() throws a
+                // transport error. We mark disconnected, reconnect using
+                // the existing session ID (bridge keeps it alive), and
+                // retry the prompt once.
+                guard reconnectLimit > 0 else {
+                    print("🔄 Auto-reconnect disabled (maxReconnectAttempts=0)")
+                    await MainActor.run {
+                        self.connectionState = .disconnected
+                        onComplete(nil)
+                    }
+                    return
+                }
+                
+                for attempt in 1...reconnectLimit {
+                    print("🔄 Transport error detected — reconnect attempt \(attempt)/\(reconnectLimit)")
+                    
+                    await MainActor.run {
+                        self.connectionState = .disconnected
+                        self.connection = nil
+                        self.transport = nil
+                    }
+                    
+                    // Reconnect using the saved session ID so the bridge
+                    // resumes the existing agent session.
+                    await self.connect(existingSessionId: savedSessionId)
+                    
+                    let reconnected: Bool = await MainActor.run {
+                        if case .connected = self.connectionState { return true }
+                        return false
+                    }
+                    
+                    guard reconnected else {
+                        print("❌ Reconnect attempt \(attempt) failed — connection not restored")
+                        continue
+                    }
+                    
+                    print("✅ Reconnected — retrying prompt")
+                    
+                    // Rebuild the prompt request with the (possibly new) session ID
+                    guard let newConn = await MainActor.run(body: { self.connection }),
+                          let newSessionId = await MainActor.run(body: { self.currentSessionId }) else {
+                        print("❌ Connection objects nil after reconnect")
+                        continue
+                    }
+                    
+                    let retryRequest = PromptRequest(
+                        sessionId: newSessionId,
+                        prompt: [.text(TextContent(text: text))]
+                    )
+                    
+                    do {
+                        let retryResponse = try await newConn.prompt(request: retryRequest)
+                        print("📥 Retry prompt completed: \(retryResponse.stopReason)")
+                        
+                        try? await Task.sleep(nanoseconds: 100_000_000)
+                        
+                        await MainActor.run {
+                            onComplete(retryResponse.stopReason)
+                        }
+                        return // success — exit the retry loop
+                    } catch {
+                        print("❌ Retry prompt also failed: \(error)")
+                        // Loop continues to next reconnect attempt (if any)
+                    }
+                }
+                
+                // All reconnect attempts exhausted
+                print("❌ All \(reconnectLimit) reconnect attempt(s) failed")
                 await MainActor.run {
                     onComplete(nil)
                 }

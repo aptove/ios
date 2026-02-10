@@ -32,6 +32,7 @@
 		C8000000000000C8 /* AgentConfigurationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000052 /* AgentConfigurationView.swift */; };
 		C8000000000000CA /* AgentConfigurationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000053 /* AgentConfigurationViewModel.swift */; };
 		C8000000000000CC /* PushNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000054 /* PushNotificationManager.swift */; };
+		C800000000000100 /* ACPClientWrapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000101 /* ACPClientWrapperTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -58,6 +59,8 @@
 		C800000000000053 /* AgentConfigurationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentConfigurationViewModel.swift; sourceTree = "<group>"; };
 		C800000000000054 /* PushNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushNotificationManager.swift; sourceTree = "<group>"; };
 		C800000000000055 /* Aptove.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Aptove.entitlements; sourceTree = "<group>"; };
+		C800000000000101 /* ACPClientWrapperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ACPClientWrapperTests.swift; path = AptoveTests/ACPClientWrapperTests.swift; sourceTree = SOURCE_ROOT; };
+		C800000000000102 /* AptoveTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AptoveTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,6 +72,13 @@
 				C800000000000032 /* ACPHTTP in Frameworks */,
 				C800000000000034 /* ACPModel in Frameworks */,
 				C800000000000036 /* CodeScanner in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C800000000000110 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -186,6 +196,24 @@
 			productReference = C800000000000001 /* Aptove.app */;
 			productType = "com.apple.product-type.application";
 		};
+		C800000000000104 /* AptoveTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C800000000000105 /* Build configuration list for PBXNativeTarget "AptoveTests" */;
+			buildPhases = (
+				C800000000000111 /* Sources */,
+				C800000000000110 /* Frameworks */,
+				C800000000000112 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C800000000000106 /* PBXTargetDependency */,
+			);
+			name = AptoveTests;
+			productName = AptoveTests;
+			productReference = C800000000000102 /* AptoveTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -198,6 +226,10 @@
 				TargetAttributes = {
 					C80000000000002D = {
 						CreatedOnToolsVersion = 15.0;
+					};
+					C800000000000104 = {
+						CreatedOnToolsVersion = 15.0;
+						TestTargetID = C80000000000002D;
 					};
 				};
 			};
@@ -219,6 +251,7 @@
 			projectRoot = "";
 			targets = (
 				C80000000000002D /* Aptove */,
+				C800000000000104 /* AptoveTests */,
 			);
 		};
 /* End PBXProject section */
@@ -233,9 +266,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C800000000000112 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		C800000000000111 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C800000000000100 /* ACPClientWrapperTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		C80000000000002F /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -263,6 +311,24 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXContainerItemProxy section */
+		C800000000000107 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C800000000000039 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C80000000000002D;
+			remoteInfo = Aptove;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXTargetDependency section */
+		C800000000000106 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C80000000000002D /* Aptove */;
+			targetProxy = C800000000000107 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		C80000000000003D /* Debug */ = {
@@ -471,7 +537,57 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		C800000000000105 /* Build configuration list for PBXNativeTarget "AptoveTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C800000000000108 /* Debug */,
+				C800000000000109 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCBuildConfiguration section — AptoveTests */
+		C800000000000108 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 36BES5W42Q;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aptove.ios.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Aptove.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Aptove";
+			};
+			name = Debug;
+		};
+		C800000000000109 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 36BES5W42Q;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aptove.ios.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Aptove.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Aptove";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section — AptoveTests */
 
 /* Begin XCRemoteSwiftPackageReference section */
 		C80000000000003B /* XCRemoteSwiftPackageReference "swift-sdk" */ = {
