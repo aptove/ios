@@ -376,7 +376,7 @@ class ChatViewModel: ObservableObject {
                         
                         if agentMessageIndex < self.messages.count {
                             // If agent message is empty, it might be a tool-only response
-                            let finalText = accumulatedText.isEmpty ? (stopReason == nil ? "Request failed" : "(Tool execution pending or cancelled)") : accumulatedText
+                            let finalText = accumulatedText.isEmpty ? (stopReason == nil ? "Request failed" : "(No response received)") : accumulatedText
                             
                             self.messages[agentMessageIndex] = Message(
                                 id: self.messages[agentMessageIndex].id,
