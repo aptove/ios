@@ -174,7 +174,8 @@ class QRScannerViewModel: ObservableObject {
     /// Test connection and return both success status and agent's self-reported name
     private func testConnectionWithName(config: ConnectionConfig) async -> (success: Bool, agentName: String?) {
         print("🧪 QRScannerViewModel.testConnectionWithName(): Creating test wrapper...")
-        let wrapper = ACPClientWrapper(config: config, agentId: "test", connectionTimeout: 300, maxRetries: 2)
+        // Use unique agent ID for each test to avoid reusing session IDs
+        let wrapper = ACPClientWrapper(config: config, agentId: "test-\(UUID().uuidString)", connectionTimeout: 300, maxRetries: 2)
         print("🧪 QRScannerViewModel.testConnectionWithName(): Test wrapper created, calling connect()...")
         
         await wrapper.connect()
@@ -209,8 +210,8 @@ class QRScannerViewModel: ObservableObject {
     
     @available(*, deprecated, message: "Use testConnectionWithName instead")
     private func testConnection(config: ConnectionConfig) async -> Bool {
-        // Use extended timeout (5 minutes) and 2 retries for QR code connections
-        let wrapper = ACPClientWrapper(config: config, agentId: "test", connectionTimeout: 300, maxRetries: 2)
+        // Use unique agent ID for each test to avoid reusing session IDs
+        let wrapper = ACPClientWrapper(config: config, agentId: "test-\(UUID().uuidString)", connectionTimeout: 300, maxRetries: 2)
         print("🧪 QRScannerViewModel.testConnection(): Test wrapper created, calling connect()...")
         
         await wrapper.connect()
