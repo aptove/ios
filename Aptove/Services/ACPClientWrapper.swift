@@ -155,24 +155,10 @@ class ACPClientWrapper: ObservableObject {
         currentSessionId?.value
     }
 
-    /// UserDefaults key for storing session ID
-    private static let sessionIdKey = "aptove.sessionId"
-
     private var connection: ClientConnection?
     private var transport: (any Transport)?
     private var currentSessionId: SessionId?
     private var client: AptoveClient?
-
-    /// Get the stored session ID from UserDefaults
-    private func getStoredSessionId() -> String? {
-        UserDefaults.standard.string(forKey: "\(Self.sessionIdKey).\(agentId)")
-    }
-
-    /// Save the session ID to UserDefaults
-    private func saveSessionId(_ sessionId: String) {
-        UserDefaults.standard.set(sessionId, forKey: "\(Self.sessionIdKey).\(agentId)")
-        print("💾 Saved session ID to UserDefaults: \(sessionId)")
-    }
     
     // Store for collecting agent responses
     private var currentResponse: String = ""
@@ -348,11 +334,11 @@ class ACPClientWrapper: ObservableObject {
                     connectionMessage = "Creating session..."
                     print("🔧 Creating session with cwd: \(FileManager.default.currentDirectoryPath)")
 
-                    // Get stored session ID to pass in _meta for session persistence
-                    let storedSessionId = self.getStoredSessionId()
+                    // Note: Session ID persistence is now handled by AgentManager via AgentRepository
+                    // The existingSessionId parameter passed to connect() contains the stored session ID
                     var meta: MetaField? = nil
-                    if let sessionId = storedSessionId {
-                        print("📋 Passing stored session ID in _meta: \(sessionId)")
+                    if let sessionId = existingSessionId {
+                        print("📋 Passing existing session ID in _meta: \(sessionId)")
                         meta = MetaField(
                             progressToken: nil,
                             additionalData: ["sessionId": .string(sessionId)]
@@ -369,11 +355,8 @@ class ACPClientWrapper: ObservableObject {
                     print("✅ Session created with ID: \(sessionResponse.sessionId)")
                     self.currentSessionId = sessionResponse.sessionId
 
-                    // Save the session ID for future use
-                    self.saveSessionId(sessionResponse.sessionId.value)
-
                     // Check if session was resumed (same ID as stored)
-                    if let previousId = storedSessionId, sessionResponse.sessionId.value == previousId {
+                    if let previousId = existingSessionId, sessionResponse.sessionId.value == previousId {
                         print("🔄 ACPClientWrapper.connect(): Session resumed (reusing workspace folder)")
                         self.sessionWasResumed = true
                     } else {

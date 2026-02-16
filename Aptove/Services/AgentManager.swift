@@ -1,18 +1,19 @@
 import Foundation
 import SwiftUI
+import Combine
 
 /// Thread-safe client cache using actor isolation
 actor ClientCache {
     private var clients: [String: ACPClientWrapper] = [:]
-    
+
     func getClient(for agentId: String) -> ACPClientWrapper? {
         return clients[agentId]
     }
-    
+
     func setClient(_ client: ACPClientWrapper, for agentId: String) {
         clients[agentId] = client
     }
-    
+
     func removeClient(for agentId: String) -> ACPClientWrapper? {
         return clients.removeValue(forKey: agentId)
     }
@@ -20,35 +21,50 @@ actor ClientCache {
 
 @MainActor
 class AgentManager: ObservableObject {
-    @Published var agents: [Agent] = []
+    @Published var agents: [AgentModel] = []
     @Published var conversations: [String: Conversation] = [:]
-    
+
     private let clientCache = ClientCache()
-    
-    init() {
-        print("📱 AgentManager: Initializing...")
-        loadAgents()
+    private let repository: AgentRepository
+    private var cancellables = Set<AnyCancellable>()
+
+    init(repository: AgentRepository = AgentRepository()) {
+        print("📱 AgentManager: Initializing with CoreData repository...")
+        self.repository = repository
+        setupObservers()
         print("📱 AgentManager: Initialization complete, loaded \(agents.count) agents")
+    }
+
+    /// Set up reactive observers for repository changes
+    private func setupObservers() {
+        repository.observeAgents()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] coreDataAgents in
+                guard let self = self else { return }
+                self.agents = coreDataAgents.map { $0.toModel() }
+                self.sortAgents()
+            }
+            .store(in: &cancellables)
     }
     
     /// Check if an agent with the same URL (and clientId for Cloudflare) already exists
     func hasAgent(withURL url: String, clientId: String?) -> Bool {
         return findAgent(withURL: url, clientId: clientId) != nil
     }
-    
+
     /// Find an existing agent by URL (and clientId for Cloudflare)
-    func findAgent(withURL url: String, clientId: String?) -> Agent? {
+    func findAgent(withURL url: String, clientId: String?) -> AgentModel? {
         // Normalize URL for comparison (remove trailing slash)
         let normalizedURL = url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        
+
         return agents.first { agent in
             let agentURL = agent.url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-            
+
             // For local connections (no clientId), just compare URLs
             if clientId == nil || clientId?.isEmpty == true {
                 return agentURL == normalizedURL
             }
-            
+
             // For Cloudflare connections, need to match both URL and clientId
             // But we don't store clientId in Agent, so we check via Keychain
             if agentURL == normalizedURL {
@@ -62,68 +78,65 @@ class AgentManager: ObservableObject {
     
     func addAgent(config: ConnectionConfig, agentId: String, name: String) throws {
         try config.validate()
-        
-        let agent = Agent(
-            id: agentId,
+
+        // Save credentials to Keychain
+        try KeychainManager.save(config: config, for: agentId)
+
+        // Add agent to repository
+        repository.addAgent(
+            agentId: agentId,
             name: name,
             url: config.url,
-            capabilities: [:],
-            status: .disconnected,
-            activeSessionId: nil,
-            sessionStartedAt: nil,
-            supportsLoadSession: false
+            protocolVersion: config.protocolVersion
         )
-        
-        try KeychainManager.save(config: config, for: agentId)
-        
-        agents.append(agent)
+
+        // Create conversation
         conversations[agentId] = Conversation(agentId: agentId)
-        
-        saveAgents()
-        sortAgents()
+
+        print("✅ AgentManager: Added agent \(name) (\(agentId))")
     }
     
     /// Update credentials for an existing agent (when re-scanning QR after bridge restart)
     func updateAgentCredentials(agentId: String, config: ConnectionConfig) async throws {
         try config.validate()
-        
+
         print("📱 AgentManager: Updating credentials for agent \(agentId)")
-        
+
         // Disconnect and remove cached client
         if let client = await clientCache.removeClient(for: agentId) {
             await client.disconnect()
         }
-        
+
         // Update keychain with new credentials
         try KeychainManager.save(config: config, for: agentId)
-        
+
         // Clear session info since credentials changed
-        if let index = agents.firstIndex(where: { $0.id == agentId }) {
-            agents[index].activeSessionId = nil
-            agents[index].sessionStartedAt = nil
-            agents[index].status = .disconnected
-        }
-        
+        repository.clearSessionInfo(agentId: agentId)
+        repository.updateConnectionStatus(agentId: agentId, status: .disconnected)
+
         // Clear conversation for fresh start
         conversations[agentId] = Conversation(agentId: agentId)
-        
-        saveAgents()
+
         print("📱 AgentManager: Credentials updated successfully for \(agentId)")
     }
     
     func removeAgent(agentId: String) async {
         let client = await clientCache.removeClient(for: agentId)
-        
+
         if let client = client {
             await client.disconnect()
         }
-        
-        agents.removeAll { $0.id == agentId }
+
+        // Remove from repository
+        repository.deleteAgent(agentId: agentId)
+
+        // Remove conversation
         conversations.removeValue(forKey: agentId)
-        
+
+        // Remove credentials
         try? KeychainManager.delete(for: agentId)
-        
-        saveAgents()
+
+        print("🗑️ AgentManager: Removed agent \(agentId)")
     }
     
     func getClient(for agentId: String) async -> ACPClientWrapper? {
@@ -192,32 +205,27 @@ class AgentManager: ObservableObject {
     
     /// Update agent's session information
     func updateAgentSessionInfo(agentId: String, sessionId: String?, supportsLoadSession: Bool) {
-        guard let index = agents.firstIndex(where: { $0.id == agentId }) else { return }
-        
-        agents[index].activeSessionId = sessionId
-        agents[index].sessionStartedAt = sessionId != nil ? Date() : nil
-        agents[index].supportsLoadSession = supportsLoadSession
-        
-        saveAgents()
+        repository.updateSessionInfo(
+            agentId: agentId,
+            sessionId: sessionId,
+            supportsLoad: supportsLoadSession
+        )
         print("📱 AgentManager: Updated session info for \(agentId): sessionId=\(sessionId ?? "nil"), supportsLoad=\(supportsLoadSession)")
     }
-    
+
     /// Clear the session for an agent (for "Clear Session" button)
     func clearSession(for agentId: String) async {
-        guard let index = agents.firstIndex(where: { $0.id == agentId }) else { return }
-        
-        agents[index].activeSessionId = nil
-        agents[index].sessionStartedAt = nil
-        
+        // Clear session in repository
+        repository.clearSessionInfo(agentId: agentId)
+
         // Also clear the conversation
         conversations[agentId] = Conversation(agentId: agentId)
-        
+
         // Disconnect the client if connected
         if let client = await clientCache.removeClient(for: agentId) {
             await client.disconnect()
         }
-        
-        saveAgents()
+
         print("📱 AgentManager: Cleared session for \(agentId)")
     }
     
@@ -227,33 +235,5 @@ class AgentManager: ObservableObject {
             let lastActivity2 = conversations[agent2.id]?.lastActivity ?? .distantPast
             return lastActivity1 > lastActivity2
         }
-    }
-    
-    private func loadAgents() {
-        print("📱 AgentManager: Loading saved agents from UserDefaults...")
-        guard let data = UserDefaults.standard.data(forKey: "agents"),
-              let loadedAgents = try? JSONDecoder().decode([Agent].self, from: data) else {
-            print("📱 AgentManager: No saved agents found or decode failed")
-            return
-        }
-        
-        print("📱 AgentManager: Successfully decoded \(loadedAgents.count) agents")
-        agents = loadedAgents
-        
-        for agent in agents {
-            print("📱 AgentManager: Setting up conversation for agent: \(agent.name) (\(agent.id))")
-            if conversations[agent.id] == nil {
-                conversations[agent.id] = Conversation(agentId: agent.id)
-            }
-        }
-        
-        sortAgents()
-    }
-    
-    private func saveAgents() {
-        guard let data = try? JSONEncoder().encode(agents) else {
-            return
-        }
-        UserDefaults.standard.set(data, forKey: "agents")
     }
 }
