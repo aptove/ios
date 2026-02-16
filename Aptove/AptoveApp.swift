@@ -1,5 +1,6 @@
 import SwiftUI
 import UserNotifications
+import CoreData
 
 /// AppDelegate for handling push notification registration
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {

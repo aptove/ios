@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import CoreData
 
 /// Thread-safe client cache using actor isolation
 actor ClientCache {
@@ -21,7 +22,7 @@ actor ClientCache {
 
 @MainActor
 class AgentManager: ObservableObject {
-    @Published var agents: [AgentModel] = []
+    @Published var agents: [Agent] = []
     @Published var conversations: [String: Conversation] = [:]
 
     private let clientCache = ClientCache()
@@ -53,7 +54,7 @@ class AgentManager: ObservableObject {
     }
 
     /// Find an existing agent by URL (and clientId for Cloudflare)
-    func findAgent(withURL url: String, clientId: String?) -> AgentModel? {
+    func findAgent(withURL url: String, clientId: String?) -> Agent? {
         // Normalize URL for comparison (remove trailing slash)
         let normalizedURL = url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
 
