@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22225" systemVersion="23A344" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+    <entity name="Agent" representedClassName="Agent" syncable="YES">
+        <attribute name="activeSessionId" optional="YES" attributeType="String"/>
+        <attribute name="agentDescription" optional="YES" attributeType="String"/>
+        <attribute name="agentId" attributeType="String"/>
+        <attribute name="capabilities" attributeType="String" defaultValueString="[]"/>
+        <attribute name="colorHue" attributeType="Float" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="connectionStatus" attributeType="String" defaultValueString="DISCONNECTED"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="lastConnectedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="name" attributeType="String"/>
+        <attribute name="protocolVersion" attributeType="String"/>
+        <attribute name="sessionStartedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="supportsLoadSession" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="url" attributeType="String"/>
+        <relationship name="messages" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Message" inverseName="agent"/>
+        <uniquenessConstraints>
+            <uniquenessConstraint>
+                <constraint value="agentId"/>
+            </uniquenessConstraint>
+        </uniquenessConstraints>
+    </entity>
+    <entity name="Message" representedClassName="Message" syncable="YES">
+        <attribute name="agentId" attributeType="String"/>
+        <attribute name="content" attributeType="String"/>
+        <attribute name="isError" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="messageId" attributeType="String"/>
+        <attribute name="role" attributeType="String"/>
+        <attribute name="timestamp" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="agent" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Agent" inverseName="messages"/>
+        <uniquenessConstraints>
+            <uniquenessConstraint>
+                <constraint value="messageId"/>
+            </uniquenessConstraint>
+        </uniquenessConstraints>
+    </entity>
+</model>
