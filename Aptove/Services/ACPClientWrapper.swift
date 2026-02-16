@@ -154,11 +154,25 @@ class ACPClientWrapper: ObservableObject {
     var sessionId: String? {
         currentSessionId?.value
     }
-    
+
+    /// UserDefaults key for storing session ID
+    private static let sessionIdKey = "aptove.sessionId"
+
     private var connection: ClientConnection?
     private var transport: (any Transport)?
     private var currentSessionId: SessionId?
     private var client: AptoveClient?
+
+    /// Get the stored session ID from UserDefaults
+    private func getStoredSessionId() -> String? {
+        UserDefaults.standard.string(forKey: "\(Self.sessionIdKey).\(agentId)")
+    }
+
+    /// Save the session ID to UserDefaults
+    private func saveSessionId(_ sessionId: String) {
+        UserDefaults.standard.set(sessionId, forKey: "\(Self.sessionIdKey).\(agentId)")
+        print("💾 Saved session ID to UserDefaults: \(sessionId)")
+    }
     
     // Store for collecting agent responses
     private var currentResponse: String = ""
@@ -333,20 +347,37 @@ class ACPClientWrapper: ObservableObject {
                 if !sessionLoaded {
                     connectionMessage = "Creating session..."
                     print("🔧 Creating session with cwd: \(FileManager.default.currentDirectoryPath)")
+
+                    // Get stored session ID to pass in _meta for session persistence
+                    let storedSessionId = self.getStoredSessionId()
+                    var meta: MetaField? = nil
+                    if let sessionId = storedSessionId {
+                        print("📋 Passing stored session ID in _meta: \(sessionId)")
+                        meta = MetaField(
+                            progressToken: nil,
+                            additionalData: ["sessionId": .string(sessionId)]
+                        )
+                    }
+
                     let sessionRequest = NewSessionRequest(
                         cwd: FileManager.default.currentDirectoryPath,
-                        mcpServers: []
+                        mcpServers: [],
+                        _meta: meta
                     )
                     print("🔌 ACPClientWrapper.connect(): Calling conn.createSession()...")
                     let sessionResponse = try await conn.createSession(request: sessionRequest)
                     print("✅ Session created with ID: \(sessionResponse.sessionId)")
                     self.currentSessionId = sessionResponse.sessionId
-                    
-                    // If bridge returned the same session ID we had before, session was resumed transparently
-                    if let previousId = existingSessionId, sessionResponse.sessionId.value == previousId {
-                        print("🔄 ACPClientWrapper.connect(): Bridge resumed session transparently (same session ID returned)")
+
+                    // Save the session ID for future use
+                    self.saveSessionId(sessionResponse.sessionId.value)
+
+                    // Check if session was resumed (same ID as stored)
+                    if let previousId = storedSessionId, sessionResponse.sessionId.value == previousId {
+                        print("🔄 ACPClientWrapper.connect(): Session resumed (reusing workspace folder)")
                         self.sessionWasResumed = true
                     } else {
+                        print("🆕 ACPClientWrapper.connect(): New session created")
                         self.sessionWasResumed = false
                     }
                 }
@@ -387,8 +418,22 @@ class ACPClientWrapper: ObservableObject {
             connection = nil
             currentSessionId = nil
         }
-        
+
         connectionState = .disconnected
+    }
+
+    /// Clear the conversation history while keeping the session ID and workspace.
+    /// This reconnects with the same session ID, which causes the agent to clear session.md
+    func clearSession() async {
+        print("🗑️ Clearing session conversation history...")
+
+        // Disconnect current connection
+        await disconnect()
+
+        // Reconnect - this will reuse the stored session ID and clear the conversation
+        await connect()
+
+        print("✅ Session conversation cleared, workspace retained")
     }
     
     /// Register the APNs push token with the bridge for background notifications
