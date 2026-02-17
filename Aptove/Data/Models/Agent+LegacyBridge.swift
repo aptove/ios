@@ -27,7 +27,7 @@ extension AgentEntity {
     }
 
     /// Convert CoreData ConnectionStatus to Agent struct's ConnectionStatus enum
-    private func toModelStatus() -> Agent.ConnectionStatus {
+    private func toModelStatus() -> ConnectionStatus {
         switch status {
         case .connected:
             return .connected
