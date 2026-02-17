@@ -33,6 +33,18 @@
 		C8000000000000CA /* AgentConfigurationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000053 /* AgentConfigurationViewModel.swift */; };
 		C8000000000000CC /* PushNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000054 /* PushNotificationManager.swift */; };
 		C800000000000100 /* ACPClientWrapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000101 /* ACPClientWrapperTests.swift */; };
+		C800000000000200 /* CoreDataStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000201 /* CoreDataStack.swift */; };
+		C800000000000202 /* Agent+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000203 /* Agent+CoreDataClass.swift */; };
+		C800000000000204 /* Agent+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000205 /* Agent+CoreDataProperties.swift */; };
+		C800000000000206 /* Agent+LegacyBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000207 /* Agent+LegacyBridge.swift */; };
+		C800000000000208 /* Message+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000209 /* Message+CoreDataClass.swift */; };
+		C80000000000020A /* Message+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80000000000020B /* Message+CoreDataProperties.swift */; };
+		C80000000000020C /* ConnectionStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80000000000020D /* ConnectionStatus.swift */; };
+		C80000000000020E /* AgentRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80000000000020F /* AgentRepository.swift */; };
+		C800000000000210 /* UserDefaultsMigrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000211 /* UserDefaultsMigrator.swift */; };
+		C800000000000212 /* Aptove.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000213 /* Aptove.xcdatamodeld */; };
+		C800000000000220 /* AgentRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000221 /* AgentRepositoryTests.swift */; };
+		C800000000000222 /* UserDefaultsMigratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000223 /* UserDefaultsMigratorTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -61,6 +73,18 @@
 		C800000000000055 /* Aptove.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Aptove.entitlements; sourceTree = "<group>"; };
 		C800000000000101 /* ACPClientWrapperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ACPClientWrapperTests.swift; path = AptoveTests/ACPClientWrapperTests.swift; sourceTree = SOURCE_ROOT; };
 		C800000000000102 /* AptoveTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AptoveTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C800000000000201 /* CoreDataStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataStack.swift; sourceTree = "<group>"; };
+		C800000000000203 /* Agent+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Agent+CoreDataClass.swift"; sourceTree = "<group>"; };
+		C800000000000205 /* Agent+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Agent+CoreDataProperties.swift"; sourceTree = "<group>"; };
+		C800000000000207 /* Agent+LegacyBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Agent+LegacyBridge.swift"; sourceTree = "<group>"; };
+		C800000000000209 /* Message+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Message+CoreDataClass.swift"; sourceTree = "<group>"; };
+		C80000000000020B /* Message+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Message+CoreDataProperties.swift"; sourceTree = "<group>"; };
+		C80000000000020D /* ConnectionStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionStatus.swift; sourceTree = "<group>"; };
+		C80000000000020F /* AgentRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentRepository.swift; sourceTree = "<group>"; };
+		C800000000000211 /* UserDefaultsMigrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsMigrator.swift; sourceTree = "<group>"; };
+		C800000000000213 /* Aptove.xcdatamodeld */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodeld; path = Aptove.xcdatamodeld; sourceTree = "<group>"; };
+		C800000000000221 /* AgentRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AgentRepositoryTests.swift; path = AptoveTests/Data/AgentRepositoryTests.swift; sourceTree = SOURCE_ROOT; };
+		C800000000000223 /* UserDefaultsMigratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserDefaultsMigratorTests.swift; path = AptoveTests/Data/UserDefaultsMigratorTests.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -89,6 +113,7 @@
 			isa = PBXGroup;
 			children = (
 				C800000000000026 /* Aptove */,
+				C800000000000218 /* AptoveTests */,
 				C800000000000027 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -98,6 +123,7 @@
 			children = (
 				C800000000000002 /* AptoveApp.swift */,
 				C800000000000055 /* Aptove.entitlements */,
+				C800000000000214 /* Data */,
 				C800000000000028 /* Views */,
 				C800000000000029 /* ViewModels */,
 				C80000000000002A /* Models */,
@@ -116,8 +142,65 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		C800000000000028 /* Views */ = {
+		C800000000000218 /* AptoveTests */ = {
 			isa = PBXGroup;
+			children = (
+				C800000000000101 /* ACPClientWrapperTests.swift */,
+				C800000000000219 /* Data */,
+			);
+			name = AptoveTests;
+			sourceTree = "<group>";
+		};
+		C800000000000219 /* Data */ = {
+			isa = PBXGroup;
+			children = (
+				C800000000000221 /* AgentRepositoryTests.swift */,
+				C800000000000223 /* UserDefaultsMigratorTests.swift */,
+			);
+			name = Data;
+			sourceTree = "<group>";
+		};
+		C800000000000214 /* Data */ = {			isa = PBXGroup;
+			children = (
+				C800000000000201 /* CoreDataStack.swift */,
+				C800000000000213 /* Aptove.xcdatamodeld */,
+				C800000000000215 /* Models */,
+				C800000000000216 /* Repositories */,
+				C800000000000217 /* Migrations */,
+			);
+			path = Data;
+			sourceTree = "<group>";
+		};
+		C800000000000215 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				C800000000000203 /* Agent+CoreDataClass.swift */,
+				C800000000000205 /* Agent+CoreDataProperties.swift */,
+				C800000000000207 /* Agent+LegacyBridge.swift */,
+				C800000000000209 /* Message+CoreDataClass.swift */,
+				C80000000000020B /* Message+CoreDataProperties.swift */,
+				C80000000000020D /* ConnectionStatus.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		C800000000000216 /* Repositories */ = {
+			isa = PBXGroup;
+			children = (
+				C80000000000020F /* AgentRepository.swift */,
+			);
+			path = Repositories;
+			sourceTree = "<group>";
+		};
+		C800000000000217 /* Migrations */ = {
+			isa = PBXGroup;
+			children = (
+				C800000000000211 /* UserDefaultsMigrator.swift */,
+			);
+			path = Migrations;
+			sourceTree = "<group>";
+		};
+		C800000000000028 /* Views */ = {			isa = PBXGroup;
 			children = (
 				C800000000000004 /* ContentView.swift */,
 				C800000000000019 /* QRScannerView.swift */,
@@ -281,6 +364,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				C800000000000100 /* ACPClientWrapperTests.swift in Sources */,
+				C800000000000220 /* AgentRepositoryTests.swift in Sources */,
+				C800000000000222 /* UserDefaultsMigratorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -307,6 +392,16 @@
 				C8000000000000C8 /* AgentConfigurationView.swift in Sources */,
 				C8000000000000CA /* AgentConfigurationViewModel.swift in Sources */,
 				C8000000000000CC /* PushNotificationManager.swift in Sources */,
+				C800000000000200 /* CoreDataStack.swift in Sources */,
+				C800000000000202 /* Agent+CoreDataClass.swift in Sources */,
+				C800000000000204 /* Agent+CoreDataProperties.swift in Sources */,
+				C800000000000206 /* Agent+LegacyBridge.swift in Sources */,
+				C800000000000208 /* Message+CoreDataClass.swift in Sources */,
+				C80000000000020A /* Message+CoreDataProperties.swift in Sources */,
+				C80000000000020C /* ConnectionStatus.swift in Sources */,
+				C80000000000020E /* AgentRepository.swift in Sources */,
+				C800000000000210 /* UserDefaultsMigrator.swift in Sources */,
+				C800000000000212 /* Aptove.xcdatamodeld in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

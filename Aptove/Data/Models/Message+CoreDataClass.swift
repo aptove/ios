@@ -4,8 +4,8 @@
 import Foundation
 import CoreData
 
-@objc(Message)
-public class Message: NSManagedObject {
+@objc(MessageEntity)
+public class MessageEntity: NSManagedObject {
     /// Convenience initializer
     convenience init(context: NSManagedObjectContext,
                     messageId: String,

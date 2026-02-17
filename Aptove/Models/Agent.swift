@@ -1,11 +1,5 @@
 import Foundation
 
-enum ConnectionStatus: String, Codable {
-    case connected
-    case disconnected
-    case error
-}
-
 struct Agent: Identifiable, Codable {
     let id: String
     let name: String

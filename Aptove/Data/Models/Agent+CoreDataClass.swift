@@ -1,13 +1,11 @@
 import Foundation
 import CoreData
 
-@objc(Agent)
-public class Agent: NSManagedObject {
+@objc(AgentEntity)
+public class AgentEntity: NSManagedObject {
     /// Computed property for connection status with type safety
-    /// Matches old Agent struct's status property
     var status: ConnectionStatus {
         get {
-            // Map database values to enum
             switch connectionStatus {
             case "CONNECTED": return .connected
             case "RECONNECTING": return .reconnecting
@@ -16,7 +14,6 @@ public class Agent: NSManagedObject {
             }
         }
         set {
-            // Map enum to database values (match Android)
             switch newValue {
             case .connected: connectionStatus = "CONNECTED"
             case .disconnected: connectionStatus = "DISCONNECTED"
@@ -47,8 +44,6 @@ public class Agent: NSManagedObject {
         self.connectionStatus = "DISCONNECTED"
         self.createdAt = Date()
         self.supportsLoadSession = false
-
-        // Set color hue based on agentId
         updateColorHue()
     }
 }

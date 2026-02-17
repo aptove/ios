@@ -26,16 +26,12 @@ class UserDefaultsMigrator {
 
     /// Check if migration is needed
     func needsMigration() -> Bool {
-        // Already migrated?
         if userDefaults.bool(forKey: Self.migrationCompleteKey) {
             print("ℹ️ Migration: Already migrated to CoreData")
             return false
         }
 
-        // Has UserDefaults data?
         let hasUserDefaultsData = userDefaults.data(forKey: Self.agentsKey) != nil
-
-        // Is CoreData empty?
         let coreDataEmpty = repository.fetchAgents().isEmpty
 
         let needsMigration = hasUserDefaultsData && coreDataEmpty
@@ -55,17 +51,15 @@ class UserDefaultsMigrator {
     func migrate() throws {
         print("🚀 Migration: Starting migration from UserDefaults to CoreData...")
 
-        // 1. Backup UserDefaults (for safety)
         backupUserDefaults()
 
-        // 2. Load agents from UserDefaults
         guard let data = userDefaults.data(forKey: Self.agentsKey) else {
             throw MigrationError.noData
         }
 
-        let savedAgents: [SavedAgent]
+        let savedAgents: [LegacySavedAgent]
         do {
-            savedAgents = try JSONDecoder().decode([SavedAgent].self, from: data)
+            savedAgents = try JSONDecoder().decode([LegacySavedAgent].self, from: data)
             print("📦 Migration: Loaded \(savedAgents.count) agents from UserDefaults")
         } catch {
             print("❌ Migration: Failed to decode agents: \(error)")
@@ -78,8 +72,8 @@ class UserDefaultsMigrator {
 
         try context.performAndWait {
             for savedAgent in savedAgents {
-                // Create Agent entity
-                let agent = Agent(context: context,
+                // Create AgentEntity
+                let entity = AgentEntity(context: context,
                                 agentId: savedAgent.id,
                                 name: savedAgent.name,
                                 url: savedAgent.config.url,
@@ -87,14 +81,14 @@ class UserDefaultsMigrator {
 
                 // Set optional fields
                 if let description = savedAgent.agentDescription {
-                    agent.agentDescription = description
+                    entity.agentDescription = description
                 }
 
                 // Migrate session ID
                 let sessionIdKey = "\(Self.sessionIdKeyPrefix)\(savedAgent.id)"
                 if let sessionId = userDefaults.string(forKey: sessionIdKey) {
-                    agent.activeSessionId = sessionId
-                    agent.sessionStartedAt = Date()
+                    entity.activeSessionId = sessionId
+                    entity.sessionStartedAt = Date()
                     print("  📝 Migrated session ID for \(savedAgent.name): \(sessionId)")
                 }
 
@@ -156,11 +150,11 @@ enum MigrationError: LocalizedError {
 
 // MARK: - Legacy Data Models
 
-/// Legacy SavedAgent structure from UserDefaults (for migration)
-struct SavedAgent: Codable {
+/// Legacy SavedAgent structure from UserDefaults (for migration only)
+struct LegacySavedAgent: Codable {
     let id: String
     let name: String
-    let config: ConnectionConfig
+    let config: LegacyConnectionConfig
     let agentDescription: String?
 
     enum CodingKeys: String, CodingKey {
@@ -169,8 +163,9 @@ struct SavedAgent: Codable {
     }
 }
 
-/// Legacy ConnectionConfig structure (for migration)
-struct ConnectionConfig: Codable {
+/// Legacy ConnectionConfig structure (for migration decoding only)
+/// Note: matches the old JSON shape stored in UserDefaults, not the current ConnectionConfig
+struct LegacyConnectionConfig: Codable {
     let url: String
     let version: String
     let authToken: String?

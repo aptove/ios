@@ -4,10 +4,10 @@
 import Foundation
 import CoreData
 
-extension Agent {
+extension AgentEntity {
 
-    @nonobjc public class func fetchRequest() -> NSFetchRequest<Agent> {
-        return NSFetchRequest<Agent>(entityName: "Agent")
+    @nonobjc public class func fetchRequest() -> NSFetchRequest<AgentEntity> {
+        return NSFetchRequest<AgentEntity>(entityName: "Agent")
     }
 
     // MARK: - Primary Key
@@ -38,23 +38,17 @@ extension Agent {
 }
 
 // MARK: - Generated accessors for messages
-extension Agent {
+extension AgentEntity {
 
     @objc(addMessagesObject:)
-    @NSManaged public func addToMessages(_ value: Message)
+    @NSManaged public func addToMessages(_ value: MessageEntity)
 
     @objc(removeMessagesObject:)
-    @NSManaged public func removeFromMessages(_ value: Message)
+    @NSManaged public func removeFromMessages(_ value: MessageEntity)
 
     @objc(addMessages:)
     @NSManaged public func addToMessages(_ values: NSSet)
 
     @objc(removeMessages:)
     @NSManaged public func removeFromMessages(_ values: NSSet)
-}
-
-extension Agent : Identifiable {
-    public var id: String {
-        return agentId ?? UUID().uuidString
-    }
 }

@@ -25,38 +25,32 @@ class AgentManager: ObservableObject {
     @Published var conversations: [String: Conversation] = [:]
 
     private let clientCache = ClientCache()
+    private let repository: AgentRepository
+    private var cancellables = Set<AnyCancellable>()
 
-    init() {
+    init(repository: AgentRepository = AgentRepository()) {
+        self.repository = repository
         print("📱 AgentManager: Initializing...")
-        loadAgents()
-        print("📱 AgentManager: Initialization complete, loaded \(agents.count) agents")
+        setupAgentObserver()
+        print("📱 AgentManager: Initialization complete, \(agents.count) agents loaded")
     }
 
-    private func loadAgents() {
-        print("📱 AgentManager: Loading saved agents from UserDefaults...")
-        guard let data = UserDefaults.standard.data(forKey: "agents"),
-              let loadedAgents = try? JSONDecoder().decode([Agent].self, from: data) else {
-            print("📱 AgentManager: No saved agents found or decode failed")
-            return
-        }
-
-        print("📱 AgentManager: Successfully decoded \(loadedAgents.count) agents")
-        agents = loadedAgents
-
-        for agent in agents {
-            print("📱 AgentManager: Setting up conversation for agent: \(agent.name) (\(agent.id))")
-            if conversations[agent.id] == nil {
-                conversations[agent.id] = Conversation(agentId: agent.id)
+    private func setupAgentObserver() {
+        repository.observeAgents()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] updatedAgents in
+                guard let self else { return }
+                let wasEmpty = self.agents.isEmpty
+                self.agents = updatedAgents
+                // Create conversations for any new agents
+                for agent in updatedAgents where self.conversations[agent.id] == nil {
+                    self.conversations[agent.id] = Conversation(agentId: agent.id)
+                }
+                if wasEmpty && !updatedAgents.isEmpty {
+                    print("📱 AgentManager: Loaded \(updatedAgents.count) agents from CoreData")
+                }
             }
-        }
-
-        sortAgents()
-    }
-
-    private func saveAgents() {
-        if let data = try? JSONEncoder().encode(agents) {
-            UserDefaults.standard.set(data, forKey: "agents")
-        }
+            .store(in: &cancellables)
     }
 
     /// Check if an agent with the same URL (and clientId for Cloudflare) already exists
@@ -66,19 +60,15 @@ class AgentManager: ObservableObject {
 
     /// Find an existing agent by URL (and clientId for Cloudflare)
     func findAgent(withURL url: String, clientId: String?) -> Agent? {
-        // Normalize URL for comparison (remove trailing slash)
         let normalizedURL = url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
 
         return agents.first { agent in
             let agentURL = agent.url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
 
-            // For local connections (no clientId), just compare URLs
             if clientId == nil || clientId?.isEmpty == true {
                 return agentURL == normalizedURL
             }
 
-            // For Cloudflare connections, need to match both URL and clientId
-            // But we don't store clientId in Agent, so we check via Keychain
             if agentURL == normalizedURL {
                 if let storedConfig = try? KeychainManager.retrieve(for: agent.id) {
                     return storedConfig.clientId == clientId
@@ -94,10 +84,8 @@ class AgentManager: ObservableObject {
         // Save credentials to Keychain
         try KeychainManager.save(config: config, for: agentId)
 
-        // Add agent to in-memory list and persist
-        let agent = Agent(id: agentId, name: name, url: config.url)
-        agents.append(agent)
-        saveAgents()
+        // Add agent to CoreData
+        repository.addAgent(agentId: agentId, name: name, url: config.url, protocolVersion: config.protocolVersion)
 
         // Create conversation
         conversations[agentId] = Conversation(agentId: agentId)
@@ -111,22 +99,15 @@ class AgentManager: ObservableObject {
 
         print("📱 AgentManager: Updating credentials for agent \(agentId)")
 
-        // Disconnect and remove cached client
         if let client = await clientCache.removeClient(for: agentId) {
             await client.disconnect()
         }
 
-        // Update keychain with new credentials
         try KeychainManager.save(config: config, for: agentId)
 
-        // Clear session info since credentials changed
-        updateAgentField(agentId: agentId) { agent in
-            agent.activeSessionId = nil
-            agent.sessionStartedAt = nil
-            agent.status = .disconnected
-        }
+        repository.clearSessionInfo(agentId: agentId)
+        repository.updateConnectionStatus(agentId: agentId, status: .disconnected)
 
-        // Clear conversation for fresh start
         conversations[agentId] = Conversation(agentId: agentId)
 
         print("📱 AgentManager: Credentials updated successfully for \(agentId)")
@@ -139,14 +120,8 @@ class AgentManager: ObservableObject {
             await client.disconnect()
         }
 
-        // Remove from in-memory list and persist
-        agents.removeAll { $0.id == agentId }
-        saveAgents()
-
-        // Remove conversation
+        repository.deleteAgent(agentId: agentId)
         conversations.removeValue(forKey: agentId)
-
-        // Remove credentials
         try? KeychainManager.delete(for: agentId)
 
         print("🗑️ AgentManager: Removed agent \(agentId)")
@@ -156,7 +131,6 @@ class AgentManager: ObservableObject {
         let startTime = CFAbsoluteTimeGetCurrent()
         print("📱 AgentManager.getClient: START for \(agentId)")
 
-        // Check cache first
         if let existingClient = await clientCache.getClient(for: agentId) {
             print("📱 AgentManager.getClient: Cache HIT (\(Int((CFAbsoluteTimeGetCurrent() - startTime) * 1000))ms)")
             return existingClient
@@ -171,7 +145,6 @@ class AgentManager: ObservableObject {
         }
         print("📱 AgentManager.getClient: Keychain retrieved (\(Int((CFAbsoluteTimeGetCurrent() - keychainStart) * 1000))ms)")
 
-        // Get existing session ID if available
         let existingSessionId = agents.first(where: { $0.id == agentId })?.activeSessionId
         if let sessionId = existingSessionId {
             print("📱 AgentManager.getClient: Found existing session ID: \(sessionId)")
@@ -192,19 +165,14 @@ class AgentManager: ObservableObject {
             return nil
         }
 
-        // If already connected, mark as resumed (reusing existing session) and return
         if case .connected = client.connectionState {
             client.sessionWasResumed = true
             return client
         }
 
-        // Get existing session ID for resumption
         let existingSessionId = agents.first(where: { $0.id == agentId })?.activeSessionId
-
-        // Connect with session loading
         await client.connect(existingSessionId: existingSessionId)
 
-        // Update agent with session info after connection
         if case .connected = client.connectionState {
             updateAgentSessionInfo(
                 agentId: agentId,
@@ -218,26 +186,15 @@ class AgentManager: ObservableObject {
 
     /// Update agent's session information
     func updateAgentSessionInfo(agentId: String, sessionId: String?, supportsLoadSession: Bool) {
-        updateAgentField(agentId: agentId) { agent in
-            agent.activeSessionId = sessionId
-            agent.sessionStartedAt = sessionId != nil ? Date() : nil
-            agent.supportsLoadSession = supportsLoadSession
-        }
+        repository.updateSessionInfo(agentId: agentId, sessionId: sessionId, supportsLoad: supportsLoadSession)
         print("📱 AgentManager: Updated session info for \(agentId): sessionId=\(sessionId ?? "nil"), supportsLoad=\(supportsLoadSession)")
     }
 
     /// Clear the session for an agent (for "Clear Session" button)
     func clearSession(for agentId: String) async {
-        // Clear session info
-        updateAgentField(agentId: agentId) { agent in
-            agent.activeSessionId = nil
-            agent.sessionStartedAt = nil
-        }
-
-        // Also clear the conversation
+        repository.clearSessionInfo(agentId: agentId)
         conversations[agentId] = Conversation(agentId: agentId)
 
-        // Disconnect the client if connected
         if let client = await clientCache.removeClient(for: agentId) {
             await client.disconnect()
         }
@@ -251,13 +208,5 @@ class AgentManager: ObservableObject {
             let lastActivity2 = conversations[agent2.id]?.lastActivity ?? .distantPast
             return lastActivity1 > lastActivity2
         }
-    }
-
-    // MARK: - Private Helpers
-
-    private func updateAgentField(agentId: String, update: (inout Agent) -> Void) {
-        guard let index = agents.firstIndex(where: { $0.id == agentId }) else { return }
-        update(&agents[index])
-        saveAgents()
     }
 }

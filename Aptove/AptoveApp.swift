@@ -34,7 +34,21 @@ struct AptoveApp: App {
 
     init() {
         print("🚀 AptoveApp: Application starting...")
-        _agentManager = StateObject(wrappedValue: AgentManager())
+
+        // Set up CoreData repository
+        let repository = AgentRepository()
+
+        // Run one-time migration from UserDefaults to CoreData
+        let migrator = UserDefaultsMigrator(repository: repository)
+        if migrator.needsMigration() {
+            do {
+                try migrator.migrate()
+            } catch {
+                print("⚠️ AptoveApp: Migration failed (non-fatal): \(error.localizedDescription)")
+            }
+        }
+
+        _agentManager = StateObject(wrappedValue: AgentManager(repository: repository))
         print("🚀 AptoveApp: Main app initialized")
     }
     

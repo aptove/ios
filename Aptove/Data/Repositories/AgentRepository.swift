@@ -10,8 +10,8 @@ class AgentRepository {
     private let coreDataStack: CoreDataStack
     private var cancellables = Set<AnyCancellable>()
 
-    /// Publisher for reactive agent list updates
-    @Published private(set) var agents: [Agent] = []
+    /// Publisher for reactive agent list updates (CoreData entities)
+    @Published private(set) var agentEntities: [AgentEntity] = []
 
     init(coreDataStack: CoreDataStack = .shared) {
         self.coreDataStack = coreDataStack
@@ -20,26 +20,33 @@ class AgentRepository {
 
     // MARK: - Reactive Queries
 
-    /// Observe all agents with reactive updates
+    /// Observe all agents with reactive updates (returns Agent structs for backward compatibility)
     func observeAgents() -> AnyPublisher<[Agent], Never> {
-        return $agents.eraseToAnyPublisher()
+        return $agentEntities
+            .map { $0.map { $0.toModel() } }
+            .eraseToAnyPublisher()
     }
 
     /// Observe a single agent by ID
     func observeAgent(agentId: String) -> AnyPublisher<Agent?, Never> {
-        return $agents
-            .map { agents in agents.first { $0.agentId == agentId } }
+        return $agentEntities
+            .map { entities in entities.first { $0.agentId == agentId }?.toModel() }
             .eraseToAnyPublisher()
     }
 
     // MARK: - CRUD Operations
 
-    /// Fetch all agents (synchronous)
+    /// Fetch all agents as Agent structs (synchronous)
     func fetchAgents() -> [Agent] {
-        let request = Agent.fetchRequest()
+        return fetchAgentEntities().map { $0.toModel() }
+    }
+
+    /// Fetch all AgentEntity objects (synchronous)
+    func fetchAgentEntities() -> [AgentEntity] {
+        let request = AgentEntity.fetchRequest()
         request.sortDescriptors = [
-            NSSortDescriptor(keyPath: \Agent.lastConnectedAt, ascending: false),
-            NSSortDescriptor(keyPath: \Agent.createdAt, ascending: false)
+            NSSortDescriptor(keyPath: \AgentEntity.lastConnectedAt, ascending: false),
+            NSSortDescriptor(keyPath: \AgentEntity.createdAt, ascending: false)
         ]
 
         do {
@@ -53,7 +60,7 @@ class AgentRepository {
     /// Add a new agent
     func addAgent(agentId: String, name: String, url: String, protocolVersion: String) {
         let context = coreDataStack.viewContext
-        let agent = Agent(context: context,
+        let _ = AgentEntity(context: context,
                          agentId: agentId,
                          name: name,
                          url: url,
@@ -63,15 +70,15 @@ class AgentRepository {
         refreshAgents()
     }
 
-    /// Update an existing agent
-    func updateAgent(_ agent: Agent) {
+    /// Update an existing agent entity
+    func updateAgent(_ entity: AgentEntity) {
         saveContext(coreDataStack.viewContext)
         refreshAgents()
     }
 
     /// Delete agent by ID
     func deleteAgent(agentId: String) {
-        let request = Agent.fetchRequest()
+        let request = AgentEntity.fetchRequest()
         request.predicate = NSPredicate(format: "agentId == %@", agentId)
 
         do {
@@ -84,9 +91,14 @@ class AgentRepository {
         }
     }
 
-    /// Find agent by URL
+    /// Find agent by URL (returns Agent struct)
     func findAgentByUrl(_ url: String) -> Agent? {
-        let request = Agent.fetchRequest()
+        return findAgentEntityByUrl(url)?.toModel()
+    }
+
+    /// Find agent entity by URL
+    func findAgentEntityByUrl(_ url: String) -> AgentEntity? {
+        let request = AgentEntity.fetchRequest()
         let normalizedUrl = url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         request.predicate = NSPredicate(format: "url CONTAINS[cd] %@", normalizedUrl)
         request.fetchLimit = 1
@@ -100,9 +112,9 @@ class AgentRepository {
         }
     }
 
-    /// Get agent by ID
-    func getAgent(agentId: String) -> Agent? {
-        let request = Agent.fetchRequest()
+    /// Get agent entity by ID
+    func getAgentEntity(agentId: String) -> AgentEntity? {
+        let request = AgentEntity.fetchRequest()
         request.predicate = NSPredicate(format: "agentId == %@", agentId)
         request.fetchLimit = 1
 
@@ -119,14 +131,14 @@ class AgentRepository {
 
     /// Update session info for an agent
     func updateSessionInfo(agentId: String, sessionId: String?, supportsLoad: Bool) {
-        guard let agent = getAgent(agentId: agentId) else {
+        guard let entity = getAgentEntity(agentId: agentId) else {
             print("❌ AgentRepository: Agent not found for session update: \(agentId)")
             return
         }
 
-        agent.activeSessionId = sessionId
-        agent.sessionStartedAt = sessionId != nil ? Date() : nil
-        agent.supportsLoadSession = supportsLoad
+        entity.activeSessionId = sessionId
+        entity.sessionStartedAt = sessionId != nil ? Date() : nil
+        entity.supportsLoadSession = supportsLoad
 
         saveContext(coreDataStack.viewContext)
         refreshAgents()
@@ -136,13 +148,13 @@ class AgentRepository {
 
     /// Clear session info for an agent
     func clearSessionInfo(agentId: String) {
-        guard let agent = getAgent(agentId: agentId) else {
+        guard let entity = getAgentEntity(agentId: agentId) else {
             print("❌ AgentRepository: Agent not found for session clear: \(agentId)")
             return
         }
 
-        agent.activeSessionId = nil
-        agent.sessionStartedAt = nil
+        entity.activeSessionId = nil
+        entity.sessionStartedAt = nil
 
         saveContext(coreDataStack.viewContext)
         refreshAgents()
@@ -154,14 +166,14 @@ class AgentRepository {
 
     /// Update connection status for an agent
     func updateConnectionStatus(agentId: String, status: ConnectionStatus) {
-        guard let agent = getAgent(agentId: agentId) else {
+        guard let entity = getAgentEntity(agentId: agentId) else {
             print("❌ AgentRepository: Agent not found for status update: \(agentId)")
             return
         }
 
-        agent.status = status
+        entity.status = status
         if status == .connected {
-            agent.lastConnectedAt = Date()
+            entity.lastConnectedAt = Date()
         }
 
         saveContext(coreDataStack.viewContext)
@@ -171,10 +183,8 @@ class AgentRepository {
     // MARK: - Private Helpers
 
     private func setupObserver() {
-        // Perform initial fetch
         refreshAgents()
 
-        // Observe CoreData changes
         NotificationCenter.default.publisher(for: .NSManagedObjectContextObjectsDidChange, object: coreDataStack.viewContext)
             .sink { [weak self] _ in
                 self?.refreshAgents()
@@ -183,7 +193,7 @@ class AgentRepository {
     }
 
     private func refreshAgents() {
-        agents = fetchAgents()
+        agentEntities = fetchAgentEntities()
     }
 
     private func saveContext(_ context: NSManagedObjectContext) {

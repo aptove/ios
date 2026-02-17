@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22225" systemVersion="23A344" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
-    <entity name="Agent" representedClassName="Agent" syncable="YES">
+    <entity name="Agent" representedClassName="AgentEntity" syncable="YES">
         <attribute name="activeSessionId" optional="YES" attributeType="String"/>
         <attribute name="agentDescription" optional="YES" attributeType="String"/>
         <attribute name="agentId" attributeType="String"/>
@@ -21,7 +21,7 @@
             </uniquenessConstraint>
         </uniquenessConstraints>
     </entity>
-    <entity name="Message" representedClassName="Message" syncable="YES">
+    <entity name="Message" representedClassName="MessageEntity" syncable="YES">
         <attribute name="agentId" attributeType="String"/>
         <attribute name="content" attributeType="String"/>
         <attribute name="isError" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>

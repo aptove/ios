@@ -9,29 +9,28 @@ class CoreDataStack {
     static let shared = CoreDataStack()
 
     /// Main persistent container
-    lazy var persistentContainer: NSPersistentContainer = {
-        let container = NSPersistentContainer(name: "Aptove")
+    var persistentContainer: NSPersistentContainer
 
+    init() {
+        let container = NSPersistentContainer(name: "Aptove")
         container.loadPersistentStores { storeDescription, error in
             if let error = error as NSError? {
-                // Log error for debugging
                 print("❌ CoreData: Failed to load persistent store: \(error), \(error.userInfo)")
-
-                // In production, you might want to handle this more gracefully
-                // For development, we'll crash to catch issues early
                 fatalError("Unresolved error \(error), \(error.userInfo)")
             } else {
                 print("✅ CoreData: Persistent store loaded successfully")
                 print("📍 CoreData: Store location: \(storeDescription.url?.path ?? "unknown")")
             }
         }
-
-        // Enable automatic merging of changes
         container.viewContext.automaticallyMergesChangesFromParent = true
         container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        self.persistentContainer = container
+    }
 
-        return container
-    }()
+    /// Designated initializer for testing with a custom container
+    init(container: NSPersistentContainer) {
+        self.persistentContainer = container
+    }
 
     /// Main context for UI operations (runs on main thread)
     var viewContext: NSManagedObjectContext {
@@ -55,7 +54,6 @@ class CoreDataStack {
             } catch {
                 let nsError = error as NSError
                 print("❌ CoreData: Failed to save context: \(nsError), \(nsError.userInfo)")
-                // In production, handle this error appropriately
                 fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
             }
         }
@@ -98,7 +96,19 @@ class CoreDataStack {
         print("✅ CoreData: All data deleted")
     }
 
-    private init() {
-        // Singleton - prevent external initialization
+    /// Create an in-memory stack for use in tests
+    static func makeInMemory() -> CoreDataStack {
+        let container = NSPersistentContainer(name: "Aptove")
+        let description = NSPersistentStoreDescription()
+        description.type = NSInMemoryStoreType
+        container.persistentStoreDescriptions = [description]
+        container.loadPersistentStores { _, error in
+            if let error = error {
+                fatalError("Failed to load in-memory store: \(error)")
+            }
+        }
+        container.viewContext.automaticallyMergesChangesFromParent = true
+        container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        return CoreDataStack(container: container)
     }
 }

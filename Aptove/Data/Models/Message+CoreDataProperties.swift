@@ -4,10 +4,10 @@
 import Foundation
 import CoreData
 
-extension Message {
+extension MessageEntity {
 
-    @nonobjc public class func fetchRequest() -> NSFetchRequest<Message> {
-        return NSFetchRequest<Message>(entityName: "Message")
+    @nonobjc public class func fetchRequest() -> NSFetchRequest<MessageEntity> {
+        return NSFetchRequest<MessageEntity>(entityName: "Message")
     }
 
     // MARK: - Primary Key
@@ -23,11 +23,5 @@ extension Message {
     @NSManaged public var isError: Bool
 
     // MARK: - Relationships
-    @NSManaged public var agent: Agent?
-}
-
-extension Message : Identifiable {
-    public var id: String {
-        return messageId ?? UUID().uuidString
-    }
+    @NSManaged public var agent: AgentEntity?
 }

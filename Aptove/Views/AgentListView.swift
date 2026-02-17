@@ -126,8 +126,8 @@ struct AgentRow: View {
             return .green
         case .disconnected:
             return .gray
-        case .error:
-            return .red
+        case .reconnecting:
+            return .orange
         }
     }
     

@@ -153,8 +153,8 @@ struct AgentConfigurationView: View {
             return .green
         case .disconnected:
             return .gray
-        case .error:
-            return .red
+        case .reconnecting:
+            return .orange
         }
     }
     
@@ -164,8 +164,8 @@ struct AgentConfigurationView: View {
             return "Connected"
         case .disconnected:
             return "Disconnected"
-        case .error:
-            return "Error"
+        case .reconnecting:
+            return "Reconnecting"
         }
     }
     
