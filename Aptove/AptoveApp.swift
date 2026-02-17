@@ -1,6 +1,5 @@
 import SwiftUI
 import UserNotifications
-import CoreData
 
 /// AppDelegate for handling push notification registration
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
@@ -35,26 +34,7 @@ struct AptoveApp: App {
 
     init() {
         print("🚀 AptoveApp: Application starting...")
-
-        // Run migration from UserDefaults to CoreData if needed
-        let repository = AgentRepository()
-        let migrator = UserDefaultsMigrator(repository: repository)
-
-        if migrator.needsMigration() {
-            print("🔄 AptoveApp: Migration needed, starting...")
-            do {
-                try migrator.migrate()
-                print("✅ AptoveApp: Migration completed successfully")
-            } catch {
-                print("❌ AptoveApp: Migration failed: \(error)")
-            }
-        } else {
-            print("✅ AptoveApp: No migration needed")
-        }
-
-        // Initialize AgentManager with the repository
-        _agentManager = StateObject(wrappedValue: AgentManager(repository: repository))
-
+        _agentManager = StateObject(wrappedValue: AgentManager())
         print("🚀 AptoveApp: Main app initialized")
     }
     
