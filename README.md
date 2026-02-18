@@ -26,12 +26,26 @@ The app follows MVVM pattern with SwiftUI:
 
 ```
 Aptove/
+├── Data/
+│   ├── CoreDataStack.swift        # CoreData persistence stack
+│   ├── Aptove.xcdatamodeld/       # CoreData schema
+│   ├── Models/
+│   │   ├── Agent+CoreDataClass.swift      # AgentEntity NSManagedObject
+│   │   ├── Agent+CoreDataProperties.swift # AgentEntity properties
+│   │   ├── Agent+LegacyBridge.swift       # CoreData → struct bridge
+│   │   ├── Message+CoreDataClass.swift    # MessageEntity NSManagedObject
+│   │   ├── Message+CoreDataProperties.swift
+│   │   └── ConnectionStatus.swift        # Canonical connection status enum
+│   ├── Repositories/
+│   │   └── AgentRepository.swift  # Data access layer (CRUD + reactive)
+│   └── Migrations/
+│       └── UserDefaultsMigrator.swift # One-time UserDefaults → CoreData migration
 ├── Models/
-│   ├── Agent.swift           # Agent data model
+│   ├── Agent.swift           # Agent struct (UI-facing model)
 │   ├── Message.swift         # Chat message model
 │   └── ConnectionConfig.swift # Connection configuration
 ├── Services/
-│   ├── AgentManager.swift    # Agent connection management
+│   ├── AgentManager.swift    # Agent connection management (uses AgentRepository)
 │   ├── KeychainService.swift # Secure credential storage
 │   ├── PairingService.swift  # Secure pairing with cert pinning
 │   └── ClientCache.swift     # Thread-safe client caching
@@ -46,6 +60,92 @@ Aptove/
 │   ├── QRScannerView.swift   # QR code scanner
 │   └── ManualPairingView.swift # Manual pairing entry
 └── AptoveApp.swift           # App entry point
+```
+
+### Data Layer Architecture
+
+```
+Views → AgentManager (@Published agents: [Agent])
+              ↓
+        AgentRepository  ←→  CoreData (AgentEntity)
+              ↓
+        Agent struct (via AgentEntity.toModel())
+```
+
+`AgentManager` subscribes to `AgentRepository.observeAgents()` via Combine. When CoreData changes, the publisher emits an updated `[Agent]` struct array, causing SwiftUI views to re-render automatically.
+
+## CoreData Schema
+
+Agent data is persisted in CoreData (SQLite backend) to match Android's Room database structure exactly.
+
+### AgentEntity
+
+| Attribute | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| `agentId` | String | ✅ | — | Primary key (unique constraint) |
+| `name` | String | ✅ | — | Display name |
+| `url` | String | ✅ | — | WebSocket endpoint |
+| `protocolVersion` | String | ✅ | — | ACP protocol version |
+| `agentDescription` | String | ❌ | — | Optional description |
+| `capabilities` | String | ✅ | `"[]"` | JSON-encoded dictionary |
+| `connectionStatus` | String | ✅ | `"DISCONNECTED"` | See `ConnectionStatus` enum |
+| `colorHue` | Float | ✅ | `0.0` | Avatar color (0.0–1.0) |
+| `createdAt` | Date | ✅ | — | Creation timestamp |
+| `lastConnectedAt` | Date | ❌ | — | Last successful connection |
+| `activeSessionId` | String | ❌ | — | Current ACP session ID |
+| `sessionStartedAt` | Date | ❌ | — | Session start timestamp |
+| `supportsLoadSession` | Bool | ✅ | `false` | Whether agent supports session resumption |
+
+### MessageEntity (scaffolded)
+
+| Attribute | Type | Required | Notes |
+|---|---|---|---|
+| `messageId` | String | ✅ | Unique constraint |
+| `agentId` | String | ✅ | Foreign key reference |
+| `content` | String | ✅ | Message text |
+| `role` | String | ✅ | `"user"` or `"assistant"` |
+| `timestamp` | Date | ✅ | — |
+| `isError` | Bool | ✅ | Error message flag |
+
+### ConnectionStatus Enum
+
+```swift
+enum ConnectionStatus: String, Codable {
+    case connected      // "CONNECTED"
+    case disconnected   // "DISCONNECTED"
+    case reconnecting   // "RECONNECTING"
+}
+```
+
+Stored as a raw string in CoreData, matching Android's enum names exactly.
+
+## Migration Guide (UserDefaults → CoreData)
+
+Versions prior to the CoreData migration stored agents in `UserDefaults` as JSON. The app automatically migrates this data on first launch.
+
+### How Migration Works
+
+1. On app launch, `UserDefaultsMigrator.needsMigration()` checks:
+   - `UserDefaults` key `"agents"` has data, **and**
+   - `UserDefaults` flag `"coredata_migration_complete"` is `false`
+2. If migration is needed, each agent is decoded from the legacy JSON format and inserted as a `CoreData AgentEntity`.
+3. Session IDs stored under `"aptove.sessionId.<agentId>"` are migrated to `AgentEntity.activeSessionId`.
+4. The flag `"coredata_migration_complete"` is set to `true`. Migration will not run again.
+5. Original `UserDefaults` data is preserved as a backup (not deleted).
+
+### Developer Notes
+
+- **Schema changes**: Use CoreData versioned models (`.xcdatamodeld` with multiple versions) and lightweight migration. Do not edit the existing model version in place.
+- **Testing**: Use `CoreDataStack.makeInMemory()` to get an in-memory stack for unit tests — no disk I/O, isolated per test.
+- **Thread safety**: Always perform writes on a background context via `coreDataStack.backgroundContext`. Read from `coreDataStack.viewContext` on the main thread.
+
+```swift
+// Example: write on background, read on main
+let bg = coreDataStack.backgroundContext
+bg.perform {
+    // mutations here
+    try? bg.save()
+}
 ```
 
 ## Technology Stack
