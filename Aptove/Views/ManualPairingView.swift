@@ -24,18 +24,21 @@ struct ManualPairingView: View {
     enum PairingTypeOption: String, CaseIterable {
         case local = "Local Bridge"
         case cloudflare = "Cloudflare Tunnel"
-        
+        case tailscale = "Tailscale"
+
         var path: String {
             switch self {
             case .local: return "/pair/local"
             case .cloudflare: return "/pair/cloudflare"
+            case .tailscale: return "/pair/tailscale"
             }
         }
-        
+
         var requiresFingerprint: Bool {
             switch self {
             case .local: return true
             case .cloudflare: return false
+            case .tailscale: return false
             }
         }
     }
@@ -53,9 +56,14 @@ struct ManualPairingView: View {
                     } header: {
                         Text("Pairing Type")
                     } footer: {
-                        Text(pairingType == .local 
-                            ? "For bridges running on your local network" 
-                            : "For bridges exposed via Cloudflare Tunnel")
+                        switch pairingType {
+                        case .local:
+                            Text("For bridges running on your local network")
+                        case .cloudflare:
+                            Text("For bridges exposed via Cloudflare Tunnel")
+                        case .tailscale:
+                            Text("For bridges using Tailscale. Your iPhone must be on the same tailnet. Enter the MagicDNS hostname (e.g. my-laptop.tail1234.ts.net) or Tailscale IP with port (e.g. 100.x.x.x:8080).")
+                        }
                     }
                     
                     Section {
@@ -72,7 +80,11 @@ struct ManualPairingView: View {
                     } header: {
                         Text("Bridge Address")
                     } footer: {
-                        Text("Enter the IP address and port shown in your terminal")
+                        if pairingType == .tailscale {
+                            Text("Enter the MagicDNS hostname or Tailscale IP:port shown in the bridge terminal")
+                        } else {
+                            Text("Enter the IP address and port shown in your terminal")
+                        }
                     }
                     
                     Section {
@@ -146,6 +158,10 @@ struct ManualPairingView: View {
                             Text("Validating certificate fingerprint...")
                                 .font(.subheadline)
                                 .foregroundColor(.white.opacity(0.8))
+                        } else if pairingType == .tailscale {
+                            Text("Connecting via Tailscale...")
+                                .font(.subheadline)
+                                .foregroundColor(.white.opacity(0.8))
                         }
                         
                         Button {
@@ -210,7 +226,7 @@ struct ManualPairingView: View {
         isPairing = true
         
         // Build the pairing URL
-        let scheme = (pairingType == .local && useHTTPS) || pairingType == .cloudflare ? "https" : "http"
+        let scheme = (pairingType == .local && useHTTPS) || pairingType == .cloudflare || pairingType == .tailscale ? "https" : "http"
         let address = bridgeAddress.trimmingCharacters(in: .whitespaces)
         let code = pairingCode.trimmingCharacters(in: .whitespaces)
         

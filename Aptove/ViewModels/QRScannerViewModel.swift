@@ -75,6 +75,8 @@ class QRScannerViewModel: ObservableObject {
             pairingStatus = "Connecting to local bridge...\nValidating certificate..."
         case .cloudflare:
             pairingStatus = "Connecting to Cloudflare tunnel..."
+        case .tailscale:
+            pairingStatus = "Connecting via Tailscale..."
         case .unknown(let path):
             throw PairingError.unsupportedPairingType(path)
         }
