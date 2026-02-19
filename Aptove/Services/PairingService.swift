@@ -112,6 +112,7 @@ struct CloudflarePairingResponse: Codable {
     let url: String
     let `protocol`: String
     let version: String
+    let authToken: String
     let clientId: String
     let clientSecret: String
 }
@@ -139,7 +140,7 @@ enum PairingResponse {
                 url: response.url,
                 clientId: response.clientId,
                 clientSecret: response.clientSecret,
-                authToken: nil,
+                authToken: response.authToken,
                 certFingerprint: nil,
                 protocolVersion: response.protocol,
                 version: response.version
