@@ -109,6 +109,7 @@ struct LocalPairingResponse: Codable {
     let version: String
     let authToken: String
     let certFingerprint: String?
+    let agentId: String?
 }
 
 /// Response from /pair/cloudflare endpoint (future)
@@ -119,13 +120,22 @@ struct CloudflarePairingResponse: Codable {
     let authToken: String
     let clientId: String
     let clientSecret: String
+    let agentId: String?
 }
 
 /// Generic pairing response that can hold either type
 enum PairingResponse {
     case local(LocalPairingResponse)
     case cloudflare(CloudflarePairingResponse)
-    
+
+    /// The bridge agent ID returned by the server, used for multi-transport deduplication.
+    var agentId: String? {
+        switch self {
+        case .local(let r): return r.agentId
+        case .cloudflare(let r): return r.agentId
+        }
+    }
+
     /// Convert to ConnectionConfig for use with ACPClientWrapper
     func toConnectionConfig() -> ConnectionConfig {
         switch self {
@@ -151,6 +161,15 @@ enum PairingResponse {
             )
         }
     }
+}
+
+/// Result of a successful pairing, containing the connection config and optional bridge agent ID.
+struct PairingResult {
+    let config: ConnectionConfig
+    /// Stable agent UUID from the bridge — used to deduplicate agents across multiple transports.
+    let bridgeAgentId: String?
+    /// Transport type that was used (e.g. "local", "cloudflare", "tailscale-serve", "tailscale-ip")
+    let transport: String
 }
 
 /// Error types for pairing operations
@@ -194,8 +213,8 @@ actor PairingService {
     
     /// Complete the pairing flow by calling the pairing endpoint
     /// - Parameter pairingURL: Parsed pairing URL from QR code
-    /// - Returns: ConnectionConfig ready for use with ACPClientWrapper
-    func pair(with pairingURL: PairingURL) async throws -> ConnectionConfig {
+    /// - Returns: PairingResult containing ConnectionConfig and optional bridge agent ID
+    func pair(with pairingURL: PairingURL) async throws -> PairingResult {
         switch pairingURL.pairingType {
         case .local:
             return try await pairLocal(pairingURL: pairingURL)
@@ -211,7 +230,7 @@ actor PairingService {
     // MARK: - Local Pairing
     
     /// Pair with a local bridge using certificate pinning
-    private func pairLocal(pairingURL: PairingURL) async throws -> ConnectionConfig {
+    private func pairLocal(pairingURL: PairingURL) async throws -> PairingResult {
         // For local pairing, fingerprint is required for security
         guard let expectedFingerprint = pairingURL.fingerprint else {
             throw PairingError.missingFingerprint
@@ -268,7 +287,8 @@ actor PairingService {
                 let pairingResponse = try decoder.decode(LocalPairingResponse.self, from: data)
                 print("✅ PairingService: Pairing successful!")
                 print("✅ PairingService: WebSocket URL: \(pairingResponse.url)")
-                return PairingResponse.local(pairingResponse).toConnectionConfig()
+                let pr = PairingResponse.local(pairingResponse)
+                return PairingResult(config: pr.toConnectionConfig(), bridgeAgentId: pr.agentId, transport: "local")
             } catch {
                 throw PairingError.invalidResponse("Could not parse response: \(error)")
             }
@@ -296,14 +316,15 @@ actor PairingService {
     /// Pair with a Tailscale-transported bridge.
     /// - `serve` mode (no fingerprint): Tailscale provides a valid Let's Encrypt cert → standard TLS.
     /// - `ip` mode (fingerprint present): self-signed cert → cert pinning, same as local pairing.
-    private func pairTailscale(pairingURL: PairingURL) async throws -> ConnectionConfig {
+    private func pairTailscale(pairingURL: PairingURL) async throws -> PairingResult {
         print("🔐 PairingService: Starting Tailscale pairing")
         print("🔐 PairingService: URL: \(pairingURL.fullURL)")
 
         if pairingURL.fingerprint != nil {
             // ip mode: fingerprint is present — reuse cert-pinning logic from pairLocal
             print("🔐 PairingService: Tailscale ip mode — using cert pinning")
-            return try await pairLocal(pairingURL: pairingURL)
+            let result = try await pairLocal(pairingURL: pairingURL)
+            return PairingResult(config: result.config, bridgeAgentId: result.bridgeAgentId, transport: "tailscale-ip")
         }
 
         // serve mode: Tailscale CA cert is trusted by iOS — use standard TLS
@@ -333,7 +354,8 @@ actor PairingService {
             do {
                 let pairingResponse = try decoder.decode(LocalPairingResponse.self, from: data)
                 print("✅ PairingService: Tailscale pairing successful!")
-                return PairingResponse.local(pairingResponse).toConnectionConfig()
+                let pr = PairingResponse.local(pairingResponse)
+                return PairingResult(config: pr.toConnectionConfig(), bridgeAgentId: pr.agentId, transport: "tailscale-serve")
             } catch {
                 throw PairingError.invalidResponse("Could not parse response: \(error)")
             }
@@ -353,7 +375,7 @@ actor PairingService {
     // MARK: - Cloudflare Pairing (Future)
 
     /// Pair with a Cloudflare-tunneled bridge
-    private func pairCloudflare(pairingURL: PairingURL) async throws -> ConnectionConfig {
+    private func pairCloudflare(pairingURL: PairingURL) async throws -> PairingResult {
         print("🔐 PairingService: Starting Cloudflare pairing")
         print("🔐 PairingService: URL: \(pairingURL.fullURL)")
         
@@ -383,7 +405,8 @@ actor PairingService {
             do {
                 let pairingResponse = try decoder.decode(CloudflarePairingResponse.self, from: data)
                 print("✅ PairingService: Cloudflare pairing successful!")
-                return PairingResponse.cloudflare(pairingResponse).toConnectionConfig()
+                let pr = PairingResponse.cloudflare(pairingResponse)
+                return PairingResult(config: pr.toConnectionConfig(), bridgeAgentId: pr.agentId, transport: "cloudflare")
             } catch {
                 throw PairingError.invalidResponse("Could not parse response: \(error)")
             }

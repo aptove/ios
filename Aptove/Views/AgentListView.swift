@@ -63,15 +63,19 @@ struct AgentListView: View {
 struct AgentRow: View {
     @EnvironmentObject var agentManager: AgentManager
     let agent: Agent
-    
+
     private var conversation: Conversation? {
         agentManager.conversations[agent.id]
     }
-    
+
     private var lastMessage: Message? {
         conversation?.messages.last
     }
-    
+
+    private var activeTransport: String? {
+        agentManager.activeTransport(for: agent.id)
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             Circle()
@@ -83,12 +87,16 @@ struct AgentRow: View {
                         .fontWeight(.semibold)
                         .foregroundColor(.white)
                 }
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(agent.name)
                     .font(.headline)
-                
-                if let lastMessage = lastMessage {
+
+                if let activeTransport = activeTransport {
+                    Text("via \(transportShortName(activeTransport))")
+                        .font(.caption)
+                        .foregroundColor(.accentColor)
+                } else if let lastMessage = lastMessage {
                     Text(lastMessage.text)
                         .font(.subheadline)
                         .foregroundColor(.secondary)
@@ -99,12 +107,12 @@ struct AgentRow: View {
                         .foregroundColor(.secondary)
                 }
             }
-            
+
             Spacer()
-            
+
             VStack(alignment: .trailing, spacing: 4) {
                 statusIndicator
-                
+
                 if let unreadCount = conversation?.unreadCount, unreadCount > 0 {
                     Text("\(unreadCount)")
                         .font(.caption2)
@@ -119,18 +127,25 @@ struct AgentRow: View {
         }
         .padding(.vertical, 4)
     }
-    
-    private var statusColor: Color {
-        switch agent.status {
-        case .connected:
-            return .green
-        case .disconnected:
-            return .gray
-        case .reconnecting:
-            return .orange
+
+    private func transportShortName(_ transport: String) -> String {
+        switch transport {
+        case "local":           return "Local"
+        case "cloudflare":      return "Cloudflare"
+        case "tailscale-serve": return "Tailscale"
+        case "tailscale-ip":    return "Tailscale IP"
+        default:                return transport
         }
     }
-    
+
+    private var statusColor: Color {
+        switch agent.status {
+        case .connected:    return .green
+        case .disconnected: return .gray
+        case .reconnecting: return .orange
+        }
+    }
+
     private var statusIndicator: some View {
         Circle()
             .fill(statusColor)

@@ -21,21 +21,17 @@ class QRScannerViewModel: ObservableObject {
         print("📷 QRScannerViewModel.handleQRCode(): Content preview: \(String(qrString.prefix(100)))")
         
         do {
-            let config: ConnectionConfig
-            
             // Determine if this is a pairing URL or legacy JSON format
             if qrString.hasPrefix("https://") || qrString.hasPrefix("http://") {
-                // New pairing URL format
+                // New pairing URL format — multi-transport aware
                 print("📷 QRScannerViewModel.handleQRCode(): Detected pairing URL format")
-                config = try await handlePairingURL(qrString)
+                try await handlePairingURLFull(qrString)
             } else {
                 // Legacy JSON format (for backwards compatibility)
                 print("📷 QRScannerViewModel.handleQRCode(): Detected legacy JSON format")
-                config = try handleLegacyJSON(qrString)
+                let config = try handleLegacyJSON(qrString)
+                try await connectWithConfig(config, bridgeAgentId: nil, transport: nil)
             }
-            
-            // Continue with common flow
-            try await connectWithConfig(config)
             
         } catch let error as PairingError {
             print("❌ QRScannerViewModel.handleQRCode(): Pairing error: \(error)")
@@ -60,34 +56,55 @@ class QRScannerViewModel: ObservableObject {
     }
     
     /// Handle new pairing URL format (https://IP:PORT/pair/local?code=XXXX&fp=SHA256:...)
-    private func handlePairingURL(_ urlString: String) async throws -> ConnectionConfig {
-        // Parse the pairing URL
+    private func handlePairingURLFull(_ urlString: String) async throws {
         pairingStatus = "Parsing pairing URL..."
         let pairingURL = try PairingURL.parse(urlString)
-        
+
         print("📷 QRScannerViewModel: Pairing type: \(pairingURL.pairingType.description)")
-        print("📷 QRScannerViewModel: Code: \(pairingURL.code)")
-        print("📷 QRScannerViewModel: Fingerprint: \(pairingURL.fingerprint ?? "none")")
-        
-        // Update status based on pairing type
         switch pairingURL.pairingType {
-        case .local:
-            pairingStatus = "Connecting to local bridge...\nValidating certificate..."
-        case .cloudflare:
-            pairingStatus = "Connecting to Cloudflare tunnel..."
-        case .tailscale:
-            pairingStatus = "Connecting via Tailscale..."
-        case .unknown(let path):
-            throw PairingError.unsupportedPairingType(path)
+        case .local:      pairingStatus = "Connecting to local bridge...\nValidating certificate..."
+        case .cloudflare: pairingStatus = "Connecting to Cloudflare tunnel..."
+        case .tailscale:  pairingStatus = "Connecting via Tailscale..."
+        case .unknown(let path): throw PairingError.unsupportedPairingType(path)
         }
-        
-        // Complete the pairing flow
-        let config = try await pairingService.pair(with: pairingURL)
-        
+
+        let result = try await pairingService.pair(with: pairingURL)
         print("✅ QRScannerViewModel: Pairing successful!")
-        print("📷 QRScannerViewModel: WebSocket URL: \(config.url)")
-        
-        return config
+        print("📷 QRScannerViewModel: Bridge agent ID: \(result.bridgeAgentId ?? "none")")
+
+        // Multi-transport dedup: if bridgeAgentId matches an existing agent, add transport
+        if let bridgeAgentId = result.bridgeAgentId, let manager = agentManager,
+           let existingAgent = manager.findAgent(byBridgeAgentId: bridgeAgentId) {
+            pairingStatus = "Adding transport to existing agent..."
+            let message = try manager.addOrUpdateTransportEndpoint(
+                agentId: existingAgent.id,
+                transport: result.transport,
+                config: result.config
+            )
+            print("✅ QRScannerViewModel: \(message)")
+            pairingStatus = message
+            showingSuccess = true
+            pairingStatus = ""
+            return
+        }
+
+        // New agent flow
+        try await connectWithConfig(result.config, bridgeAgentId: result.bridgeAgentId, transport: result.transport)
+    }
+
+    /// Handle new pairing URL format (https://IP:PORT/pair/local?code=XXXX&fp=SHA256:...)
+    /// - Returns: ConnectionConfig (kept for legacy callers; new code uses handlePairingURLFull)
+    private func handlePairingURL(_ urlString: String) async throws -> ConnectionConfig {
+        pairingStatus = "Parsing pairing URL..."
+        let pairingURL = try PairingURL.parse(urlString)
+        switch pairingURL.pairingType {
+        case .local:      pairingStatus = "Connecting to local bridge...\nValidating certificate..."
+        case .cloudflare: pairingStatus = "Connecting to Cloudflare tunnel..."
+        case .tailscale:  pairingStatus = "Connecting via Tailscale..."
+        case .unknown(let path): throw PairingError.unsupportedPairingType(path)
+        }
+        let result = try await pairingService.pair(with: pairingURL)
+        return result.config
     }
     
     /// Handle legacy JSON format for backwards compatibility
@@ -109,7 +126,7 @@ class QRScannerViewModel: ObservableObject {
     }
     
     /// Common flow after obtaining ConnectionConfig
-    private func connectWithConfig(_ config: ConnectionConfig) async throws {
+    private func connectWithConfig(_ config: ConnectionConfig, bridgeAgentId: String?, transport: String?) async throws {
         pairingStatus = "Validating configuration..."
         
         print("📷 QRScannerViewModel.connectWithConfig(): Validating config...")
@@ -162,8 +179,14 @@ class QRScannerViewModel: ObservableObject {
             try manager.addAgent(
                 config: config,
                 agentId: agentId,
-                name: finalName
+                name: finalName,
+                bridgeAgentId: bridgeAgentId
             )
+
+            // Register the first transport endpoint if bridgeAgentId is present
+            if let transport = transport {
+                try? manager.addOrUpdateTransportEndpoint(agentId: agentId, transport: transport, config: config)
+            }
             print("✅ QRScannerViewModel.connectWithConfig(): Agent added successfully")
             
             showingSuccess = true

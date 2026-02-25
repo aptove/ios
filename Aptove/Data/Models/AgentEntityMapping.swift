@@ -12,7 +12,9 @@ extension AgentEntity {
             status: toModelStatus(),
             activeSessionId: activeSessionId,
             sessionStartedAt: sessionStartedAt,
-            supportsLoadSession: supportsLoadSession
+            supportsLoadSession: supportsLoadSession,
+            bridgeAgentId: bridgeAgentId,
+            preferredTransport: preferredTransport
         )
     }
 

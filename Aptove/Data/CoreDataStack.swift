@@ -13,6 +13,16 @@ class CoreDataStack {
 
     init() {
         let container = NSPersistentContainer(name: "Aptove")
+        // Enable lightweight migration for schema changes
+        let storeOptions: [AnyHashable: Any] = [
+            NSMigratePersistentStoresAutomaticallyOption: true,
+            NSInferMappingModelAutomaticallyOption: true
+        ]
+        if let description = container.persistentStoreDescriptions.first {
+            description.setOption(true as NSNumber, forKey: NSMigratePersistentStoresAutomaticallyOption)
+            description.setOption(true as NSNumber, forKey: NSInferMappingModelAutomaticallyOption)
+        }
+        _ = storeOptions
         container.loadPersistentStores { storeDescription, error in
             if let error = error as NSError? {
                 print("❌ CoreData: Failed to load persistent store: \(error), \(error.userInfo)")

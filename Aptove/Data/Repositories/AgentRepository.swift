@@ -180,6 +180,91 @@ class AgentRepository {
         refreshAgents()
     }
 
+    // MARK: - Transport Endpoint Operations
+
+    /// Find an agent entity by bridge agent ID (for deduplication).
+    func findAgentEntityByBridgeId(_ bridgeAgentId: String) -> AgentEntity? {
+        let request = AgentEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "bridgeAgentId == %@", bridgeAgentId)
+        request.fetchLimit = 1
+        do {
+            return try coreDataStack.viewContext.fetch(request).first
+        } catch {
+            print("❌ AgentRepository: Failed to find agent by bridgeAgentId: \(error)")
+            return nil
+        }
+    }
+
+    /// Add or update a transport endpoint for an agent.
+    /// If an endpoint with the same transport already exists for this agent, it is updated.
+    func upsertTransportEndpoint(
+        agentId: String,
+        transport: String,
+        url: String,
+        priority: Int16
+    ) -> TransportEndpointEntity? {
+        guard let agentEntity = getAgentEntity(agentId: agentId) else {
+            print("❌ AgentRepository: Agent not found for endpoint upsert: \(agentId)")
+            return nil
+        }
+        let context = coreDataStack.viewContext
+
+        // Look for existing endpoint with same transport
+        let existingEndpoints = agentEntity.endpoints as? Set<TransportEndpointEntity> ?? []
+        if let existing = existingEndpoints.first(where: { $0.transport == transport }) {
+            existing.url = url
+            existing.priority = priority
+            saveContext(context)
+            refreshAgents()
+            return existing
+        }
+
+        // Create new endpoint
+        let endpoint = TransportEndpointEntity(
+            context: context,
+            endpointId: UUID().uuidString,
+            transport: transport,
+            url: url,
+            priority: priority
+        )
+        endpoint.agent = agentEntity
+        agentEntity.addToEndpoints(endpoint)
+        saveContext(context)
+        refreshAgents()
+        return endpoint
+    }
+
+    /// Delete a transport endpoint by ID.
+    func deleteTransportEndpoint(endpointId: String) {
+        let request = TransportEndpointEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "endpointId == %@", endpointId)
+        do {
+            let results = try coreDataStack.viewContext.fetch(request)
+            results.forEach { coreDataStack.viewContext.delete($0) }
+            saveContext(coreDataStack.viewContext)
+            refreshAgents()
+        } catch {
+            print("❌ AgentRepository: Failed to delete endpoint: \(error)")
+        }
+    }
+
+    /// Mark an endpoint as active/inactive.
+    func updateEndpointStatus(endpointId: String, isActive: Bool) {
+        let request = TransportEndpointEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "endpointId == %@", endpointId)
+        do {
+            let results = try coreDataStack.viewContext.fetch(request)
+            if let endpoint = results.first {
+                endpoint.isActive = isActive
+                if isActive { endpoint.lastConnectedAt = Date() }
+                saveContext(coreDataStack.viewContext)
+                refreshAgents()
+            }
+        } catch {
+            print("❌ AgentRepository: Failed to update endpoint status: \(error)")
+        }
+    }
+
     // MARK: - Private Helpers
 
     private func setupObserver() {

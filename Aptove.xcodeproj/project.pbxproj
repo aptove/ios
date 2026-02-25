@@ -36,7 +36,10 @@
 		C800000000000200 /* CoreDataStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000201 /* CoreDataStack.swift */; };
 		C800000000000202 /* Agent+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000203 /* Agent+CoreDataClass.swift */; };
 		C800000000000204 /* Agent+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000205 /* Agent+CoreDataProperties.swift */; };
-		C800000000000206 /* Agent+LegacyBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000207 /* Agent+LegacyBridge.swift */; };
+		C800000000000206 /* AgentEntityMapping.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000207 /* AgentEntityMapping.swift */; };
+		C800000000000226 /* TransportEndpoint+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000227 /* TransportEndpoint+CoreDataClass.swift */; };
+		C800000000000228 /* TransportEndpoint+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000229 /* TransportEndpoint+CoreDataProperties.swift */; };
+		C800000000000230 /* TransportCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000231 /* TransportCredentials.swift */; };
 		C800000000000208 /* Message+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000209 /* Message+CoreDataClass.swift */; };
 		C80000000000020A /* Message+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80000000000020B /* Message+CoreDataProperties.swift */; };
 		C80000000000020C /* ConnectionStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80000000000020D /* ConnectionStatus.swift */; };
@@ -76,7 +79,10 @@
 		C800000000000201 /* CoreDataStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataStack.swift; sourceTree = "<group>"; };
 		C800000000000203 /* Agent+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Agent+CoreDataClass.swift"; sourceTree = "<group>"; };
 		C800000000000205 /* Agent+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Agent+CoreDataProperties.swift"; sourceTree = "<group>"; };
-		C800000000000207 /* Agent+LegacyBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Agent+LegacyBridge.swift"; sourceTree = "<group>"; };
+		C800000000000207 /* AgentEntityMapping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AgentEntityMapping.swift"; sourceTree = "<group>"; };
+		C800000000000227 /* TransportEndpoint+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TransportEndpoint+CoreDataClass.swift"; sourceTree = "<group>"; };
+		C800000000000229 /* TransportEndpoint+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TransportEndpoint+CoreDataProperties.swift"; sourceTree = "<group>"; };
+		C800000000000231 /* TransportCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TransportCredentials.swift"; sourceTree = "<group>"; };
 		C800000000000209 /* Message+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Message+CoreDataClass.swift"; sourceTree = "<group>"; };
 		C80000000000020B /* Message+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Message+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		C80000000000020D /* ConnectionStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionStatus.swift; sourceTree = "<group>"; };
@@ -176,7 +182,9 @@
 			children = (
 				C800000000000203 /* Agent+CoreDataClass.swift */,
 				C800000000000205 /* Agent+CoreDataProperties.swift */,
-				C800000000000207 /* Agent+LegacyBridge.swift */,
+				C800000000000207 /* AgentEntityMapping.swift */,
+				C800000000000227 /* TransportEndpoint+CoreDataClass.swift */,
+				C800000000000229 /* TransportEndpoint+CoreDataProperties.swift */,
 				C800000000000209 /* Message+CoreDataClass.swift */,
 				C80000000000020B /* Message+CoreDataProperties.swift */,
 				C80000000000020D /* ConnectionStatus.swift */,
@@ -229,6 +237,7 @@
 				C80000000000000D /* Message.swift */,
 				C80000000000000F /* Conversation.swift */,
 				C800000000000011 /* ConnectionConfig.swift */,
+				C800000000000231 /* TransportCredentials.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -395,7 +404,10 @@
 				C800000000000200 /* CoreDataStack.swift in Sources */,
 				C800000000000202 /* Agent+CoreDataClass.swift in Sources */,
 				C800000000000204 /* Agent+CoreDataProperties.swift in Sources */,
-				C800000000000206 /* Agent+LegacyBridge.swift in Sources */,
+				C800000000000206 /* AgentEntityMapping.swift in Sources */,
+				C800000000000226 /* TransportEndpoint+CoreDataClass.swift in Sources */,
+				C800000000000228 /* TransportEndpoint+CoreDataProperties.swift in Sources */,
+				C800000000000230 /* TransportCredentials.swift in Sources */,
 				C800000000000208 /* Message+CoreDataClass.swift in Sources */,
 				C80000000000020A /* Message+CoreDataProperties.swift in Sources */,
 				C80000000000020C /* ConnectionStatus.swift in Sources */,

@@ -19,6 +19,12 @@ extension AgentEntity {
     @NSManaged public var url: String?
     @NSManaged public var protocolVersion: String?
 
+    // MARK: - Bridge Identity
+    /// Stable UUID from the bridge, used to deduplicate agents across multiple transports.
+    @NSManaged public var bridgeAgentId: String?
+    /// User-selected preferred transport name (e.g. "tailscale-serve", "cloudflare", "local").
+    @NSManaged public var preferredTransport: String?
+
     // MARK: - JSON Data
     @NSManaged public var capabilities: String?
 
@@ -35,6 +41,7 @@ extension AgentEntity {
 
     // MARK: - Relationships
     @NSManaged public var messages: NSSet?
+    @NSManaged public var endpoints: NSSet?
 }
 
 // MARK: - Generated accessors for messages
@@ -51,4 +58,26 @@ extension AgentEntity {
 
     @objc(removeMessages:)
     @NSManaged public func removeFromMessages(_ values: NSSet)
+}
+
+// MARK: - Generated accessors for endpoints
+extension AgentEntity {
+
+    @objc(addEndpointsObject:)
+    @NSManaged public func addToEndpoints(_ value: TransportEndpointEntity)
+
+    @objc(removeEndpointsObject:)
+    @NSManaged public func removeFromEndpoints(_ value: TransportEndpointEntity)
+
+    @objc(addEndpoints:)
+    @NSManaged public func addToEndpoints(_ values: NSSet)
+
+    @objc(removeEndpoints:)
+    @NSManaged public func removeFromEndpoints(_ values: NSSet)
+
+    /// Returns endpoints sorted by priority (ascending — lower number = higher priority).
+    var sortedEndpoints: [TransportEndpointEntity] {
+        let set = endpoints as? Set<TransportEndpointEntity> ?? []
+        return set.sorted { $0.priority < $1.priority }
+    }
 }
