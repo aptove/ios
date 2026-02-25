@@ -18,7 +18,6 @@ struct AgentConfigurationView: View {
                 // Agent Information Section
                 Section("Agent Information") {
                     LabeledContent("Name", value: agent.name)
-                    LabeledContent("URL", value: agent.url)
                     LabeledContent("Status") {
                         HStack {
                             Circle()
@@ -33,16 +32,7 @@ struct AgentConfigurationView: View {
                 if !viewModel.endpoints.isEmpty {
                     Section("Transports") {
                         ForEach(viewModel.endpoints) { endpoint in
-                            TransportEndpointRow(
-                                endpoint: endpoint,
-                                isPreferred: agent.preferredTransport == endpoint.transport,
-                                onSetPreferred: {
-                                    let next = agent.preferredTransport == endpoint.transport
-                                        ? nil
-                                        : endpoint.transport
-                                    viewModel.setPreferredTransport(next)
-                                }
-                            )
+                            TransportEndpointRow(endpoint: endpoint)
                         }
                         .onDelete { indexSet in
                             indexSet.forEach { i in
@@ -182,45 +172,22 @@ struct AgentConfigurationView: View {
 
 private struct TransportEndpointRow: View {
     let endpoint: TransportEndpointInfo
-    let isPreferred: Bool
-    let onSetPreferred: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
-            // Active indicator
+            // Active indicator — green when this transport is currently connected
             Circle()
                 .fill(endpoint.isActive ? Color.green : Color.gray.opacity(0.4))
                 .frame(width: 8, height: 8)
 
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(transportDisplayName(endpoint.transport))
-                        .font(.body)
-                    if isPreferred {
-                        Text("Preferred")
-                            .font(.caption2)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.accentColor.opacity(0.15))
-                            .foregroundColor(.accentColor)
-                            .clipShape(Capsule())
-                    }
-                }
+                Text(transportDisplayName(endpoint.transport))
+                    .font(.body)
                 Text(endpoint.url)
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .lineLimit(1)
             }
-
-            Spacer()
-
-            Button {
-                onSetPreferred()
-            } label: {
-                Image(systemName: isPreferred ? "star.fill" : "star")
-                    .foregroundColor(isPreferred ? .yellow : .secondary)
-            }
-            .buttonStyle(.plain)
         }
         .padding(.vertical, 2)
     }

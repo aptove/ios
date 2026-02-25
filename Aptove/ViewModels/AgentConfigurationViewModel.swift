@@ -51,11 +51,6 @@ class AgentConfigurationViewModel: ObservableObject {
         }
     }
 
-    func setPreferredTransport(_ transport: String?) {
-        agentManager?.setPreferredTransport(agentId: agentId, transport: transport)
-        loadAgentDetails()
-    }
-
     func deleteEndpoint(id: String) {
         agentManager?.deleteTransportEndpoint(agentId: agentId, endpointId: id)
         loadAgentDetails()
