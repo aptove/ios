@@ -6,7 +6,7 @@ import CommonCrypto
 
 /// Client implementation that collects streaming responses
 @MainActor
-private class AptoveClient: Client, ClientSessionOperations {
+private class AptoveClient: @preconcurrency Client, ClientSessionOperations {
     
     init() {
         print("👤 AptoveClient: Initializing...")
@@ -41,7 +41,7 @@ private class AptoveClient: Client, ClientSessionOperations {
         if case .toolCall(let toolCallUpdate) = update {
             print("🔧 Tool call details:")
             print("   - ID: \(toolCallUpdate.toolCallId.value)")
-            print("   - Title: \(toolCallUpdate.title ?? "nil")")
+            print("   - Title: \(toolCallUpdate.title)")
             print("   - Kind: \(String(describing: toolCallUpdate.kind))")
             print("   - Status: \(String(describing: toolCallUpdate.status))")
             print("   - RawInput: \(String(describing: toolCallUpdate.rawInput))")
@@ -72,9 +72,9 @@ private class AptoveClient: Client, ClientSessionOperations {
     
     // Terminal Operations - with approval
     func terminalCreate(request: CreateTerminalRequest) async throws -> CreateTerminalResponse {
-        print("🖥️ terminalCreate CALLED - command: \(request.command ?? "nil")")
+        print("🖥️ terminalCreate CALLED - command: \(request.command)")
         
-        let command = request.command ?? "unknown command"
+        let command = request.command
         
         // Request approval
         let approved = await withCheckedContinuation { continuation in
@@ -397,7 +397,7 @@ class ACPClientWrapper: ObservableObject {
     
     func disconnect() async {
         if let conn = connection {
-            try? await conn.disconnect()
+            await conn.disconnect()
             connection = nil
             currentSessionId = nil
         }
@@ -516,8 +516,8 @@ class ACPClientWrapper: ObservableObject {
                     self.onThought?(textContent.text)
                 }
             case .toolCall(let toolCall):
-                print("🔧 Tool call: \(toolCall.title ?? "Unknown") - status: \(String(describing: toolCall.status))")
-                self.onToolCall?(toolCall.title ?? "Tool execution")
+                print("🔧 Tool call: \(toolCall.title) - status: \(String(describing: toolCall.status))")
+                self.onToolCall?(toolCall.title)
             case .toolCallUpdate(let toolUpdate):
                 print("🔧 Tool update: \(toolUpdate.toolCallId.value) - status: \(String(describing: toolUpdate.status))")
                 // Extract text content from the update

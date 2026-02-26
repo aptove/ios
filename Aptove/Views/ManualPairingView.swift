@@ -91,7 +91,7 @@ struct ManualPairingView: View {
                         TextField("Pairing Code (6 digits)", text: $pairingCode)
                             .keyboardType(.numberPad)
                             .focused($focusedField, equals: .code)
-                            .onChange(of: pairingCode) { newValue in
+                            .onChange(of: pairingCode) { _, newValue in
                                 // Limit to 6 digits
                                 let filtered = newValue.filter { $0.isNumber }
                                 if filtered.count > 6 {

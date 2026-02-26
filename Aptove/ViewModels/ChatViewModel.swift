@@ -252,7 +252,7 @@ class ChatViewModel: ObservableObject {
         
         do {
             // Create agent message that will be updated incrementally
-            var agentMessage = Message(
+            let agentMessage = Message(
                 text: "",
                 sender: .agent,
                 status: .sending,

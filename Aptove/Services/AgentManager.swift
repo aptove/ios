@@ -345,7 +345,7 @@ class AgentManager: ObservableObject {
             )
 
             // Swap client for this endpoint's config
-            await clientCache.removeClient(for: agentId)
+            _ = await clientCache.removeClient(for: agentId)
             let existingSessionId = agents.first { $0.id == agentId }?.activeSessionId
             let client = ACPClientWrapper(config: config, agentId: agentId)
             await clientCache.setClient(client, for: agentId)

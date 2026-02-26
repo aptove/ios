@@ -185,7 +185,7 @@ class QRScannerViewModel: ObservableObject {
 
             // Register the first transport endpoint if bridgeAgentId is present
             if let transport = transport {
-                try? manager.addOrUpdateTransportEndpoint(agentId: agentId, transport: transport, config: config)
+                _ = try? manager.addOrUpdateTransportEndpoint(agentId: agentId, transport: transport, config: config)
             }
             print("✅ QRScannerViewModel.connectWithConfig(): Agent added successfully")
             

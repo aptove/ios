@@ -112,7 +112,7 @@ struct QRScannerView: View {
                     }
                 )
             }
-            .onChange(of: showingPairingEntry) { isShowing in
+            .onChange(of: showingPairingEntry) { _, isShowing in
                 // Stop scanner when pairing entry is shown, restart when dismissed
                 isScannerActive = !isShowing && !isConnecting
             }
@@ -132,7 +132,7 @@ struct QRScannerView: View {
             } message: {
                 Text("Agent connected successfully")
             }
-            .onChange(of: viewModel.showingError) { showing in
+            .onChange(of: viewModel.showingError) { _, showing in
                 if showing {
                     isConnecting = false
                     // Reactivate scanner after error so user can try again
@@ -144,7 +144,7 @@ struct QRScannerView: View {
                     }
                 }
             }
-            .onChange(of: viewModel.showingSuccess) { showing in
+            .onChange(of: viewModel.showingSuccess) { _, showing in
                 if showing {
                     isConnecting = false
                     // Keep scanner deactivated on success
