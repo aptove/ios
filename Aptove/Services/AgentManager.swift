@@ -29,6 +29,10 @@ class AgentManager: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var retryTask: Task<Void, Never>?
 
+    /// Tracks agents currently being connected to prevent duplicate concurrent attempts.
+    /// Safe to access without extra locking because AgentManager is @MainActor.
+    private var connectingAgents: Set<String> = []
+
     init(repository: AgentRepository = AgentRepository()) {
         self.repository = repository
         print("📱 AgentManager: Initializing...")
@@ -310,6 +314,23 @@ class AgentManager: ObservableObject {
     /// - Returns: `true` if any endpoint connected successfully.
     @discardableResult
     func connectAgent(agentId: String) async -> Bool {
+        // Guard against concurrent connection attempts for the same agent.
+        // Because AgentManager is @MainActor, this Set is accessed serially between
+        // suspension points, so no additional locking is needed.
+        guard !connectingAgents.contains(agentId) else {
+            print("📱 AgentManager.connectAgent: Already connecting to \(agentId), skipping duplicate")
+            return false
+        }
+        connectingAgents.insert(agentId)
+        defer { connectingAgents.remove(agentId) }
+
+        // If a live client is already connected, skip the reconnect.
+        if let existingClient = await clientCache.getClient(for: agentId),
+           case .connected = existingClient.connectionState {
+            print("📱 AgentManager.connectAgent: Agent \(agentId) already connected, skipping")
+            return true
+        }
+
         guard let entity = repository.getAgentEntity(agentId: agentId) else {
             print("❌ AgentManager.connectAgent: Agent not found: \(agentId)")
             return false
