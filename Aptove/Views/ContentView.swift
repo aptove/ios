@@ -1,13 +1,14 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var agentManager = AgentManager()
+    // Receive the single AgentManager created in AptoveApp — do NOT create a second instance here.
+    @EnvironmentObject private var agentManager: AgentManager
     @State private var showingQRScanner = false
-    
+
     init() {
         print("🖥️  ContentView: Initializing...")
     }
-    
+
     var body: some View {
         NavigationStack {
             Group {
@@ -31,7 +32,6 @@ struct ContentView: View {
                 QRScannerView(isPresented: $showingQRScanner)
             }
         }
-        .environmentObject(agentManager)
         .onAppear {
             print("🖥️  ContentView: View appeared and rendered")
         }
@@ -59,4 +59,5 @@ struct EmptyStateView: View {
 
 #Preview {
     ContentView()
+        .environmentObject(AgentManager())
 }
