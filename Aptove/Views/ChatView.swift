@@ -3,9 +3,10 @@ import SwiftUI
 struct ChatView: View {
     @EnvironmentObject var agentManager: AgentManager
     @StateObject private var viewModel: ChatViewModel
-    
+    @StateObject private var voiceViewModel = VoiceInputViewModel()
+
     let agentId: String
-    
+
     @State private var messageText = ""
     @FocusState private var isInputFocused: Bool
     
@@ -43,14 +44,40 @@ struct ChatView: View {
                     .lineLimit(1...5)
                     .focused($isInputFocused)
                 
-                Button {
-                    sendMessage()
-                } label: {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(messageText.isEmpty ? .gray : .blue)
+                if messageText.isEmpty {
+                    Button {
+                        if case .recording = voiceViewModel.recordingState {
+                            voiceViewModel.stopRecording()
+                        } else {
+                            voiceViewModel.onTranscriptReady = { transcript in
+                                Task { await viewModel.sendVoiceCorrectionRequest(transcript) }
+                            }
+                            voiceViewModel.startRecording()
+                        }
+                    } label: {
+                        if case .recording = voiceViewModel.recordingState {
+                            Image(systemName: "waveform.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(.red)
+                        } else if case .processing = voiceViewModel.recordingState {
+                            ProgressView()
+                                .frame(width: 28, height: 28)
+                        } else {
+                            Text("🎙️")
+                                .font(.title2)
+                        }
+                    }
+                    .disabled(viewModel.isVoiceCorrectionPending)
+                } else {
+                    Button {
+                        sendMessage()
+                    } label: {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.blue)
+                    }
+                    .disabled(viewModel.isSending)
                 }
-                .disabled(messageText.isEmpty || viewModel.isSending)
             }
             .padding()
         }
@@ -72,6 +99,13 @@ struct ChatView: View {
         .onAppear {
             viewModel.setAgentManager(agentManager)
             viewModel.loadMessages()
+        }
+        .onChange(of: viewModel.voiceCorrectedText) { _, correctedText in
+            if let text = correctedText {
+                messageText = text
+                isInputFocused = true
+                viewModel.voiceCorrectedText = nil
+            }
         }
     }
     

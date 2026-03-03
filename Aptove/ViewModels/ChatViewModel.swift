@@ -7,6 +7,8 @@ class ChatViewModel: ObservableObject {
     @Published var isSending = false
     @Published var sessionWasResumed: Bool? = nil  // nil = unknown, true = resumed, false = new
     @Published var showSessionIndicator = false
+    @Published var isVoiceCorrectionPending = false
+    @Published var voiceCorrectedText: String? = nil
     
     let agentId: String
     private var agentManager: AgentManager?
@@ -411,6 +413,72 @@ class ChatViewModel: ObservableObject {
         isSending = false
     }
     
+    func sendVoiceCorrectionRequest(_ rawTranscript: String) async {
+        let client: ACPClientWrapper?
+        if let cached = cachedClient {
+            client = cached
+        } else {
+            client = await agentManager?.getConnectedClient(for: agentId)
+            cachedClient = client
+        }
+
+        guard let client = client else {
+            voiceCorrectedText = rawTranscript
+            return
+        }
+
+        isVoiceCorrectionPending = true
+
+        let correctionJson = """
+        {
+            "type": "voice_correction_request",
+            "version": "1.0",
+            "instructions": "Fix transcription errors, punctuation, and grammar. Return ONLY valid JSON with a single field: {\\\"corrected_text\\\": \\\"...\\\"}",
+            "raw_transcript": \(encodeJsonString(rawTranscript))
+        }
+        """
+
+        var accumulated = ""
+
+        do {
+            try await client.sendMessage(correctionJson,
+                onChunk: { chunk in
+                    accumulated += chunk
+                },
+                onThought: nil,
+                onToolCall: nil,
+                onToolUpdate: nil,
+                onComplete: { _ in }
+            )
+
+            let corrected = parseCorrectedText(from: accumulated) ?? rawTranscript
+            voiceCorrectedText = corrected
+        } catch {
+            voiceCorrectedText = rawTranscript
+        }
+
+        isVoiceCorrectionPending = false
+    }
+
+    private func encodeJsonString(_ value: String) -> String {
+        let escaped = value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\r")
+            .replacingOccurrences(of: "\t", with: "\\t")
+        return "\"\(escaped)\""
+    }
+
+    private func parseCorrectedText(from json: String) -> String? {
+        guard let data = json.data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let corrected = obj["corrected_text"] as? String else {
+            return nil
+        }
+        return corrected
+    }
+
     private func updateMessageStatus(_ messageId: String, to status: MessageStatus) {
         if let index = messages.firstIndex(where: { $0.id == messageId }) {
             let msg = messages[index]
