@@ -33,8 +33,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/aptove/swift-sdk",
       "state" : {
-        "revision" : "ccc5678ced736492312900865fe57048db4e631e",
-        "version" : "0.1.15"
+        "revision" : "f38606f7bb43a12122b8338b2bb694084ededf94",
+        "version" : "0.1.16"
       }
     }
   ],
