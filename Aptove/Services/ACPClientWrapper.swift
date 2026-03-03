@@ -289,10 +289,21 @@ class ACPClientWrapper: ObservableObject {
                 let conn = ClientConnection(transport: transport, client: client, defaultTimeoutSeconds: connectionTimeout)
                 print("🔌 ACPClientWrapper.connect(): ClientConnection created")
                 
-                // Connect and initialize with extended timeout
-                connectionMessage = "Initializing agent...\nPlease wait, this can take up to \(Int(connectionTimeout)) seconds."
-                print("🔌 ACPClientWrapper.connect(): Calling conn.connect()...")
-                let agentInfo = try await conn.connect()
+                // Connect and initialize with a short deadline so a silent bridge
+                // (connected but not responding) fails fast and triggers a retry.
+                let initializeTimeout: TimeInterval = 30
+                connectionMessage = "Initializing agent..."
+                print("🔌 ACPClientWrapper.connect(): Calling conn.connect() (timeout: \(Int(initializeTimeout))s)...")
+                let agentInfo = try await withThrowingTaskGroup(of: AgentInfo?.self) { group in
+                    group.addTask { try await conn.connect() }
+                    group.addTask {
+                        try await Task.sleep(nanoseconds: UInt64(initializeTimeout * 1_000_000_000))
+                        throw URLError(.timedOut)
+                    }
+                    let result = try await group.next()!
+                    group.cancelAll()
+                    return result
+                }
                 print("✅ ACPClientWrapper.connect(): Connection established!")
                 
                 // Store the agent's self-reported name from the InitializeResponse
