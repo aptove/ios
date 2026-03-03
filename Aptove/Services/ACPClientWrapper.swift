@@ -191,6 +191,7 @@ class ACPClientWrapper: ObservableObject {
         
         for attempt in 1...maxRetries {
             print("🔌 ACPClientWrapper.connect(): Attempt \(attempt)/\(maxRetries)")
+            var attemptTransport: WebSocketTransport? = nil
             do {
                 if attempt > 1 {
                     connectionMessage = "Retrying connection (\(attempt)/\(maxRetries))..."
@@ -257,6 +258,7 @@ class ACPClientWrapper: ObservableObject {
                 
                 print("🔌 ACPClientWrapper.connect(): Creating WebSocketTransport...")
                 let transport = WebSocketTransport(url: url, session: session)
+                attemptTransport = transport
                 self.transport = transport
                 
                 print("🔌 ACPClientWrapper.connect(): Creating AptoveClient...")
@@ -295,18 +297,17 @@ class ACPClientWrapper: ObservableObject {
                 let initializeTimeout: TimeInterval = 30
                 connectionMessage = "Initializing agent..."
                 print("🔌 ACPClientWrapper.connect(): Calling conn.connect() (timeout: \(Int(initializeTimeout))s)...")
-                do {
-                    let agentInfo = try await withThrowingTaskGroup(of: AgentInfo?.self) { group in
-                        group.addTask { try await conn.connect() }
-                        group.addTask {
-                            try await Task.sleep(nanoseconds: UInt64(initializeTimeout * 1_000_000_000))
-                            throw URLError(.timedOut)
-                        }
-                        let result = try await group.next()!
-                        group.cancelAll()
-                        return result
+                let agentInfo = try await withThrowingTaskGroup(of: Implementation?.self) { group in
+                    group.addTask { try await conn.connect() }
+                    group.addTask {
+                        try await Task.sleep(nanoseconds: UInt64(initializeTimeout * 1_000_000_000))
+                        throw URLError(.timedOut)
                     }
-                    print("✅ ACPClientWrapper.connect(): Connection established!")
+                    let result = try await group.next()!
+                    group.cancelAll()
+                    return result
+                }
+                print("✅ ACPClientWrapper.connect(): Connection established!")
                 
                 // Store the agent's self-reported name from the InitializeResponse
                 self.connectedAgentName = agentInfo?.name
@@ -389,19 +390,18 @@ class ACPClientWrapper: ObservableObject {
                     }
                     
                     return
-                } catch {
+            } catch {
                     // Close the transport explicitly so the bridge releases the connection slot.
                     // Without this, timed-out or failed WebSocketTasks linger on the server,
                     // eventually exhausting the bridge's concurrent connection limit.
                     print("🔌 ACPClientWrapper.connect(): Closing transport after failed attempt \(attempt)")
-                    await transport.close()
+                    await attemptTransport?.close()
                     self.transport = nil
 
                     lastError = error
                     print("❌ Connection attempt \(attempt) failed: \(error)")
                     print("❌ Error type: \(type(of: error))")
                     print("❌ Error localized: \(error.localizedDescription)")
-                }
             }
         }
         
