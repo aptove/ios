@@ -291,20 +291,22 @@ class ACPClientWrapper: ObservableObject {
                 
                 // Connect and initialize with a short deadline so a silent bridge
                 // (connected but not responding) fails fast and triggers a retry.
+                // Always close the transport on failure so the bridge releases the connection slot.
                 let initializeTimeout: TimeInterval = 30
                 connectionMessage = "Initializing agent..."
                 print("🔌 ACPClientWrapper.connect(): Calling conn.connect() (timeout: \(Int(initializeTimeout))s)...")
-                let agentInfo = try await withThrowingTaskGroup(of: AgentInfo?.self) { group in
-                    group.addTask { try await conn.connect() }
-                    group.addTask {
-                        try await Task.sleep(nanoseconds: UInt64(initializeTimeout * 1_000_000_000))
-                        throw URLError(.timedOut)
+                do {
+                    let agentInfo = try await withThrowingTaskGroup(of: AgentInfo?.self) { group in
+                        group.addTask { try await conn.connect() }
+                        group.addTask {
+                            try await Task.sleep(nanoseconds: UInt64(initializeTimeout * 1_000_000_000))
+                            throw URLError(.timedOut)
+                        }
+                        let result = try await group.next()!
+                        group.cancelAll()
+                        return result
                     }
-                    let result = try await group.next()!
-                    group.cancelAll()
-                    return result
-                }
-                print("✅ ACPClientWrapper.connect(): Connection established!")
+                    print("✅ ACPClientWrapper.connect(): Connection established!")
                 
                 // Store the agent's self-reported name from the InitializeResponse
                 self.connectedAgentName = agentInfo?.name
@@ -376,26 +378,30 @@ class ACPClientWrapper: ObservableObject {
                     }
                 }
                 
-                self.connection = conn
-                connectionMessage = "Connected successfully!"
-                connectionState = .connected
-                print("✅ ACPClientWrapper.connect(): Connection flow complete!")
-                
-                // Register push token with bridge after successful connection
-                Task {
-                    await self.registerPushToken()
+                    self.connection = conn
+                    connectionMessage = "Connected successfully!"
+                    connectionState = .connected
+                    print("✅ ACPClientWrapper.connect(): Connection flow complete!")
+                    
+                    // Register push token with bridge after successful connection
+                    Task {
+                        await self.registerPushToken()
+                    }
+                    
+                    return
+                } catch {
+                    // Close the transport explicitly so the bridge releases the connection slot.
+                    // Without this, timed-out or failed WebSocketTasks linger on the server,
+                    // eventually exhausting the bridge's concurrent connection limit.
+                    print("🔌 ACPClientWrapper.connect(): Closing transport after failed attempt \(attempt)")
+                    await transport.close()
+                    self.transport = nil
+
+                    lastError = error
+                    print("❌ Connection attempt \(attempt) failed: \(error)")
+                    print("❌ Error type: \(type(of: error))")
+                    print("❌ Error localized: \(error.localizedDescription)")
                 }
-                
-                return
-                
-            } catch {
-                lastError = error
-                print("❌ Connection attempt \(attempt) failed: \(error)")
-                print("❌ Error type: \(type(of: error))")
-                print("❌ Error localized: \(error.localizedDescription)")
-                
-                // Continue to retry on errors unless it's the last attempt
-                // Some errors like network timeouts may succeed on retry
             }
         }
         
