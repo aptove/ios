@@ -8,7 +8,9 @@ struct ConnectionConfig: Codable {
     let certFingerprint: String?
     let protocolVersion: String
     let version: String
-    
+    /// The working directory where the bridge was started (provided during pairing).
+    let cwd: String
+
     enum CodingKeys: String, CodingKey {
         case url
         case clientId
@@ -17,9 +19,10 @@ struct ConnectionConfig: Codable {
         case certFingerprint
         case protocolVersion = "protocol"
         case version
+        case cwd
     }
-    
-    init(url: String, clientId: String? = nil, clientSecret: String? = nil, authToken: String? = nil, certFingerprint: String? = nil, protocolVersion: String = "acp", version: String = "1.0.0") {
+
+    init(url: String, clientId: String? = nil, clientSecret: String? = nil, authToken: String? = nil, certFingerprint: String? = nil, protocolVersion: String = "acp", version: String = "1.0.0", cwd: String) {
         self.url = url
         self.clientId = clientId
         self.clientSecret = clientSecret
@@ -27,6 +30,7 @@ struct ConnectionConfig: Codable {
         self.certFingerprint = certFingerprint
         self.protocolVersion = protocolVersion
         self.version = version
+        self.cwd = cwd
     }
     
     func validate() throws {

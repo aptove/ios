@@ -34,6 +34,10 @@ extension AgentEntity {
     @NSManaged public var createdAt: Date?
     @NSManaged public var colorHue: Float
 
+    // MARK: - Bridge Working Directory
+    /// The working directory where the bridge was started, sent during pairing.
+    @NSManaged public var cwd: String
+
     // MARK: - Session Persistence
     @NSManaged public var activeSessionId: String?
     @NSManaged public var sessionStartedAt: Date?

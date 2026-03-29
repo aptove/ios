@@ -139,10 +139,13 @@ class ACPClientWrapper: ObservableObject {
     let agentId: String
     let connectionTimeout: TimeInterval
     let maxRetries: Int
-    
+
     /// Maximum number of transparent reconnect attempts when a transport error
     /// is detected during `sendMessage()`. Set to 0 to disable auto-reconnect.
     let maxReconnectAttempts: Int
+
+    /// The working directory to send when creating sessions (from bridge pairing).
+    let cwd: String
     
     /// The agent's self-reported name (from InitializeResponse)
     private(set) var connectedAgentName: String?
@@ -172,7 +175,8 @@ class ACPClientWrapper: ObservableObject {
         self.connectionTimeout = connectionTimeout
         self.maxRetries = maxRetries
         self.maxReconnectAttempts = maxReconnectAttempts
-        print("🔌 ACPClientWrapper: Initialization complete")
+        self.cwd = config.cwd
+        print("🔌 ACPClientWrapper: Initialization complete (cwd: \(self.cwd))")
     }
     
     func connect() async {
@@ -329,7 +333,7 @@ class ACPClientWrapper: ObservableObject {
                     do {
                         let loadRequest = LoadSessionRequest(
                             sessionId: SessionId(value: sessionIdToLoad),
-                            cwd: FileManager.default.currentDirectoryPath,
+                            cwd: self.cwd,
                             mcpServers: []
                         )
                         _ = try await conn.loadSession(request: loadRequest)
@@ -346,7 +350,7 @@ class ACPClientWrapper: ObservableObject {
                 // Create new session if we didn't load one
                 if !sessionLoaded {
                     connectionMessage = "Creating session..."
-                    print("🔧 Creating session with cwd: \(FileManager.default.currentDirectoryPath)")
+                    print("🔧 Creating session with cwd: \(self.cwd)")
 
                     // Note: Session ID persistence is now handled by AgentManager via AgentRepository
                     // The existingSessionId parameter passed to connect() contains the stored session ID
@@ -360,7 +364,7 @@ class ACPClientWrapper: ObservableObject {
                     }
 
                     let sessionRequest = NewSessionRequest(
-                        cwd: FileManager.default.currentDirectoryPath,
+                        cwd: self.cwd,
                         mcpServers: [],
                         _meta: meta
                     )

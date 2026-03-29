@@ -127,10 +127,12 @@ class AgentManager: ObservableObject {
         // Add agent to CoreData
         repository.addAgent(agentId: agentId, name: name, url: config.url, protocolVersion: config.protocolVersion)
 
-        // Set bridgeAgentId if provided
-        if let bridgeAgentId = bridgeAgentId,
-           let entity = repository.getAgentEntity(agentId: agentId) {
-            entity.bridgeAgentId = bridgeAgentId
+        // Set bridgeAgentId and cwd
+        if let entity = repository.getAgentEntity(agentId: agentId) {
+            if let bridgeAgentId = bridgeAgentId {
+                entity.bridgeAgentId = bridgeAgentId
+            }
+            entity.cwd = config.cwd
             repository.updateAgent(entity)
         }
 
@@ -184,6 +186,12 @@ class AgentManager: ObservableObject {
         )
         try TransportCredentialManager.save(credentials, for: endpoint.endpointId ?? UUID().uuidString)
 
+        // Update cwd from the pairing response
+        if let entity = repository.getAgentEntity(agentId: agentId) {
+            entity.cwd = config.cwd
+            repository.updateAgent(entity)
+        }
+
         let agentName = agents.first { $0.id == agentId }?.name ?? "agent"
         if isUpdate {
             return "Updated \(transport) for \(agentName)"
@@ -203,6 +211,12 @@ class AgentManager: ObservableObject {
         }
 
         try KeychainManager.save(config: config, for: agentId)
+
+        // Update cwd from the new config
+        if let entity = repository.getAgentEntity(agentId: agentId) {
+            entity.cwd = config.cwd
+            repository.updateAgent(entity)
+        }
 
         repository.clearSessionInfo(agentId: agentId)
         repository.updateConnectionStatus(agentId: agentId, status: .disconnected)
@@ -244,6 +258,7 @@ class AgentManager: ObservableObject {
         }
         print("📱 AgentManager.getClient: Keychain retrieved (\(Int((CFAbsoluteTimeGetCurrent() - keychainStart) * 1000))ms)")
 
+        let agentEntity = repository.getAgentEntity(agentId: agentId)
         let existingSessionId = agents.first(where: { $0.id == agentId })?.activeSessionId
         if let sessionId = existingSessionId {
             print("📱 AgentManager.getClient: Found existing session ID: \(sessionId)")
@@ -362,7 +377,8 @@ class AgentManager: ObservableObject {
                 clientId: credentials?.clientId,
                 clientSecret: credentials?.clientSecret,
                 authToken: credentials?.authToken,
-                certFingerprint: credentials?.certFingerprint
+                certFingerprint: credentials?.certFingerprint,
+                cwd: entity.cwd
             )
 
             // Swap client for this endpoint's config

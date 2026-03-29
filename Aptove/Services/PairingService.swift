@@ -110,6 +110,7 @@ struct LocalPairingResponse: Codable {
     let authToken: String
     let certFingerprint: String?
     let agentId: String?
+    let cwd: String
 }
 
 /// Response from /pair/cloudflare endpoint (future)
@@ -121,6 +122,7 @@ struct CloudflarePairingResponse: Codable {
     let clientId: String
     let clientSecret: String
     let agentId: String?
+    let cwd: String
 }
 
 /// Generic pairing response that can hold either type
@@ -147,7 +149,8 @@ enum PairingResponse {
                 authToken: response.authToken,
                 certFingerprint: response.certFingerprint,
                 protocolVersion: response.protocol,
-                version: response.version
+                version: response.version,
+                cwd: response.cwd
             )
         case .cloudflare(let response):
             return ConnectionConfig(
@@ -157,7 +160,8 @@ enum PairingResponse {
                 authToken: response.authToken,
                 certFingerprint: nil,
                 protocolVersion: response.protocol,
-                version: response.version
+                version: response.version,
+                cwd: response.cwd
             )
         }
     }
