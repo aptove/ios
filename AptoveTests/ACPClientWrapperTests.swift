@@ -13,7 +13,7 @@ final class ACPClientWrapperTests: XCTestCase {
     // MARK: - Helpers
 
     private func makeConfig(url: String = "wss://localhost:3001") -> ConnectionConfig {
-        ConnectionConfig(url: url, authToken: "test-token")
+        ConnectionConfig(url: url, authToken: "test-token", cwd: "/tmp")
     }
 
     // MARK: - Initial State
@@ -120,7 +120,8 @@ final class ACPClientWrapperTests: XCTestCase {
             url: "wss://my-bridge.example.com/ws",
             clientId: "cf-id",
             clientSecret: "cf-secret",
-            authToken: "secret-123"
+            authToken: "secret-123",
+            cwd: "/tmp"
         )
         let wrapper = ACPClientWrapper(config: config, agentId: "agent-42", connectionTimeout: 60, maxRetries: 5)
 
