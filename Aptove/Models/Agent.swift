@@ -2,7 +2,7 @@ import Foundation
 
 struct Agent: Identifiable, Codable {
     let id: String
-    let name: String
+    var name: String
     let url: String
     var capabilities: [String: String]
     var status: ConnectionStatus

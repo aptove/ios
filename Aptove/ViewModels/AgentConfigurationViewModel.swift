@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 /// A plain value type representing a transport endpoint for display in the UI.
 struct TransportEndpointInfo: Identifiable {
@@ -19,9 +20,12 @@ class AgentConfigurationViewModel: ObservableObject {
     @Published var isDeletingAgent: Bool = false
     @Published var error: String?
     @Published var shouldDismiss: Bool = false
+    @Published var editableName: String = ""
 
     let agentId: String
     private var agentManager: AgentManager?
+    private var cancellables = Set<AnyCancellable>()
+    private var hasLoadedName = false
 
     init(agentId: String) {
         self.agentId = agentId
@@ -30,6 +34,14 @@ class AgentConfigurationViewModel: ObservableObject {
     func setAgentManager(_ manager: AgentManager) {
         self.agentManager = manager
         loadAgentDetails()
+
+        // Subscribe to agent updates for reactive transport status
+        manager.$agents
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.loadAgentDetails()
+            }
+            .store(in: &cancellables)
     }
 
     private func loadAgentDetails() {
@@ -49,6 +61,18 @@ class AgentConfigurationViewModel: ObservableObject {
                 priority: entity.priority
             )
         }
+
+        // Only set editableName on first load to avoid overwriting mid-edit
+        if !hasLoadedName, let name = agent?.name {
+            editableName = name
+            hasLoadedName = true
+        }
+    }
+
+    func saveNameIfChanged() {
+        let trimmed = editableName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != agent?.name else { return }
+        agentManager?.renameAgent(agentId: agentId, newName: trimmed)
     }
 
     func deleteEndpoint(id: String) {

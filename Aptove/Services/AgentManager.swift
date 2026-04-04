@@ -438,6 +438,12 @@ class AgentManager: ObservableObject {
         repository.deleteTransportEndpoint(endpointId: endpointId)
     }
 
+    func renameAgent(agentId: String, newName: String) {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        repository.renameAgent(agentId: agentId, newName: trimmed)
+    }
+
     func sortAgents() {
         agents.sort { agent1, agent2 in
             let lastActivity1 = conversations[agent1.id]?.lastActivity ?? .distantPast

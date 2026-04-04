@@ -76,6 +76,14 @@ class AgentRepository {
         refreshAgents()
     }
 
+    /// Rename an agent
+    func renameAgent(agentId: String, newName: String) {
+        guard let entity = getAgentEntity(agentId: agentId) else { return }
+        entity.name = newName
+        saveContext(coreDataStack.viewContext)
+        refreshAgents()
+    }
+
     /// Delete agent by ID
     func deleteAgent(agentId: String) {
         let request = AgentEntity.fetchRequest()

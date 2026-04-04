@@ -17,7 +17,13 @@ struct AgentConfigurationView: View {
             if let agent = viewModel.agent {
                 // Agent Information Section
                 Section("Agent Information") {
-                    LabeledContent("Name", value: agent.name)
+                    HStack {
+                        Text("Name")
+                        Spacer()
+                        TextField("Agent Name", text: $viewModel.editableName)
+                            .multilineTextAlignment(.trailing)
+                            .onSubmit { viewModel.saveNameIfChanged() }
+                    }
                     LabeledContent("Status") {
                         HStack {
                             Circle()
@@ -110,6 +116,7 @@ struct AgentConfigurationView: View {
                 }
             }
         }
+        .onDisappear { viewModel.saveNameIfChanged() }
         .navigationTitle("Configuration")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
