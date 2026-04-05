@@ -371,15 +371,24 @@ class ChatViewModel: ObservableObject {
                         self.updateConversation()
                     }
                 },
-                onComplete: { stopReason in
+                onComplete: { stopReason, errorMessage in
                     // Mark messages as complete
                     Task { @MainActor in
                         self.updateMessageStatus(userMessage.id, to: .sent)
-                        
+
                         if agentMessageIndex < self.messages.count {
-                            // If agent message is empty, it might be a tool-only response
-                            let finalText = accumulatedText.isEmpty ? (stopReason == nil ? "Request failed" : "(No response received)") : accumulatedText
-                            
+                            // If agent message is empty, show the actual error or a fallback
+                            let finalText: String
+                            if !accumulatedText.isEmpty {
+                                finalText = accumulatedText
+                            } else if let errorMessage {
+                                finalText = errorMessage
+                            } else if stopReason == nil {
+                                finalText = "Request failed"
+                            } else {
+                                finalText = "(No response received)"
+                            }
+
                             self.messages[agentMessageIndex] = Message(
                                 id: self.messages[agentMessageIndex].id,
                                 text: finalText,
@@ -389,7 +398,7 @@ class ChatViewModel: ObservableObject {
                             )
                             self.updateConversation()
                         }
-                        
+
                         self.isSending = false
                     }
                 }
@@ -448,7 +457,7 @@ class ChatViewModel: ObservableObject {
                 onThought: nil,
                 onToolCall: nil,
                 onToolUpdate: nil,
-                onComplete: { _ in }
+                onComplete: { _, _ in }
             )
 
             let corrected = parseCorrectedText(from: accumulated) ?? rawTranscript

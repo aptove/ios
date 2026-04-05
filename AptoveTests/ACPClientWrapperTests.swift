@@ -87,7 +87,7 @@ final class ACPClientWrapperTests: XCTestCase {
             try await wrapper.sendMessage(
                 "hello",
                 onChunk: { _ in },
-                onComplete: { _ in }
+                onComplete: { _, _ in }
             )
             XCTFail("sendMessage should throw when not connected")
         } catch {

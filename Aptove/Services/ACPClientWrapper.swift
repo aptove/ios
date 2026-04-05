@@ -508,7 +508,7 @@ class ACPClientWrapper: ObservableObject {
     // Store pending tool approval requests
     private var pendingToolRequests: [String: ToolCallUpdateData] = [:] // toolCallId -> ToolCallUpdateData
     
-    func sendMessage(_ text: String, onChunk: @escaping (String) -> Void, onThought: ((String) -> Void)? = nil, onToolCall: ((String) -> Void)? = nil, onToolUpdate: ((String, String) -> Void)? = nil, onComplete: @escaping (StopReason?) -> Void = { _ in }) async throws {
+    func sendMessage(_ text: String, onChunk: @escaping (String) -> Void, onThought: ((String) -> Void)? = nil, onToolCall: ((String) -> Void)? = nil, onToolUpdate: ((String, String) -> Void)? = nil, onComplete: @escaping (StopReason?, String?) -> Void = { _, _ in }) async throws {
         guard let conn = connection, let sessionId = currentSessionId, let client = client else {
             throw ClientError.noActiveSession
         }
@@ -586,11 +586,23 @@ class ACPClientWrapper: ObservableObject {
                 try? await Task.sleep(nanoseconds: 100_000_000)
                 
                 await MainActor.run {
-                    onComplete(response.stopReason)
+                    onComplete(response.stopReason, nil)
                 }
             } catch {
                 print("❌ Prompt error: \(error)")
                 
+                // --- Distinguish agent errors from transport errors ---
+                // JSON-RPC errors from the agent (quota exceeded, invalid
+                // request, etc.) should NOT trigger reconnect — surface
+                // the error message directly to the user.
+                if let agentErrorMessage = Self.agentErrorMessage(from: error) {
+                    print("⚠️ Agent error (no reconnect): \(agentErrorMessage)")
+                    await MainActor.run {
+                        onComplete(nil, agentErrorMessage)
+                    }
+                    return
+                }
+
                 // --- Auto-reconnect on transport failure ---
                 // If the WebSocket died silently, conn.prompt() throws a
                 // transport error. We mark disconnected, reconnect using
@@ -600,23 +612,34 @@ class ACPClientWrapper: ObservableObject {
                     print("🔄 Auto-reconnect disabled (maxReconnectAttempts=0)")
                     await MainActor.run {
                         self.connectionState = .disconnected
-                        onComplete(nil)
+                        onComplete(nil, error.localizedDescription)
                     }
                     return
                 }
-                
+
+                // If the agent says the session doesn't exist, clear it
+                // so the reconnect creates a fresh session instead of
+                // retrying the same stale session ID in a loop.
+                let isSessionNotFound = Self.isSessionNotFoundError(error)
+                let reconnectSessionId: String? = isSessionNotFound ? nil : savedSessionId
+                if isSessionNotFound {
+                    print("🔄 Session not found — will create new session on reconnect")
+                    await MainActor.run { self.currentSessionId = nil }
+                }
+
                 for attempt in 1...reconnectLimit {
                     print("🔄 Transport error detected — reconnect attempt \(attempt)/\(reconnectLimit)")
-                    
+
                     await MainActor.run {
                         self.connectionState = .disconnected
                         self.connection = nil
                         self.transport = nil
                     }
-                    
+
                     // Reconnect using the saved session ID so the bridge
-                    // resumes the existing agent session.
-                    await self.connect(existingSessionId: savedSessionId)
+                    // resumes the existing agent session. If the session was
+                    // not found, connect without a session ID to create a new one.
+                    await self.connect(existingSessionId: reconnectSessionId)
                     
                     let reconnected: Bool = await MainActor.run {
                         if case .connected = self.connectionState { return true }
@@ -645,11 +668,11 @@ class ACPClientWrapper: ObservableObject {
                     do {
                         let retryResponse = try await newConn.prompt(request: retryRequest)
                         print("📥 Retry prompt completed: \(retryResponse.stopReason)")
-                        
+
                         try? await Task.sleep(nanoseconds: 100_000_000)
-                        
+
                         await MainActor.run {
-                            onComplete(retryResponse.stopReason)
+                            onComplete(retryResponse.stopReason, nil)
                         }
                         return // success — exit the retry loop
                     } catch {
@@ -661,7 +684,7 @@ class ACPClientWrapper: ObservableObject {
                 // All reconnect attempts exhausted
                 print("❌ All \(reconnectLimit) reconnect attempt(s) failed")
                 await MainActor.run {
-                    onComplete(nil)
+                    onComplete(nil, "Connection lost — could not reconnect")
                 }
             }
         }
@@ -707,6 +730,28 @@ class ACPClientWrapper: ObservableObject {
         return client?.pendingPermissionOptions[toolCallId]
     }
     
+    /// Check if an error is a "Session not found" JSON-RPC error from the agent.
+    private static func isSessionNotFoundError(_ error: Error) -> Bool {
+        let desc = String(describing: error)
+        return desc.contains("Session not found")
+    }
+
+    /// Extract human-readable message from a JSON-RPC agent error.
+    /// Returns `nil` for transport errors (which should trigger reconnect).
+    private static func agentErrorMessage(from error: Error) -> String? {
+        if let protoError = error as? ProtocolError {
+            switch protoError {
+            case .jsonRpcError(_, let message, _):
+                // "Session not found" errors are handled separately via reconnect
+                if message.contains("Session not found") { return nil }
+                return message
+            default:
+                return nil // transport-level errors
+            }
+        }
+        return nil
+    }
+
     enum ClientError: LocalizedError {
         case noActiveSession
         case invalidResponse
