@@ -81,6 +81,11 @@ class QRScannerViewModel: ObservableObject {
                 transport: result.transport,
                 config: result.config
             )
+            // Set the newly scanned transport as preferred, then force a fresh reconnect
+            // so the app switches to it immediately rather than keeping a stale connection.
+            manager.setPreferredTransport(agentId: existingAgent.id, transport: result.transport)
+            await manager.disconnectAgent(agentId: existingAgent.id)
+            _ = await manager.connectAgent(agentId: existingAgent.id)
             print("✅ QRScannerViewModel: \(message)")
             pairingStatus = message
             showingSuccess = true

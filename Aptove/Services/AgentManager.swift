@@ -258,7 +258,6 @@ class AgentManager: ObservableObject {
         }
         print("📱 AgentManager.getClient: Keychain retrieved (\(Int((CFAbsoluteTimeGetCurrent() - keychainStart) * 1000))ms)")
 
-        let agentEntity = repository.getAgentEntity(agentId: agentId)
         let existingSessionId = agents.first(where: { $0.id == agentId })?.activeSessionId
         if let sessionId = existingSessionId {
             print("📱 AgentManager.getClient: Found existing session ID: \(sessionId)")
@@ -385,6 +384,16 @@ class AgentManager: ObservableObject {
             _ = await clientCache.removeClient(for: agentId)
             let existingSessionId = agents.first { $0.id == agentId }?.activeSessionId
             let client = ACPClientWrapper(config: config, agentId: agentId)
+
+            // Trigger multi-transport reconnect when the WebSocket closes unexpectedly.
+            client.onUnexpectedDisconnect = { [weak self] in
+                guard let self else { return }
+                Task { @MainActor in
+                    print("📱 AgentManager: Transport closed unexpectedly for \(agentId) — retrying all transports")
+                    _ = await self.connectAgent(agentId: agentId)
+                }
+            }
+
             await clientCache.setClient(client, for: agentId)
             await client.connect(existingSessionId: existingSessionId)
 
@@ -403,6 +412,15 @@ class AgentManager: ObservableObject {
         repository.updateConnectionStatus(agentId: agentId, status: .disconnected)
         print("❌ AgentManager.connectAgent: All endpoints failed for \(agentId)")
         return false
+    }
+
+    /// Disconnect the active client for an agent and mark it as disconnected.
+    /// Does NOT attempt reconnect — call `connectAgent` afterwards if needed.
+    func disconnectAgent(agentId: String) async {
+        if let client = await clientCache.removeClient(for: agentId) {
+            await client.disconnect()
+        }
+        repository.updateConnectionStatus(agentId: agentId, status: .disconnected)
     }
 
     /// Legacy single-URL connection (for agents without transport endpoints).

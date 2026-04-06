@@ -352,47 +352,42 @@ class ACPClientWrapper: ObservableObject {
                     connectionMessage = "Creating session..."
                     print("🔧 Creating session with cwd: \(self.cwd)")
 
-                    // Note: Session ID persistence is now handled by AgentManager via AgentRepository
-                    // The existingSessionId parameter passed to connect() contains the stored session ID
-                    var meta: MetaField? = nil
-                    if let sessionId = existingSessionId {
-                        print("📋 Passing existing session ID in _meta: \(sessionId)")
-                        meta = MetaField(
-                            progressToken: nil,
-                            additionalData: ["sessionId": .string(sessionId)]
-                        )
-                    }
-
-                    let sessionRequest = NewSessionRequest(
-                        cwd: self.cwd,
-                        mcpServers: [],
-                        _meta: meta
-                    )
+                    let sessionRequest = NewSessionRequest(cwd: self.cwd, mcpServers: [])
                     print("🔌 ACPClientWrapper.connect(): Calling conn.createSession()...")
                     let sessionResponse = try await conn.createSession(request: sessionRequest)
                     print("✅ Session created with ID: \(sessionResponse.sessionId)")
                     self.currentSessionId = sessionResponse.sessionId
-
-                    // Check if session was resumed (same ID as stored)
-                    if let previousId = existingSessionId, sessionResponse.sessionId.value == previousId {
-                        print("🔄 ACPClientWrapper.connect(): Session resumed (reusing workspace folder)")
-                        self.sessionWasResumed = true
-                    } else {
-                        print("🆕 ACPClientWrapper.connect(): New session created")
-                        self.sessionWasResumed = false
-                    }
+                    self.sessionWasResumed = false
                 }
                 
                     self.connection = conn
                     connectionMessage = "Connected successfully!"
                     connectionState = .connected
                     print("✅ ACPClientWrapper.connect(): Connection flow complete!")
-                    
+
+                    // Watch for unexpected transport close (network loss, bridge restart, etc.)
+                    // Cancelled in disconnect() so intentional closes don't fire this callback.
+                    let capturedTransport = transport
+                    transportObserverTask?.cancel()
+                    transportObserverTask = Task { [weak self] in
+                        for await state in capturedTransport.state {
+                            guard let self else { return }
+                            if state == .closed {
+                                if case .connected = self.connectionState {
+                                    print("🔌 ACPClientWrapper: Transport closed unexpectedly — signalling disconnect")
+                                    self.connectionState = .disconnected
+                                    self.onUnexpectedDisconnect?()
+                                }
+                                return
+                            }
+                        }
+                    }
+
                     // Register push token with bridge after successful connection
                     Task {
                         await self.registerPushToken()
                     }
-                    
+
                     return
             } catch {
                     // Close the transport explicitly so the bridge releases the connection slot.
@@ -417,6 +412,11 @@ class ACPClientWrapper: ObservableObject {
     }
     
     func disconnect() async {
+        // Cancel the transport observer first so an intentional disconnect
+        // does not trigger the unexpected-disconnect callback.
+        transportObserverTask?.cancel()
+        transportObserverTask = nil
+
         if let conn = connection {
             await conn.disconnect()
             connection = nil
@@ -497,6 +497,11 @@ class ACPClientWrapper: ObservableObject {
         }
     }
     
+    /// Called when the WebSocket transport closes unexpectedly (not via `disconnect()`).
+    /// Use this to trigger multi-transport reconnect logic in AgentManager.
+    var onUnexpectedDisconnect: (() -> Void)?
+    private var transportObserverTask: Task<Void, Never>?
+
     // Streaming callback for real-time updates
     var onResponseChunk: ((String) -> Void)?
     var onThought: ((String) -> Void)?
