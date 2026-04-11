@@ -10,7 +10,7 @@ struct ChatView: View {
     let agentId: String
 
     @State private var messageText = ""
-    @State private var isInputFocused: Bool = false
+    @FocusState private var isInputFocused: Bool
     @State private var selectedImages: [UIImage] = []
     @State private var showPhotoPicker = false
     @State private var pickerItems: [PhotosPickerItem] = []
@@ -146,7 +146,10 @@ struct ChatView: View {
                                 .foregroundColor(.blue)
                         }
 
-                        MessageTextField(text: $messageText, isFocused: $isInputFocused)
+                        TextField("Message", text: $messageText, axis: .vertical)
+                            .textFieldStyle(.roundedBorder)
+                            .lineLimit(1...5)
+                            .focused($isInputFocused)
 
                         if messageText.isEmpty {
                             Button {
@@ -243,74 +246,6 @@ struct ChatView: View {
         isInputFocused = false
         Task {
             await viewModel.sendMessage(text, images: images)
-        }
-    }
-}
-
-// MARK: - MessageTextField
-
-struct MessageTextField: UIViewRepresentable {
-    @Binding var text: String
-    @Binding var isFocused: Bool
-
-    func makeCoordinator() -> Coordinator { Coordinator(self) }
-
-    func makeUIView(context: Context) -> UITextView {
-        let textView = UITextView()
-        textView.delegate = context.coordinator
-        textView.font = UIFont.preferredFont(forTextStyle: .body)
-        textView.isScrollEnabled = true
-        textView.backgroundColor = UIColor.secondarySystemBackground
-        textView.layer.cornerRadius = 10
-        textView.textContainerInset = UIEdgeInsets(top: 8, left: 6, bottom: 8, right: 6)
-        // Clear the input assistant shortcut bar
-        textView.inputAssistantItem.leadingBarButtonGroups = []
-        textView.inputAssistantItem.trailingBarButtonGroups = []
-        return textView
-    }
-
-    func updateUIView(_ textView: UITextView, context: Context) {
-        if textView.text != text {
-            textView.text = text
-        }
-        // Manage placeholder
-        context.coordinator.updatePlaceholder(textView)
-        // Manage focus
-        if isFocused && !textView.isFirstResponder {
-            textView.becomeFirstResponder()
-        } else if !isFocused && textView.isFirstResponder {
-            textView.resignFirstResponder()
-        }
-    }
-
-    class Coordinator: NSObject, UITextViewDelegate {
-        var parent: MessageTextField
-
-        init(_ parent: MessageTextField) { self.parent = parent }
-
-        func textViewDidChange(_ textView: UITextView) {
-            parent.text = textView.text
-            updatePlaceholder(textView)
-        }
-
-        func textViewDidBeginEditing(_ textView: UITextView) {
-            parent.isFocused = true
-            updatePlaceholder(textView)
-        }
-
-        func textViewDidEndEditing(_ textView: UITextView) {
-            parent.isFocused = false
-            updatePlaceholder(textView)
-        }
-
-        func updatePlaceholder(_ textView: UITextView) {
-            if textView.text.isEmpty && !textView.isFirstResponder {
-                textView.text = "Message"
-                textView.textColor = UIColor.placeholderText
-            } else if textView.textColor == UIColor.placeholderText {
-                textView.text = ""
-                textView.textColor = UIColor.label
-            }
         }
     }
 }
