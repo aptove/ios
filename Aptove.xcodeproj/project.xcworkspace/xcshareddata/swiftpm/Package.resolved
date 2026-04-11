@@ -1,5 +1,5 @@
 {
-  "originHash" : "92c2304d569b41d82cd85341eb9c766f619a46b6c9c91209e49388734b771701",
+  "originHash" : "d65693aaf141675a0ddf00d7c210722fbc51ea3e94418c371489e9c8cf4874b1",
   "pins" : [
     {
       "identity" : "codescanner",
@@ -8,6 +8,24 @@
       "state" : {
         "revision" : "5e886430238944c7200fc9e10dbf2d9550dba865",
         "version" : "2.5.2"
+      }
+    },
+    {
+      "identity" : "networkimage",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/gonzalezreal/NetworkImage",
+      "state" : {
+        "revision" : "2849f5323265386e200484b0d0f896e73c3411b9",
+        "version" : "6.0.1"
+      }
+    },
+    {
+      "identity" : "swift-cmark",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-cmark",
+      "state" : {
+        "revision" : "5d9bdaa4228b381639fff09403e39a04926e2dbe",
+        "version" : "0.7.1"
       }
     },
     {
@@ -26,6 +44,15 @@
       "state" : {
         "revision" : "2778fd4e5a12a8aaa30a3ee8285f4ce54c5f3181",
         "version" : "1.9.1"
+      }
+    },
+    {
+      "identity" : "swift-markdown-ui",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/gonzalezreal/swift-markdown-ui",
+      "state" : {
+        "revision" : "5f613358148239d0292c0cef674a3c2314737f9e",
+        "version" : "2.4.1"
       }
     },
     {

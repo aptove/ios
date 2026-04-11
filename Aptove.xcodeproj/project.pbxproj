@@ -11,6 +11,7 @@
 		C800000000000032 /* ACPHTTP in Frameworks */ = {isa = PBXBuildFile; productRef = C800000000000033 /* ACPHTTP */; };
 		C800000000000034 /* ACPModel in Frameworks */ = {isa = PBXBuildFile; productRef = C800000000000035 /* ACPModel */; };
 		C800000000000036 /* CodeScanner in Frameworks */ = {isa = PBXBuildFile; productRef = C800000000000037 /* CodeScanner */; };
+		C800000000000300 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = C800000000000301 /* MarkdownUI */; };
 		C8000000000000A1 /* AptoveApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000002 /* AptoveApp.swift */; };
 		C8000000000000A3 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000004 /* ContentView.swift */; };
 		C8000000000000A5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C800000000000006 /* Assets.xcassets */; };
@@ -114,6 +115,7 @@
 				C800000000000032 /* ACPHTTP in Frameworks */,
 				C800000000000034 /* ACPModel in Frameworks */,
 				C800000000000036 /* CodeScanner in Frameworks */,
+			C800000000000300 /* MarkdownUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -299,6 +301,7 @@
 				C800000000000033 /* ACPHTTP */,
 				C800000000000035 /* ACPModel */,
 				C800000000000037 /* CodeScanner */,
+			C800000000000301 /* MarkdownUI */,
 			);
 			productName = Aptove;
 			productReference = C800000000000001 /* Aptove.app */;
@@ -353,6 +356,7 @@
 			packageReferences = (
 				C80000000000003B /* XCRemoteSwiftPackageReference "swift-sdk" */,
 				C80000000000003C /* XCRemoteSwiftPackageReference "CodeScanner" */,
+			C800000000000302 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
 			);
 			productRefGroup = C800000000000027 /* Products */;
 			projectDirPath = "";
@@ -721,6 +725,14 @@
 				minimumVersion = 2.3.0;
 			};
 		};
+		C800000000000302 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/gonzalezreal/swift-markdown-ui";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -743,6 +755,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C80000000000003C /* XCRemoteSwiftPackageReference "CodeScanner" */;
 			productName = CodeScanner;
+		};
+		C800000000000301 /* MarkdownUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C800000000000302 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */;
+			productName = MarkdownUI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

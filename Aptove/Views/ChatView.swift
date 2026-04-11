@@ -1,4 +1,5 @@
 import SwiftUI
+import MarkdownUI
 
 struct ChatView: View {
     @EnvironmentObject var agentManager: AgentManager
@@ -166,7 +167,7 @@ struct MessageBubble: View {
     
     @ViewBuilder
     private var textBubbleView: some View {
-        Text(message.text)
+        Markdown(message.text)
             .padding(12)
             .background(backgroundColor)
             .foregroundColor(textColor)
