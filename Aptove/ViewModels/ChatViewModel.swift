@@ -499,13 +499,40 @@ class ChatViewModel: ObservableObject {
         return "\"\(escaped)\""
     }
 
-    private func parseCorrectedText(from json: String) -> String? {
-        guard let data = json.data(using: .utf8),
-              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let corrected = obj["corrected_text"] as? String else {
-            return nil
+    private func parseCorrectedText(from response: String) -> String? {
+        // Try candidates in order: raw response, JSON stripped from markdown code fences,
+        // and a best-effort substring between the first { and last }.
+        let candidates: [String] = [
+            response,
+            extractJsonFromCodeFence(response),
+            extractJsonBraces(response)
+        ].compactMap { $0 }
+
+        for candidate in candidates {
+            if let data = candidate.data(using: .utf8),
+               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let corrected = obj["corrected_text"] as? String,
+               !corrected.isEmpty {
+                return corrected
+            }
         }
-        return corrected
+        return nil
+    }
+
+    private func extractJsonFromCodeFence(_ text: String) -> String? {
+        // Match ```json ... ``` or ``` ... ```
+        let pattern = #"```(?:json)?\s*(\{[\s\S]*?\})\s*```"#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let range = Range(match.range(at: 1), in: text) else { return nil }
+        return String(text[range])
+    }
+
+    private func extractJsonBraces(_ text: String) -> String? {
+        guard let start = text.firstIndex(of: "{"),
+              let end = text.lastIndex(of: "}") ,
+              start <= end else { return nil }
+        return String(text[start...end])
     }
 
     private func updateMessageStatus(_ messageId: String, to status: MessageStatus) {
