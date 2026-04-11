@@ -471,26 +471,33 @@ class ChatViewModel: ObservableObject {
 
         var accumulated = ""
 
-        do {
-            try await client.sendMessage(correctionJson,
-                onChunk: { chunk in
-                    accumulated += chunk
-                },
-                onThought: nil,
-                onToolCall: nil,
-                onToolUpdate: nil,
-                onComplete: { _, _ in }
-            )
-
-            if let corrected = parseCorrectedText(from: accumulated) {
-                print("🤖 [VoiceCorrection] Agent corrected to: \"\(corrected)\"")
-                voiceCorrectedText = corrected
-            } else {
-                print("⚠️ [VoiceCorrection] Agent parse failed, using raw transcript. Agent response: \"\(accumulated)\"")
-                voiceCorrectedText = rawTranscript
+        // sendMessage() fires an internal detached Task and returns immediately,
+        // so a plain `try await` exits before any chunks arrive.
+        // Use a continuation gated on onComplete to actually wait for the full response.
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            Task { @MainActor in
+                do {
+                    try await client.sendMessage(
+                        correctionJson,
+                        onChunk: { chunk in accumulated += chunk },
+                        onThought: nil,
+                        onToolCall: nil,
+                        onToolUpdate: nil,
+                        onComplete: { _, _ in cont.resume() }
+                    )
+                } catch {
+                    // sendMessage threw before spawning the prompt task (e.g. no session)
+                    print("❌ [VoiceCorrection] sendMessage threw: \(error.localizedDescription)")
+                    cont.resume()
+                }
             }
-        } catch {
-            print("❌ [VoiceCorrection] Agent request failed (\(error.localizedDescription)), using raw transcript")
+        }
+
+        if let corrected = parseCorrectedText(from: accumulated) {
+            print("🤖 [VoiceCorrection] Agent corrected to: \"\(corrected)\"")
+            voiceCorrectedText = corrected
+        } else {
+            print("⚠️ [VoiceCorrection] Agent parse failed, using raw transcript. Agent response: \"\(accumulated)\"")
             voiceCorrectedText = rawTranscript
         }
 
