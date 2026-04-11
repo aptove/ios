@@ -255,9 +255,10 @@ struct ChatView: View {
 class DictationTextField: UITextField {
     var onDictationResult: ((String) -> Void)?
 
+    // Final result: clear any partial live-transcription text that iOS inserted
+    // during recording, then route the full transcript through AI correction.
     override func insertDictationResult(_ dictationResult: [UIDictationPhrase]) {
-        // Intercept system keyboard mic: route transcript through voice correction
-        // instead of inserting raw text into the field.
+        text = ""
         let transcript = dictationResult.map(\.text).joined()
         onDictationResult?(transcript)
     }
