@@ -401,6 +401,11 @@ class AgentManager: ObservableObject {
                 repository.updateEndpointStatus(endpointId: endpointId, isActive: true)
                 repository.updateConnectionStatus(agentId: agentId, status: .connected)
                 updateAgentSessionInfo(agentId: agentId, sessionId: client.sessionId, supportsLoadSession: client.supportsLoadSession)
+                // Remember the working transport so next reconnect tries it first,
+                // skipping endpoints that are currently unreachable.
+                if entity.preferredTransport != endpoint.transport {
+                    setPreferredTransport(agentId: agentId, transport: endpoint.transport)
+                }
                 print("✅ AgentManager.connectAgent: Connected via \(endpoint.transport ?? "?")")
                 return true
             } else {
