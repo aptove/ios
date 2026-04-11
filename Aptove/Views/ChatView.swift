@@ -263,8 +263,6 @@ struct MessageTextField: UIViewRepresentable {
         textView.backgroundColor = UIColor.secondarySystemBackground
         textView.layer.cornerRadius = 10
         textView.textContainerInset = UIEdgeInsets(top: 8, left: 6, bottom: 8, right: 6)
-        // Suppress the keyboard's built-in dictation mic key
-        textView.setValue(true, forKey: "suppressesDictation")
         // Clear the input assistant shortcut bar
         textView.inputAssistantItem.leadingBarButtonGroups = []
         textView.inputAssistantItem.trailingBarButtonGroups = []
