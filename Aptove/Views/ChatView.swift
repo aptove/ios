@@ -10,7 +10,7 @@ struct ChatView: View {
     let agentId: String
 
     @State private var messageText = ""
-    @FocusState private var isInputFocused: Bool
+    @State private var isInputFocused: Bool = false
     @State private var selectedImages: [UIImage] = []
     @State private var showPhotoPicker = false
     @State private var pickerItems: [PhotosPickerItem] = []
@@ -146,10 +146,10 @@ struct ChatView: View {
                                 .foregroundColor(.blue)
                         }
 
-                        TextField("Message", text: $messageText, axis: .vertical)
-                            .textFieldStyle(.roundedBorder)
-                            .lineLimit(1...5)
-                            .focused($isInputFocused)
+                        MessageTextField(text: $messageText, isFocused: $isInputFocused) { transcript in
+                            voiceViewModel.recordingState = .processing
+                            Task { await viewModel.sendVoiceCorrectionRequest(transcript) }
+                        }
 
                         if messageText.isEmpty {
                             Button {
@@ -246,6 +246,61 @@ struct ChatView: View {
         isInputFocused = false
         Task {
             await viewModel.sendMessage(text, images: images)
+        }
+    }
+}
+
+// MARK: - MessageTextField
+
+class DictationTextField: UITextField {
+    var onDictationResult: ((String) -> Void)?
+
+    override func insertDictationResult(_ dictationResult: [UIDictationPhrase]) {
+        // Intercept system keyboard mic: route transcript through voice correction
+        // instead of inserting raw text into the field.
+        let transcript = dictationResult.map(\.text).joined()
+        onDictationResult?(transcript)
+    }
+}
+
+struct MessageTextField: UIViewRepresentable {
+    @Binding var text: String
+    @Binding var isFocused: Bool
+    let onDictationResult: (String) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeUIView(context: Context) -> DictationTextField {
+        let field = DictationTextField()
+        field.placeholder = "Message"
+        field.borderStyle = .roundedRect
+        field.font = .preferredFont(forTextStyle: .body)
+        field.onDictationResult = onDictationResult
+        field.addTarget(context.coordinator, action: #selector(Coordinator.editingChanged), for: .editingChanged)
+        field.delegate = context.coordinator
+        return field
+    }
+
+    func updateUIView(_ field: DictationTextField, context: Context) {
+        if field.text != text { field.text = text }
+        if isFocused && !field.isFirstResponder { field.becomeFirstResponder() }
+        else if !isFocused && field.isFirstResponder { field.resignFirstResponder() }
+    }
+
+    class Coordinator: NSObject, UITextFieldDelegate {
+        var parent: MessageTextField
+        init(_ parent: MessageTextField) { self.parent = parent }
+
+        @objc func editingChanged(_ field: UITextField) {
+            parent.text = field.text ?? ""
+        }
+
+        func textFieldDidBeginEditing(_ textField: UITextField) {
+            parent.isFocused = true
+        }
+
+        func textFieldDidEndEditing(_ textField: UITextField) {
+            parent.isFocused = false
         }
     }
 }
