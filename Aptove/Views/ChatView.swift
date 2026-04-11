@@ -252,11 +252,10 @@ struct ChatView: View {
 
 // MARK: - MessageTextField
 
-class DictationTextField: UITextField {
+class DictationTextView: UITextView {
     var onDictationResult: ((String) -> Void)?
 
-    // Final result: clear any partial live-transcription text that iOS inserted
-    // during recording, then route the full transcript through AI correction.
+    // Clear partial live-transcription text, route final transcript to AI.
     override func insertDictationResult(_ dictationResult: [UIDictationPhrase]) {
         text = ""
         let transcript = dictationResult.map(\.text).joined()
@@ -271,42 +270,72 @@ struct MessageTextField: UIViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
-    func makeUIView(context: Context) -> DictationTextField {
-        let field = DictationTextField()
-        field.placeholder = "Message"
-        field.borderStyle = .roundedRect
-        field.font = .preferredFont(forTextStyle: .body)
-        field.onDictationResult = onDictationResult
-        field.addTarget(context.coordinator, action: #selector(Coordinator.editingChanged), for: .editingChanged)
-        field.delegate = context.coordinator
-        return field
+    func makeUIView(context: Context) -> DictationTextView {
+        let view = DictationTextView()
+        view.onDictationResult = onDictationResult
+        view.delegate = context.coordinator
+        view.font = .preferredFont(forTextStyle: .body)
+        view.isScrollEnabled = false
+        view.backgroundColor = UIColor.secondarySystemBackground
+        view.layer.cornerRadius = 8
+        view.layer.borderWidth = 0.5
+        view.layer.borderColor = UIColor.separator.cgColor
+        view.textContainerInset = UIEdgeInsets(top: 8, left: 6, bottom: 8, right: 6)
+        view.textContainer.lineFragmentPadding = 0
+        return view
     }
 
-    func sizeThatFits(_ proposal: ProposedViewSize, uiView: DictationTextField, context: Context) -> CGSize? {
-        CGSize(width: proposal.width ?? uiView.intrinsicContentSize.width,
-               height: uiView.intrinsicContentSize.height)
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: DictationTextView, context: Context) -> CGSize? {
+        let width = max(proposal.width ?? uiView.bounds.width, 1)
+        let lineHeight = uiView.font?.lineHeight ?? 20
+        let insets = uiView.textContainerInset
+        let maxHeight = lineHeight * 5 + insets.top + insets.bottom
+        let fitting = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
+        return CGSize(width: width, height: min(fitting.height, maxHeight))
     }
 
-    func updateUIView(_ field: DictationTextField, context: Context) {
-        if field.text != text { field.text = text }
-        if isFocused && !field.isFirstResponder { field.becomeFirstResponder() }
-        else if !isFocused && field.isFirstResponder { field.resignFirstResponder() }
+    func updateUIView(_ view: DictationTextView, context: Context) {
+        // Sync text (skip when showing placeholder)
+        if view.textColor != .placeholderText && view.text != text {
+            view.text = text
+        } else if view.textColor == .placeholderText && !text.isEmpty {
+            view.text = text
+            view.textColor = .label
+        }
+        // Enable scrolling once content exceeds 5-line cap
+        let insets = view.textContainerInset
+        let maxHeight = (view.font?.lineHeight ?? 20) * 5 + insets.top + insets.bottom
+        let needed = view.sizeThatFits(CGSize(width: max(view.bounds.width, 1), height: .greatestFiniteMagnitude)).height
+        view.isScrollEnabled = needed > maxHeight
+        // Focus
+        if isFocused && !view.isFirstResponder { view.becomeFirstResponder() }
+        else if !isFocused && view.isFirstResponder { view.resignFirstResponder() }
     }
 
-    class Coordinator: NSObject, UITextFieldDelegate {
+    class Coordinator: NSObject, UITextViewDelegate {
         var parent: MessageTextField
         init(_ parent: MessageTextField) { self.parent = parent }
 
-        @objc func editingChanged(_ field: UITextField) {
-            parent.text = field.text ?? ""
+        func textViewDidChange(_ textView: UITextView) {
+            if textView.textColor != .placeholderText {
+                parent.text = textView.text
+            }
         }
 
-        func textFieldDidBeginEditing(_ textField: UITextField) {
+        func textViewDidBeginEditing(_ textView: UITextView) {
             parent.isFocused = true
+            if textView.textColor == .placeholderText {
+                textView.text = ""
+                textView.textColor = .label
+            }
         }
 
-        func textFieldDidEndEditing(_ textField: UITextField) {
+        func textViewDidEndEditing(_ textView: UITextView) {
             parent.isFocused = false
+            if textView.text.isEmpty {
+                textView.text = "Message"
+                textView.textColor = .placeholderText
+            }
         }
     }
 }
