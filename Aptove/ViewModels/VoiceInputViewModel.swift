@@ -6,13 +6,23 @@ enum RecordingState {
     case idle
     case requestingPermission
     case recording
+    case paused
     case processing
     case error(String)
+
+    var isActiveRecording: Bool {
+        switch self {
+        case .recording, .paused: return true
+        default: return false
+        }
+    }
 }
 
 @MainActor
 class VoiceInputViewModel: ObservableObject {
     @Published var recordingState: RecordingState = .idle
+    @Published var waveformSamples: [Float] = Array(repeating: 0, count: 40)
+    @Published var elapsedSeconds: Int = 0
 
     var onTranscriptReady: ((String) -> Void)?
 
@@ -20,6 +30,7 @@ class VoiceInputViewModel: ObservableObject {
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private let speechRecognizer = SFSpeechRecognizer(locale: Locale.current)
+    private var recordingTimer: Timer?
 
     func startRecording() {
         recordingState = .requestingPermission
@@ -51,6 +62,11 @@ class VoiceInputViewModel: ObservableObject {
     }
 
     private func beginRecording() {
+        elapsedSeconds = 0
+        waveformSamples = Array(repeating: 0, count: 40)
+        recordingTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            DispatchQueue.main.async { self?.elapsedSeconds += 1 }
+        }
         do {
             let audioSession = AVAudioSession.sharedInstance()
             try audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)
@@ -72,8 +88,16 @@ class VoiceInputViewModel: ObservableObject {
 
             let inputNode = engine.inputNode
             let recordingFormat = inputNode.outputFormat(forBus: 0)
-            inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
+            inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
                 request.append(buffer)
+                guard let channelData = buffer.floatChannelData?[0] else { return }
+                let frameLen = Int(buffer.frameLength)
+                let rms = sqrt((0..<frameLen).reduce(0.0) { $0 + channelData[$1] * channelData[$1] } / Float(frameLen))
+                let level = min(rms * 15, 1.0)
+                DispatchQueue.main.async {
+                    self?.waveformSamples.removeFirst()
+                    self?.waveformSamples.append(level)
+                }
             }
 
             engine.prepare()
@@ -102,7 +126,7 @@ class VoiceInputViewModel: ObservableObject {
                     if let result = result, result.isFinal {
                         let transcript = result.bestTranscription.formattedString
                         self.stopEngine()
-                        self.recordingState = .idle
+                        // Stay in .processing — caller resets to .idle when AI response is ready
                         self.onTranscriptReady?(transcript)
                     }
                 }
@@ -115,14 +139,47 @@ class VoiceInputViewModel: ObservableObject {
         }
     }
 
-    func stopRecording() {
+    func pauseRecording() {
         guard case .recording = recordingState else { return }
-        recordingState = .processing
-        recognitionRequest?.endAudio()
-        // recognitionTask will fire isFinal after endAudio
+        audioEngine?.pause()
+        recordingTimer?.invalidate()
+        recordingTimer = nil
+        recordingState = .paused
+    }
+
+    func resumeRecording() {
+        guard case .paused = recordingState else { return }
+        do {
+            try audioEngine?.start()
+            recordingTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+                DispatchQueue.main.async { self?.elapsedSeconds += 1 }
+            }
+            recordingState = .recording
+        } catch {
+            stopEngine()
+            recordingState = .error(error.localizedDescription)
+        }
+    }
+
+    func stopRecording() {
+        switch recordingState {
+        case .recording, .paused:
+            recordingState = .processing
+            recognitionRequest?.endAudio()
+            // recognitionTask will fire isFinal after endAudio
+        default:
+            return
+        }
+    }
+
+    func cancelRecording() {
+        stopEngine()
+        recordingState = .idle
     }
 
     private func stopEngine() {
+        recordingTimer?.invalidate()
+        recordingTimer = nil
         audioEngine?.inputNode.removeTap(onBus: 0)
         audioEngine?.stop()
         audioEngine = nil

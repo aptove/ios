@@ -10,7 +10,7 @@ struct ChatView: View {
     let agentId: String
 
     @State private var messageText = ""
-    @FocusState private var isInputFocused: Bool
+    @State private var isInputFocused: Bool = false
     @State private var selectedImages: [UIImage] = []
     @State private var showPhotoPicker = false
     @State private var pickerItems: [PhotosPickerItem] = []
@@ -44,84 +44,134 @@ struct ChatView: View {
             Divider()
 
             VStack(spacing: 0) {
-                if !selectedImages.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(selectedImages.indices, id: \.self) { i in
-                                ZStack(alignment: .topTrailing) {
-                                    Image(uiImage: selectedImages[i])
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(width: 64, height: 64)
-                                        .clipped()
-                                        .cornerRadius(8)
-                                    Button {
-                                        selectedImages.remove(at: i)
-                                    } label: {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .foregroundColor(.white)
-                                            .background(Color.black.opacity(0.4).clipShape(Circle()))
-                                    }
-                                    .padding(4)
+                if voiceViewModel.recordingState.isActiveRecording {
+                    let isPaused = { if case .paused = voiceViewModel.recordingState { return true }; return false }()
+                    VStack(spacing: 8) {
+                        // Waveform preview row
+                        HStack(spacing: 10) {
+                            Image(systemName: "play.fill")
+                                .foregroundColor(.secondary)
+                                .font(.caption)
+                            WaveformView(samples: voiceViewModel.waveformSamples)
+                            Text(timeString(voiceViewModel.elapsedSeconds))
+                                .font(.subheadline.monospacedDigit())
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity)
+                        .background(Color(.systemGray5).opacity(0.8))
+                        .clipShape(Capsule())
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+
+                        // Action row
+                        HStack {
+                            Button {
+                                voiceViewModel.cancelRecording()
+                            } label: {
+                                Image(systemName: "trash")
+                                    .font(.title2)
+                                    .foregroundColor(.red)
+                            }
+                            Spacer()
+                            Button {
+                                if isPaused {
+                                    voiceViewModel.resumeRecording()
+                                } else {
+                                    voiceViewModel.pauseRecording()
                                 }
+                            } label: {
+                                Image(systemName: isPaused ? "mic.fill" : "pause.fill")
+                                    .font(.title2)
+                                    .foregroundColor(.red)
+                                    .scaleEffect(isPaused ? 1.0 : 1.0 + CGFloat(voiceViewModel.waveformSamples.last ?? 0) * 0.4)
+                                    .animation(.easeOut(duration: 0.08), value: voiceViewModel.waveformSamples.last)
+                            }
+                            Spacer()
+                            Button {
+                                voiceViewModel.stopRecording()
+                            } label: {
+                                Image(systemName: "arrow.up.circle.fill")
+                                    .font(.largeTitle)
+                                    .foregroundColor(.green)
                             }
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, 32)
+                        .padding(.bottom, 12)
                     }
-                    .frame(height: 80)
-                    .background(Color(.systemGroupedBackground))
-                }
-
-                HStack(spacing: 12) {
-                    Button {
-                        showPhotoPicker = true
-                    } label: {
-                        Image(systemName: "photo")
-                            .font(.title2)
-                            .foregroundColor(.blue)
+                } else if case .processing = voiceViewModel.recordingState {
+                    HStack(spacing: 8) {
+                        ProgressView().scaleEffect(0.8)
+                        Text("Converting speech to text...")
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                } else {
+                    if !selectedImages.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(selectedImages.indices, id: \.self) { i in
+                                    ZStack(alignment: .topTrailing) {
+                                        Image(uiImage: selectedImages[i])
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: 64, height: 64)
+                                            .clipped()
+                                            .cornerRadius(8)
+                                        Button {
+                                            selectedImages.remove(at: i)
+                                        } label: {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .foregroundColor(.white)
+                                                .background(Color.black.opacity(0.4).clipShape(Circle()))
+                                        }
+                                        .padding(4)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                        .frame(height: 80)
+                        .background(Color(.systemGroupedBackground))
                     }
 
-                    TextField("Message", text: $messageText, axis: .vertical)
-                        .textFieldStyle(.roundedBorder)
-                        .lineLimit(1...5)
-                        .focused($isInputFocused)
-
-                    if messageText.isEmpty && selectedImages.isEmpty {
+                    HStack(spacing: 12) {
                         Button {
-                            if case .recording = voiceViewModel.recordingState {
-                                voiceViewModel.stopRecording()
-                            } else {
+                            showPhotoPicker = true
+                        } label: {
+                            Image(systemName: "photo")
+                                .font(.title2)
+                                .foregroundColor(.blue)
+                        }
+
+                        MessageTextField(text: $messageText, isFocused: $isInputFocused)
+
+                        if messageText.isEmpty {
+                            Button {
                                 voiceViewModel.onTranscriptReady = { transcript in
                                     Task { await viewModel.sendVoiceCorrectionRequest(transcript) }
                                 }
                                 voiceViewModel.startRecording()
-                            }
-                        } label: {
-                            if case .recording = voiceViewModel.recordingState {
-                                Image(systemName: "waveform.circle.fill")
-                                    .font(.title2)
-                                    .foregroundColor(.red)
-                            } else if case .processing = voiceViewModel.recordingState {
-                                ProgressView()
-                                    .frame(width: 28, height: 28)
-                            } else {
+                            } label: {
                                 Text("🎙️")
                                     .font(.title2)
                             }
+                            .disabled(viewModel.isVoiceCorrectionPending)
+                        } else {
+                            Button {
+                                sendMessage()
+                            } label: {
+                                Image(systemName: "arrow.up.circle.fill")
+                                    .font(.title2)
+                                    .foregroundColor(.blue)
+                            }
+                            .disabled(viewModel.isSending)
                         }
-                        .disabled(viewModel.isVoiceCorrectionPending)
-                    } else {
-                        Button {
-                            sendMessage()
-                        } label: {
-                            Image(systemName: "arrow.up.circle.fill")
-                                .font(.title2)
-                                .foregroundColor(.blue)
-                        }
-                        .disabled(viewModel.isSending)
                     }
+                    .padding()
                 }
-                .padding()
             }
             .photosPicker(isPresented: $showPhotoPicker,
                           selection: $pickerItems,
@@ -169,8 +219,17 @@ struct ChatView: View {
                 viewModel.voiceCorrectedText = nil
             }
         }
+        .onChange(of: viewModel.isVoiceCorrectionPending) { _, pending in
+            if !pending {
+                voiceViewModel.recordingState = .idle
+            }
+        }
     }
     
+    private func timeString(_ seconds: Int) -> String {
+        String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+
     private var agentName: String {
         agentManager.agents.first { $0.id == agentId }?.name ?? "Chat"
     }
@@ -185,6 +244,91 @@ struct ChatView: View {
         Task {
             await viewModel.sendMessage(text, images: images)
         }
+    }
+}
+
+// MARK: - MessageTextField
+
+struct MessageTextField: UIViewRepresentable {
+    @Binding var text: String
+    @Binding var isFocused: Bool
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeUIView(context: Context) -> UITextView {
+        let textView = UITextView()
+        textView.delegate = context.coordinator
+        textView.font = UIFont.preferredFont(forTextStyle: .body)
+        textView.isScrollEnabled = true
+        textView.backgroundColor = UIColor.secondarySystemBackground
+        textView.layer.cornerRadius = 10
+        textView.textContainerInset = UIEdgeInsets(top: 8, left: 6, bottom: 8, right: 6)
+        // Suppress the keyboard's built-in dictation mic key
+        textView.setValue(true, forKey: "suppressesDictation")
+        // Clear the input assistant shortcut bar
+        textView.inputAssistantItem.leadingBarButtonGroups = []
+        textView.inputAssistantItem.trailingBarButtonGroups = []
+        return textView
+    }
+
+    func updateUIView(_ textView: UITextView, context: Context) {
+        if textView.text != text {
+            textView.text = text
+        }
+        // Manage placeholder
+        context.coordinator.updatePlaceholder(textView)
+        // Manage focus
+        if isFocused && !textView.isFirstResponder {
+            textView.becomeFirstResponder()
+        } else if !isFocused && textView.isFirstResponder {
+            textView.resignFirstResponder()
+        }
+    }
+
+    class Coordinator: NSObject, UITextViewDelegate {
+        var parent: MessageTextField
+
+        init(_ parent: MessageTextField) { self.parent = parent }
+
+        func textViewDidChange(_ textView: UITextView) {
+            parent.text = textView.text
+            updatePlaceholder(textView)
+        }
+
+        func textViewDidBeginEditing(_ textView: UITextView) {
+            parent.isFocused = true
+            updatePlaceholder(textView)
+        }
+
+        func textViewDidEndEditing(_ textView: UITextView) {
+            parent.isFocused = false
+            updatePlaceholder(textView)
+        }
+
+        func updatePlaceholder(_ textView: UITextView) {
+            if textView.text.isEmpty && !textView.isFirstResponder {
+                textView.text = "Message"
+                textView.textColor = UIColor.placeholderText
+            } else if textView.textColor == UIColor.placeholderText {
+                textView.text = ""
+                textView.textColor = UIColor.label
+            }
+        }
+    }
+}
+
+struct WaveformView: View {
+    let samples: [Float]
+    var body: some View {
+        HStack(alignment: .center, spacing: 2) {
+            ForEach(samples.indices, id: \.self) { i in
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color.green)
+                    .frame(width: 3, height: max(4, CGFloat(samples[i]) * 36 + 4))
+                    .animation(.easeOut(duration: 0.08), value: samples[i])
+            }
+        }
+        .frame(height: 44)
     }
 }
 
