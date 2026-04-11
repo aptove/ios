@@ -258,8 +258,10 @@ struct MessageBubble: View {
     @ViewBuilder
     private var thoughtBubbleView: some View {
         HStack(spacing: 8) {
-            ProgressView()
-                .scaleEffect(0.8)
+            if message.isThinking {
+                ProgressView()
+                    .scaleEffect(0.8)
+            }
             Text(message.text)
                 .font(.subheadline)
                 .italic()

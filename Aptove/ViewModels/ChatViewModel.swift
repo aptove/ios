@@ -1,5 +1,7 @@
 import Foundation
 import SwiftUI
+import UIKit
+import ACPModel
 
 @MainActor
 class ChatViewModel: ObservableObject {
@@ -170,14 +172,16 @@ class ChatViewModel: ObservableObject {
         messages = conversation.messages
     }
     
-    func sendMessage(_ text: String) async {
+    func sendMessage(_ text: String, images: [UIImage] = []) async {
         print("📤 ChatViewModel.sendMessage: Starting...")
         isSending = true
-        
+
+        let imageDataList = images.compactMap { $0.jpegData(compressionQuality: 0.8) }
         let userMessage = Message(
             text: text,
             sender: .user,
-            status: .sending
+            status: .sending,
+            images: imageDataList.isEmpty ? nil : imageDataList
         )
         
         messages.append(userMessage)
@@ -268,8 +272,17 @@ class ChatViewModel: ObservableObject {
             var toolOutputMessages: [String: String] = [:] // Track tool output messages by toolCallId
             updateConversation()
             
+            // Build content blocks: images first, then text
+            var contentBlocks: [ContentBlock] = images.compactMap { img in
+                guard let data = img.jpegData(compressionQuality: 0.8) else { return nil }
+                return .image(ImageContent(data: data.base64EncodedString(), mimeType: "image/jpeg"))
+            }
+            if !text.isEmpty {
+                contentBlocks.append(.text(TextContent(text: text)))
+            }
+
             // Send message with streaming callbacks
-            try await client.sendMessage(text,
+            try await client.sendMessage(contentBlocks,
                 onChunk: { chunk in
                     // Update agent message incrementally on main thread
                     Task { @MainActor in
@@ -399,6 +412,13 @@ class ChatViewModel: ObservableObject {
                             self.updateConversation()
                         }
 
+                        // Stop the thought spinner now that the response is complete
+                        if let thinkingId = currentThoughtId,
+                           let thoughtIndex = self.messages.firstIndex(where: { $0.id == thinkingId }) {
+                            self.messages[thoughtIndex].isThinking = false
+                            self.updateConversation()
+                        }
+
                         self.isSending = false
                     }
                 }
@@ -498,7 +518,8 @@ class ChatViewModel: ObservableObject {
                 timestamp: msg.timestamp,
                 status: status,
                 type: msg.type,
-                toolApproval: msg.toolApproval
+                toolApproval: msg.toolApproval,
+                images: msg.images
             )
             updateConversation()
         }
