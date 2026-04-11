@@ -1,5 +1,6 @@
 import SwiftUI
 import MarkdownUI
+import PhotosUI
 
 struct ChatView: View {
     @EnvironmentObject var agentManager: AgentManager
@@ -10,6 +11,9 @@ struct ChatView: View {
 
     @State private var messageText = ""
     @FocusState private var isInputFocused: Bool
+    @State private var selectedImages: [UIImage] = []
+    @State private var showPhotoPicker = false
+    @State private var pickerItems: [PhotosPickerItem] = []
     
     init(agentId: String) {
         self.agentId = agentId
@@ -38,49 +42,106 @@ struct ChatView: View {
             }
             
             Divider()
-            
-            HStack(spacing: 12) {
-                TextField("Message", text: $messageText, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .lineLimit(1...5)
-                    .focused($isInputFocused)
-                
-                if messageText.isEmpty {
-                    Button {
-                        if case .recording = voiceViewModel.recordingState {
-                            voiceViewModel.stopRecording()
-                        } else {
-                            voiceViewModel.onTranscriptReady = { transcript in
-                                Task { await viewModel.sendVoiceCorrectionRequest(transcript) }
+
+            VStack(spacing: 0) {
+                if !selectedImages.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(selectedImages.indices, id: \.self) { i in
+                                ZStack(alignment: .topTrailing) {
+                                    Image(uiImage: selectedImages[i])
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 64, height: 64)
+                                        .clipped()
+                                        .cornerRadius(8)
+                                    Button {
+                                        selectedImages.remove(at: i)
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundColor(.white)
+                                            .background(Color.black.opacity(0.4).clipShape(Circle()))
+                                    }
+                                    .padding(4)
+                                }
                             }
-                            voiceViewModel.startRecording()
                         }
-                    } label: {
-                        if case .recording = voiceViewModel.recordingState {
-                            Image(systemName: "waveform.circle.fill")
-                                .font(.title2)
-                                .foregroundColor(.red)
-                        } else if case .processing = voiceViewModel.recordingState {
-                            ProgressView()
-                                .frame(width: 28, height: 28)
-                        } else {
-                            Text("🎙️")
-                                .font(.title2)
-                        }
+                        .padding(.horizontal)
                     }
-                    .disabled(viewModel.isVoiceCorrectionPending)
-                } else {
+                    .frame(height: 80)
+                    .background(Color(.systemGroupedBackground))
+                }
+
+                HStack(spacing: 12) {
                     Button {
-                        sendMessage()
+                        showPhotoPicker = true
                     } label: {
-                        Image(systemName: "arrow.up.circle.fill")
+                        Image(systemName: "photo")
                             .font(.title2)
                             .foregroundColor(.blue)
                     }
-                    .disabled(viewModel.isSending)
+
+                    TextField("Message", text: $messageText, axis: .vertical)
+                        .textFieldStyle(.roundedBorder)
+                        .lineLimit(1...5)
+                        .focused($isInputFocused)
+
+                    if messageText.isEmpty && selectedImages.isEmpty {
+                        Button {
+                            if case .recording = voiceViewModel.recordingState {
+                                voiceViewModel.stopRecording()
+                            } else {
+                                voiceViewModel.onTranscriptReady = { transcript in
+                                    Task { await viewModel.sendVoiceCorrectionRequest(transcript) }
+                                }
+                                voiceViewModel.startRecording()
+                            }
+                        } label: {
+                            if case .recording = voiceViewModel.recordingState {
+                                Image(systemName: "waveform.circle.fill")
+                                    .font(.title2)
+                                    .foregroundColor(.red)
+                            } else if case .processing = voiceViewModel.recordingState {
+                                ProgressView()
+                                    .frame(width: 28, height: 28)
+                            } else {
+                                Text("🎙️")
+                                    .font(.title2)
+                            }
+                        }
+                        .disabled(viewModel.isVoiceCorrectionPending)
+                    } else {
+                        Button {
+                            sendMessage()
+                        } label: {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(.blue)
+                        }
+                        .disabled(viewModel.isSending)
+                    }
+                }
+                .padding()
+            }
+            .photosPicker(isPresented: $showPhotoPicker,
+                          selection: $pickerItems,
+                          maxSelectionCount: 10,
+                          matching: .images)
+            .onChange(of: pickerItems) { _, items in
+                // Guard prevents re-triggering when we clear pickerItems below
+                guard !items.isEmpty else { return }
+                Task {
+                    var loaded: [UIImage] = []
+                    for item in items {
+                        if let data = try? await item.loadTransferable(type: Data.self),
+                           let img = UIImage(data: data) {
+                            loaded.append(img)
+                        }
+                    }
+                    selectedImages = loaded
+                    pickerItems = []
                 }
             }
-            .padding()
         }
         .navigationTitle(agentName)
         .navigationBarTitleDisplayMode(.inline)
@@ -116,13 +177,13 @@ struct ChatView: View {
     
     private func sendMessage() {
         let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        
+        guard !text.isEmpty || !selectedImages.isEmpty else { return }
+        let images = selectedImages
         messageText = ""
+        selectedImages = []
         isInputFocused = false
-        
         Task {
-            await viewModel.sendMessage(text)
+            await viewModel.sendMessage(text, images: images)
         }
     }
 }
@@ -167,11 +228,31 @@ struct MessageBubble: View {
     
     @ViewBuilder
     private var textBubbleView: some View {
-        Markdown(message.text)
-            .padding(12)
-            .background(backgroundColor)
-            .foregroundColor(textColor)
-            .cornerRadius(16)
+        VStack(alignment: .leading, spacing: 6) {
+            if let images = message.images, !images.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(images.indices, id: \.self) { i in
+                            if let uiImage = UIImage(data: images[i]) {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 80, height: 80)
+                                    .clipped()
+                                    .cornerRadius(8)
+                            }
+                        }
+                    }
+                }
+            }
+            if !message.text.isEmpty {
+                Markdown(message.text)
+            }
+        }
+        .padding(12)
+        .background(backgroundColor)
+        .foregroundColor(textColor)
+        .cornerRadius(16)
     }
     
     @ViewBuilder
