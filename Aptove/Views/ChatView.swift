@@ -281,6 +281,11 @@ struct MessageTextField: UIViewRepresentable {
         return field
     }
 
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: DictationTextField, context: Context) -> CGSize? {
+        CGSize(width: proposal.width ?? uiView.intrinsicContentSize.width,
+               height: uiView.intrinsicContentSize.height)
+    }
+
     func updateUIView(_ field: DictationTextField, context: Context) {
         if field.text != text { field.text = text }
         if isFocused && !field.isFirstResponder { field.becomeFirstResponder() }
