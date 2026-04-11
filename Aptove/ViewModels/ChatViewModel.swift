@@ -458,6 +458,8 @@ class ChatViewModel: ObservableObject {
 
         isVoiceCorrectionPending = true
 
+        print("🎤 [VoiceCorrection] Raw speech-to-text: \"\(rawTranscript)\"")
+
         let correctionJson = """
         {
             "type": "voice_correction_request",
@@ -480,9 +482,15 @@ class ChatViewModel: ObservableObject {
                 onComplete: { _, _ in }
             )
 
-            let corrected = parseCorrectedText(from: accumulated) ?? rawTranscript
-            voiceCorrectedText = corrected
+            if let corrected = parseCorrectedText(from: accumulated) {
+                print("🤖 [VoiceCorrection] Agent corrected to: \"\(corrected)\"")
+                voiceCorrectedText = corrected
+            } else {
+                print("⚠️ [VoiceCorrection] Agent parse failed, using raw transcript. Agent response: \"\(accumulated)\"")
+                voiceCorrectedText = rawTranscript
+            }
         } catch {
+            print("❌ [VoiceCorrection] Agent request failed (\(error.localizedDescription)), using raw transcript")
             voiceCorrectedText = rawTranscript
         }
 
