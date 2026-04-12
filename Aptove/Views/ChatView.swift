@@ -158,8 +158,9 @@ struct ChatView: View {
                                 }
                                 voiceViewModel.startRecording()
                             } label: {
-                                Text("🎙️")
+                                Image(systemName: "mic")
                                     .font(.title2)
+                                    .foregroundColor(.blue)
                             }
                             .disabled(viewModel.isVoiceCorrectionPending)
                         } else {
