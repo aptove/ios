@@ -176,7 +176,11 @@ class ChatViewModel: ObservableObject {
         guard let conversation = agentManager?.conversations[agentId] else {
             return
         }
-        messages = conversation.messages
+        // Drop unanswered approval cards from previous sessions — their toolCallIds
+        // are no longer valid and they would permanently block the approval queue.
+        messages = conversation.messages.filter {
+            $0.type != .toolApprovalRequest || $0.toolApproval?.approved != nil
+        }
     }
     
     func sendMessage(_ text: String, images: [UIImage] = []) async {
