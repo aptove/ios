@@ -534,7 +534,7 @@ class ACPClientWrapper: ObservableObject {
 
         // Set up streaming response collector
         client.onUpdate = { [weak self] update in
-            guard let self = self else { return }
+            guard self != nil else { return }
 
             switch update {
             case .agentMessageChunk(let chunk):

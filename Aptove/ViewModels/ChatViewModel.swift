@@ -19,6 +19,9 @@ class ChatViewModel: ObservableObject {
     private var isPrewarmingClient = false
     private var hasShownSessionIndicator = false  // Track if we've already shown the indicator this view session
     
+    /// Approval cards waiting to be shown after the current active card is answered.
+    private var approvalQueue: [Message] = []
+
     /// Track active tasks for cleanup
     private var prewarmTask: Task<Void, Never>?
     private var sendMessageTask: Task<Void, Never>?
@@ -140,8 +143,12 @@ class ChatViewModel: ObservableObject {
                     )
                 )
                 
-                self.messages.append(approvalMessage)
-                self.updateConversation()
+                if self.hasActiveApproval {
+                    self.approvalQueue.append(approvalMessage)
+                } else {
+                    self.messages.append(approvalMessage)
+                    self.updateConversation()
+                }
             }
         }
     }
@@ -625,6 +632,7 @@ class ChatViewModel: ObservableObject {
                 )
                 updateConversation()
                 saveMessagesToDisk()
+                showNextQueuedApproval()
             }
         } catch {
             print("Error approving tool: \(error)")
@@ -665,12 +673,24 @@ class ChatViewModel: ObservableObject {
                 )
                 updateConversation()
                 saveMessagesToDisk()
+                showNextQueuedApproval()
             }
         } catch {
             print("Error rejecting tool: \(error)")
         }
     }
     
+    private var hasActiveApproval: Bool {
+        messages.contains { $0.type == .toolApprovalRequest && $0.toolApproval?.approved == nil }
+    }
+
+    private func showNextQueuedApproval() {
+        guard !approvalQueue.isEmpty else { return }
+        let next = approvalQueue.removeFirst()
+        messages.append(next)
+        updateConversation()
+    }
+
     private func updateConversation() {
         guard let manager = agentManager else { return }
 
