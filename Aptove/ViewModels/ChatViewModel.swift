@@ -176,6 +176,12 @@ class ChatViewModel: ObservableObject {
         print("📤 ChatViewModel.sendMessage: Starting...")
         isSending = true
 
+        guard !isVoiceCorrectionPending else {
+            print("⚠️ ChatViewModel: Blocked sendMessage — voice correction still in flight")
+            isSending = false
+            return
+        }
+
         let imageDataList = images.compactMap { $0.jpegData(compressionQuality: 0.8) }
         let userMessage = Message(
             text: text,

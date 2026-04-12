@@ -525,15 +525,17 @@ class ACPClientWrapper: ObservableObject {
         print("📤 Sending prompt to session: \(sessionId.value)")
         print("📤 Content blocks: \(content.count)")
         
-        // Store callbacks
-        self.onThought = onThought
-        self.onToolCall = onToolCall
-        self.onToolUpdate = onToolUpdate
-        
+        // Capture callbacks locally so each call's closure is fully isolated.
+        // Do NOT write to instance properties here — concurrent calls would overwrite them
+        // and cause voice-correction responses to leak into the wrong handler.
+        let capturedOnThought    = onThought
+        let capturedOnToolCall   = onToolCall
+        let capturedOnToolUpdate = onToolUpdate
+
         // Set up streaming response collector
         client.onUpdate = { [weak self] update in
             guard let self = self else { return }
-            
+
             switch update {
             case .agentMessageChunk(let chunk):
                 if case .text(let textContent) = chunk.content {
@@ -543,11 +545,11 @@ class ACPClientWrapper: ObservableObject {
             case .agentThoughtChunk(let chunk):
                 if case .text(let textContent) = chunk.content {
                     print("💭 Agent thought: \(textContent.text)")
-                    self.onThought?(textContent.text)
+                    capturedOnThought?(textContent.text)
                 }
             case .toolCall(let toolCall):
                 print("🔧 Tool call: \(toolCall.title) - status: \(String(describing: toolCall.status))")
-                self.onToolCall?(toolCall.title)
+                capturedOnToolCall?(toolCall.title)
             case .toolCallUpdate(let toolUpdate):
                 print("🔧 Tool update: \(toolUpdate.toolCallId.value) - status: \(String(describing: toolUpdate.status))")
                 // Extract text content from the update
@@ -563,11 +565,11 @@ class ACPClientWrapper: ObservableObject {
                 // If we have text content, display it
                 if !textContent.isEmpty {
                     print("📥 Tool output: \(textContent)")
-                    self.onToolUpdate?(toolUpdate.toolCallId.value, textContent)
+                    capturedOnToolUpdate?(toolUpdate.toolCallId.value, textContent)
                 } else if let status = toolUpdate.status {
                     // Show status change
                     print("📥 Tool status: \(status)")
-                    self.onToolUpdate?(toolUpdate.toolCallId.value, "Status: \(status)")
+                    capturedOnToolUpdate?(toolUpdate.toolCallId.value, "Status: \(status)")
                 }
             default:
                 print("📨 Other update: \(update)")
