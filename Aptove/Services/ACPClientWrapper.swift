@@ -562,14 +562,12 @@ class ACPClientWrapper: ObservableObject {
                         }
                     }
                 }
-                // If we have text content, display it
+                // Only surface updates that carry actual text content
                 if !textContent.isEmpty {
                     print("📥 Tool output: \(textContent)")
                     capturedOnToolUpdate?(toolUpdate.toolCallId.value, textContent)
                 } else if let status = toolUpdate.status {
-                    // Show status change
-                    print("📥 Tool status: \(status)")
-                    capturedOnToolUpdate?(toolUpdate.toolCallId.value, "Status: \(status)")
+                    print("📥 Tool status change (suppressed from UI): \(status)")
                 }
             default:
                 print("📨 Other update: \(update)")
