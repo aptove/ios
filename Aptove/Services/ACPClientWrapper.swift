@@ -514,12 +514,16 @@ class ACPClientWrapper: ObservableObject {
     private var pendingToolRequests: [String: ToolCallUpdateData] = [:] // toolCallId -> ToolCallUpdateData
     
     func sendMessage(_ text: String, onChunk: @escaping (String) -> Void, onThought: ((String) -> Void)? = nil, onToolCall: ((String) -> Void)? = nil, onToolUpdate: ((String, String) -> Void)? = nil, onComplete: @escaping (StopReason?, String?) -> Void = { _, _ in }) async throws {
+        try await sendMessage([.text(TextContent(text: text))], onChunk: onChunk, onThought: onThought, onToolCall: onToolCall, onToolUpdate: onToolUpdate, onComplete: onComplete)
+    }
+
+    func sendMessage(_ content: [ContentBlock], onChunk: @escaping (String) -> Void, onThought: ((String) -> Void)? = nil, onToolCall: ((String) -> Void)? = nil, onToolUpdate: ((String, String) -> Void)? = nil, onComplete: @escaping (StopReason?, String?) -> Void = { _, _ in }) async throws {
         guard let conn = connection, let sessionId = currentSessionId, let client = client else {
             throw ClientError.noActiveSession
         }
-        
+
         print("📤 Sending prompt to session: \(sessionId.value)")
-        print("📤 Message: \(text)")
+        print("📤 Content blocks: \(content.count)")
         
         // Store callbacks
         self.onThought = onThought
@@ -572,7 +576,7 @@ class ACPClientWrapper: ObservableObject {
         
         let promptRequest = PromptRequest(
             sessionId: sessionId,
-            prompt: [.text(TextContent(text: text))]
+            prompt: content
         )
         
         print("📤 Prompt request created: \(promptRequest)")
@@ -667,7 +671,7 @@ class ACPClientWrapper: ObservableObject {
                     
                     let retryRequest = PromptRequest(
                         sessionId: newSessionId,
-                        prompt: [.text(TextContent(text: text))]
+                        prompt: content
                     )
                     
                     do {

@@ -186,7 +186,8 @@ class ChatViewModel: ObservableObject {
         
         messages.append(userMessage)
         updateConversation()
-        
+        saveMessagesToDisk()
+
         // Use cached client if available (should be pre-warmed)
         let client: ACPClientWrapper?
         if let cached = cachedClient {
@@ -420,6 +421,7 @@ class ChatViewModel: ObservableObject {
                         }
 
                         self.isSending = false
+                        self.saveMessagesToDisk()
                     }
                 }
             )
@@ -600,6 +602,7 @@ class ChatViewModel: ObservableObject {
                     toolApproval: updatedApproval
                 )
                 updateConversation()
+                saveMessagesToDisk()
             }
         } catch {
             print("Error approving tool: \(error)")
@@ -639,6 +642,7 @@ class ChatViewModel: ObservableObject {
                     toolApproval: updatedApproval
                 )
                 updateConversation()
+                saveMessagesToDisk()
             }
         } catch {
             print("Error rejecting tool: \(error)")
@@ -647,12 +651,19 @@ class ChatViewModel: ObservableObject {
     
     private func updateConversation() {
         guard let manager = agentManager else { return }
-        
+
         var conversation = manager.conversations[agentId] ?? Conversation(agentId: agentId)
         conversation.messages = messages
         conversation.lastActivity = Date()
-        
+
         manager.conversations[agentId] = conversation
         manager.sortAgents()
+    }
+
+    private func saveMessagesToDisk() {
+        guard let manager = agentManager,
+              let agentEntity = manager.repository.getAgentEntity(agentId: agentId)
+        else { return }
+        manager.messageRepository.saveMessages(messages, agentId: agentId, agent: agentEntity)
     }
 }

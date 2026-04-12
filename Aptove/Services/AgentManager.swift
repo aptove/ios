@@ -25,7 +25,8 @@ class AgentManager: ObservableObject {
     @Published var conversations: [String: Conversation] = [:]
 
     private let clientCache = ClientCache()
-    private let repository: AgentRepository
+    let repository: AgentRepository
+    let messageRepository = MessageRepository()
     private var cancellables = Set<AnyCancellable>()
     private var retryTask: Task<Void, Never>?
 
@@ -47,9 +48,10 @@ class AgentManager: ObservableObject {
                 guard let self else { return }
                 let wasEmpty = self.agents.isEmpty
                 self.agents = updatedAgents
-                // Create conversations for any new agents
+                // Create conversations for any new agents, loading persisted messages
                 for agent in updatedAgents where self.conversations[agent.id] == nil {
-                    self.conversations[agent.id] = Conversation(agentId: agent.id)
+                    let persisted = self.messageRepository.fetchMessages(agentId: agent.id)
+                    self.conversations[agent.id] = Conversation(agentId: agent.id, messages: persisted)
                 }
                 if wasEmpty && !updatedAgents.isEmpty {
                     print("📱 AgentManager: Loaded \(updatedAgents.count) agents from CoreData")
@@ -222,6 +224,7 @@ class AgentManager: ObservableObject {
         repository.updateConnectionStatus(agentId: agentId, status: .disconnected)
 
         conversations[agentId] = Conversation(agentId: agentId)
+        messageRepository.deleteMessages(agentId: agentId)
 
         print("📱 AgentManager: Credentials updated successfully for \(agentId)")
     }
@@ -315,6 +318,7 @@ class AgentManager: ObservableObject {
     func clearSession(for agentId: String) async {
         repository.clearSessionInfo(agentId: agentId)
         conversations[agentId] = Conversation(agentId: agentId)
+        messageRepository.deleteMessages(agentId: agentId)
 
         if let client = await clientCache.removeClient(for: agentId) {
             await client.disconnect()

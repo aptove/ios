@@ -57,8 +57,13 @@ struct Message: Identifiable, Codable {
     let type: MessageType
     let toolApproval: ToolApprovalInfo?
     var isThinking: Bool // For thought/tool status messages
-    
-    init(id: String = UUID().uuidString, text: String, sender: MessageSender, timestamp: Date = Date(), status: MessageStatus = .sent, type: MessageType = .text, toolApproval: ToolApprovalInfo? = nil, isThinking: Bool = false) {
+    var images: [Data]? // In-memory only — not persisted (excluded from CodingKeys)
+
+    private enum CodingKeys: String, CodingKey {
+        case id, text, sender, timestamp, status, type, toolApproval, isThinking
+    }
+
+    init(id: String = UUID().uuidString, text: String, sender: MessageSender, timestamp: Date = Date(), status: MessageStatus = .sent, type: MessageType = .text, toolApproval: ToolApprovalInfo? = nil, isThinking: Bool = false, images: [Data]? = nil) {
         self.id = id
         self.text = text
         self.sender = sender
@@ -67,5 +72,6 @@ struct Message: Identifiable, Codable {
         self.type = type
         self.toolApproval = toolApproval
         self.isThinking = isThinking
+        self.images = images
     }
 }
