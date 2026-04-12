@@ -272,7 +272,7 @@ class ChatViewModel: ObservableObject {
                 type: .text
             )
             messages.append(agentMessage)
-            let agentMessageIndex = messages.count - 1
+            var agentMessageIndex = messages.count - 1
             var accumulatedText = "" // Track accumulated text separately
             var currentThoughtId: String? = nil // Track current thought message
             var currentToolId: String? = nil // Track current tool message
@@ -293,10 +293,26 @@ class ChatViewModel: ObservableObject {
                 onChunk: { chunk in
                     // Update agent message incrementally on main thread
                     Task { @MainActor in
+                        // If messages were appended after our current slot (e.g. a tool approval
+                        // card or tool status), seal the current bubble and start a new one.
+                        if agentMessageIndex < self.messages.count - 1 && !accumulatedText.isEmpty {
+                            self.messages[agentMessageIndex] = Message(
+                                id: self.messages[agentMessageIndex].id,
+                                text: accumulatedText,
+                                sender: .agent,
+                                status: .sent,
+                                type: .text
+                            )
+                            accumulatedText = ""
+                            let newMsg = Message(text: "", sender: .agent, status: .sending, type: .text)
+                            self.messages.append(newMsg)
+                            agentMessageIndex = self.messages.count - 1
+                            self.updateConversation()
+                        }
                         accumulatedText += chunk
                         if agentMessageIndex < self.messages.count {
                             self.messages[agentMessageIndex] = Message(
-                                id: agentMessage.id,
+                                id: self.messages[agentMessageIndex].id,
                                 text: accumulatedText,
                                 sender: .agent,
                                 status: .sending,

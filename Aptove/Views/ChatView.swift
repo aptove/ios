@@ -420,8 +420,17 @@ struct MessageBubble: View {
         .background(backgroundColor)
         .foregroundColor(textColor)
         .cornerRadius(16)
+        .contextMenu {
+            if message.sender == .agent && !message.text.isEmpty {
+                Button {
+                    UIPasteboard.general.string = message.text
+                } label: {
+                    Label("Copy", systemImage: "doc.on.doc")
+                }
+            }
+        }
     }
-    
+
     @ViewBuilder
     private var thoughtBubbleView: some View {
         HStack(spacing: 8) {
