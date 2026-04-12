@@ -43,6 +43,7 @@
 		C80000000000020A /* Message+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80000000000020B /* Message+CoreDataProperties.swift */; };
 		C80000000000020C /* ConnectionStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80000000000020D /* ConnectionStatus.swift */; };
 		C80000000000020E /* AgentRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80000000000020F /* AgentRepository.swift */; };
+		C800000000000303 /* MessageRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000304 /* MessageRepository.swift */; };
 		C800000000000210 /* UserDefaultsMigrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000211 /* UserDefaultsMigrator.swift */; };
 		C800000000000212 /* Aptove.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000213 /* Aptove.xcdatamodeld */; };
 		C800000000000220 /* AgentRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000221 /* AgentRepositoryTests.swift */; };
@@ -96,6 +97,7 @@
 		C80000000000020B /* Message+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Message+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		C80000000000020D /* ConnectionStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionStatus.swift; sourceTree = "<group>"; };
 		C80000000000020F /* AgentRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentRepository.swift; sourceTree = "<group>"; };
+		C800000000000304 /* MessageRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageRepository.swift; sourceTree = "<group>"; };
 		C800000000000211 /* UserDefaultsMigrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsMigrator.swift; sourceTree = "<group>"; };
 		C800000000000213 /* Aptove.xcdatamodeld */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodeld; path = Aptove.xcdatamodeld; sourceTree = "<group>"; };
 		C800000000000221 /* AgentRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AgentRepositoryTests.swift; path = AptoveTests/Data/AgentRepositoryTests.swift; sourceTree = SOURCE_ROOT; };
@@ -250,6 +252,7 @@
 			isa = PBXGroup;
 			children = (
 				C80000000000020F /* AgentRepository.swift */,
+				C800000000000304 /* MessageRepository.swift */,
 			);
 			path = Repositories;
 			sourceTree = "<group>";
@@ -423,6 +426,7 @@
 				C80000000000020A /* Message+CoreDataProperties.swift in Sources */,
 				C80000000000020C /* ConnectionStatus.swift in Sources */,
 				C80000000000020E /* AgentRepository.swift in Sources */,
+				C800000000000303 /* MessageRepository.swift in Sources */,
 				C800000000000210 /* UserDefaultsMigrator.swift in Sources */,
 				C800000000000212 /* Aptove.xcdatamodeld in Sources */,
 			);
