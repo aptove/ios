@@ -212,6 +212,7 @@ struct ChatView: View {
                 }
             }
         }
+        .preference(key: HideBottomBarKey.self, value: true)
         .onAppear {
             viewModel.setAgentManager(agentManager)
             viewModel.loadMessages()

@@ -51,6 +51,7 @@
 		C800000000000226 /* TransportEndpoint+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000227 /* TransportEndpoint+CoreDataClass.swift */; };
 		C800000000000228 /* TransportEndpoint+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000229 /* TransportEndpoint+CoreDataProperties.swift */; };
 		C800000000000230 /* TransportCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000231 /* TransportCredentials.swift */; };
+		C800000000000061 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000060 /* SettingsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -105,6 +106,7 @@
 		C800000000000227 /* TransportEndpoint+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TransportEndpoint+CoreDataClass.swift"; sourceTree = "<group>"; };
 		C800000000000229 /* TransportEndpoint+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TransportEndpoint+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		C800000000000231 /* TransportCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransportCredentials.swift; sourceTree = "<group>"; };
+		C800000000000060 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		E27B6F572F4BE96D00311836 /* AptoveTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AptoveTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -174,6 +176,7 @@
 				C80000000000001D /* AgentListView.swift */,
 				C80000000000001F /* ChatView.swift */,
 				C800000000000052 /* AgentConfigurationView.swift */,
+				C800000000000060 /* SettingsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -413,6 +416,7 @@
 				C8000000000000C2 /* ChatViewModel.swift in Sources */,
 				C800000000000091 /* VoiceInputViewModel.swift in Sources */,
 				C8000000000000C8 /* AgentConfigurationView.swift in Sources */,
+				C800000000000061 /* SettingsView.swift in Sources */,
 				C8000000000000CA /* AgentConfigurationViewModel.swift in Sources */,
 				C8000000000000CC /* PushNotificationManager.swift in Sources */,
 				C800000000000200 /* CoreDataStack.swift in Sources */,
