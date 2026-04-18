@@ -17,7 +17,7 @@ struct SettingsView: View {
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Dark Mode")
-                            Text(isDarkMode ? "Dark theme active" : "Light theme active")
+                            Text(isDarkMode ? String(localized: "settings_dark_theme_active") : String(localized: "settings_light_theme_active"))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }

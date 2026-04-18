@@ -245,7 +245,7 @@ struct ManualPairingView: View {
         
         // Validate URL
         guard URL(string: urlString) != nil else {
-            errorMessage = "Invalid URL format. Please check the bridge address."
+            errorMessage = String(localized: "Invalid URL format. Please check the bridge address.")
             showingError = true
             isPairing = false
             return

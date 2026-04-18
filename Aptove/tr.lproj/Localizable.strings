@@ -1,0 +1,109 @@
+/* ContentView */
+"Agents" = "Ajanlar";
+"Chat" = "Sohbet";
+"Settings" = "Ayarlar";
+"No Agents Connected" = "Bağlı Ajan Yok";
+"Tap the + button to scan a QR code\nand connect to an agent" = "Ajan bağlamak için + düğmesine dokunarak QR kodu tarayın";
+
+/* AgentListView */
+"Configure" = "Yapılandır";
+"Delete" = "Sil";
+"Delete Agent?" = "Ajan Silinsin mi?";
+"Cancel" = "İptal";
+"No messages yet" = "Henüz mesaj yok";
+"via %@" = "%@ üzerinden";
+"Are you sure you want to delete \"%@\"? This will remove all conversation history." = "\"%@\" ajanını silmek istediğinizden emin misiniz? Tüm sohbet geçmişi kaldırılacak.";
+
+/* SettingsView */
+"Appearance" = "Görünüm";
+"Dark Mode" = "Karanlık Mod";
+"settings_dark_theme_active" = "Karanlık tema etkin";
+"settings_light_theme_active" = "Açık tema etkin";
+"About" = "Hakkında";
+"Terms of Service" = "Kullanım Koşulları";
+"Version" = "Sürüm";
+
+/* QRScannerView */
+"Scan QR Code" = "QR Kodu Tara";
+"Point camera at QR code" = "Kamerayı QR koduna tutun";
+"Connecting..." = "Bağlanılıyor...";
+"Please wait..." = "Lütfen bekleyin...";
+"Connection Error" = "Bağlantı Hatası";
+"Success" = "Başarılı";
+"Agent connected successfully" = "Ajan başarıyla bağlandı";
+"OK" = "Tamam";
+
+/* ManualPairingView */
+"Enter Pairing Code" = "Eşleştirme Kodu Girin";
+"Local Bridge" = "Yerel Köprü";
+"Cloudflare Tunnel" = "Cloudflare Tüneli";
+"Tailscale" = "Tailscale";
+"Connection Type" = "Bağlantı Türü";
+"Pairing Type" = "Eşleştirme Türü";
+"For bridges running on your local network" = "Yerel ağınızdaki köprüler için";
+"For bridges exposed via Cloudflare Tunnel" = "Cloudflare Tüneli üzerinden erişilen köprüler için";
+"For bridges using Tailscale. Your iPhone must be on the same tailnet. Enter the MagicDNS hostname (e.g. my-laptop.tail1234.ts.net) or Tailscale IP with port (e.g. 100.x.x.x:8080)." = "Tailscale kullanan köprüler için. iPhone'unuz aynı tailnet'te olmalıdır. MagicDNS ana makine adını (ör. bilgisayarim.tail1234.ts.net) veya Tailscale IP:port (ör. 100.x.x.x:8080) girin.";
+"Bridge Address (e.g., 192.168.1.100:8080)" = "Köprü Adresi (ör. 192.168.1.100:8080)";
+"Use HTTPS" = "HTTPS Kullan";
+"Bridge Address" = "Köprü Adresi";
+"Enter the IP address and port shown in your terminal" = "Terminalinizde gösterilen IP adresi ve portu girin";
+"Enter the MagicDNS hostname or Tailscale IP:port shown in the bridge terminal" = "Köprü terminalinde gösterilen MagicDNS adını veya Tailscale IP:port'unu girin";
+"Pairing Code (6 digits)" = "Eşleştirme Kodu (6 basamak)";
+"Pairing Code" = "Eşleştirme Kodu";
+"Enter the 6-digit code shown in your terminal. Codes expire after 60 seconds." = "Terminalinizde gösterilen 6 basamaklı kodu girin. Kodlar 60 saniye sonra geçersiz olur.";
+"Certificate Fingerprint" = "Sertifika Parmak İzi";
+"Required for security. Copy the TLS fingerprint shown in your terminal." = "Güvenlik için gereklidir. Terminalinizde gösterilen TLS parmak izini kopyalayın.";
+"Connect" = "Bağlan";
+"Connecting to bridge..." = "Köprüye bağlanılıyor...";
+"Validating certificate fingerprint..." = "Sertifika parmak izi doğrulanıyor...";
+"Connecting via Tailscale..." = "Tailscale üzerinden bağlanılıyor...";
+"Done" = "Bitti";
+"Pairing Error" = "Eşleştirme Hatası";
+"Invalid URL format. Please check the bridge address." = "Geçersiz URL formatı. Lütfen köprü adresini kontrol edin.";
+
+/* AgentConfigurationView */
+"Configuration" = "Yapılandırma";
+"Agent Information" = "Ajan Bilgileri";
+"Name" = "Ad";
+"Agent Name" = "Ajan Adı";
+"Status" = "Durum";
+"Connected" = "Bağlı";
+"Disconnected" = "Bağlı Değil";
+"Reconnecting" = "Yeniden Bağlanıyor";
+"Transports" = "Taşıyıcılar";
+"Session Information" = "Oturum Bilgileri";
+"Session ID" = "Oturum Kimliği";
+"Started" = "Başladı";
+"Messages" = "Mesajlar";
+"Supports Resume" = "Yeniden Başlatmayı Destekler";
+"Yes" = "Evet";
+"No" = "Hayır";
+"No active session" = "Etkin oturum yok";
+"Actions" = "İşlemler";
+"Clear Session" = "Oturumu Temizle";
+"Delete Agent" = "Ajanı Sil";
+"Agent not found" = "Ajan bulunamadı";
+"Clear" = "Temizle";
+"Error" = "Hata";
+"Clear Session?" = "Oturum Temizlensin mi?";
+"This will delete all conversation history and start a fresh session. This cannot be undone." = "Bu işlem tüm sohbet geçmişini silecek ve yeni bir oturum başlatacak. Bu işlem geri alınamaz.";
+"Are you sure you want to delete this agent?" = "Bu ajanı silmek istediğinizden emin misiniz?";
+"Clear Session will delete all conversation history and start a fresh session." = "Oturumu Temizle, tüm sohbet geçmişini silecek ve yeni bir oturum başlatacak.";
+"Delete Agent will permanently remove this agent and all associated data." = "Ajanı Sil, bu ajanı ve tüm ilişkili verileri kalıcı olarak kaldıracak.";
+
+/* ChatView */
+"Converting speech to text..." = "Konuşma metne dönüştürülüyor...";
+"Copy" = "Kopyala";
+"Approve" = "Onayla";
+"Reject" = "Reddet";
+"chat_default_title" = "Sohbet";
+"chat_session_resumed" = "Oturum devam ediyor";
+"chat_new_session" = "Yeni oturum";
+"Message" = "Mesaj";
+
+/* Transport names */
+"Local" = "Yerel";
+"Cloudflare" = "Cloudflare";
+"Tailscale (Serve)" = "Tailscale (Serve)";
+"Tailscale (IP)" = "Tailscale (IP)";
+"Tailscale IP" = "Tailscale IP";

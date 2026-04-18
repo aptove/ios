@@ -46,7 +46,7 @@ struct QRScannerView: View {
                             .progressViewStyle(CircularProgressViewStyle(tint: .white))
                             .scaleEffect(1.5)
                         
-                        Text(viewModel.pairingStatus.isEmpty ? "Connecting..." : viewModel.pairingStatus)
+                        Text(viewModel.pairingStatus.isEmpty ? String(localized: "Connecting...") : viewModel.pairingStatus)
                             .font(.headline)
                             .foregroundColor(.white)
                             .multilineTextAlignment(.center)

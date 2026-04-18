@@ -11,7 +11,9 @@
 		C800000000000032 /* ACPHTTP in Frameworks */ = {isa = PBXBuildFile; productRef = C800000000000033 /* ACPHTTP */; };
 		C800000000000034 /* ACPModel in Frameworks */ = {isa = PBXBuildFile; productRef = C800000000000035 /* ACPModel */; };
 		C800000000000036 /* CodeScanner in Frameworks */ = {isa = PBXBuildFile; productRef = C800000000000037 /* CodeScanner */; };
-		C800000000000300 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = C800000000000301 /* MarkdownUI */; };
+		C800000000000061 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000060 /* SettingsView.swift */; };
+		C800000000000083 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = C800000000000082 /* Localizable.strings */; };
+		C800000000000091 /* VoiceInputViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000090 /* VoiceInputViewModel.swift */; };
 		C8000000000000A1 /* AptoveApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000002 /* AptoveApp.swift */; };
 		C8000000000000A3 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000004 /* ContentView.swift */; };
 		C8000000000000A5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C800000000000006 /* Assets.xcassets */; };
@@ -28,7 +30,6 @@
 		C8000000000000BE /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80000000000001F /* ChatView.swift */; };
 		C8000000000000C0 /* QRScannerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000021 /* QRScannerViewModel.swift */; };
 		C8000000000000C2 /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000023 /* ChatViewModel.swift */; };
-		C800000000000091 /* VoiceInputViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000090 /* VoiceInputViewModel.swift */; };
 		C8000000000000C4 /* PairingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000050 /* PairingService.swift */; };
 		C8000000000000C6 /* ManualPairingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000051 /* ManualPairingView.swift */; };
 		C8000000000000C8 /* AgentConfigurationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000052 /* AgentConfigurationView.swift */; };
@@ -43,7 +44,6 @@
 		C80000000000020A /* Message+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80000000000020B /* Message+CoreDataProperties.swift */; };
 		C80000000000020C /* ConnectionStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80000000000020D /* ConnectionStatus.swift */; };
 		C80000000000020E /* AgentRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80000000000020F /* AgentRepository.swift */; };
-		C800000000000303 /* MessageRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000304 /* MessageRepository.swift */; };
 		C800000000000210 /* UserDefaultsMigrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000211 /* UserDefaultsMigrator.swift */; };
 		C800000000000212 /* Aptove.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000213 /* Aptove.xcdatamodeld */; };
 		C800000000000220 /* AgentRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000221 /* AgentRepositoryTests.swift */; };
@@ -51,7 +51,8 @@
 		C800000000000226 /* TransportEndpoint+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000227 /* TransportEndpoint+CoreDataClass.swift */; };
 		C800000000000228 /* TransportEndpoint+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000229 /* TransportEndpoint+CoreDataProperties.swift */; };
 		C800000000000230 /* TransportCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000231 /* TransportCredentials.swift */; };
-		C800000000000061 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000060 /* SettingsView.swift */; };
+		C800000000000300 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = C800000000000301 /* MarkdownUI */; };
+		C800000000000303 /* MessageRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000304 /* MessageRepository.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -82,13 +83,16 @@
 		C80000000000001F /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		C800000000000021 /* QRScannerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerViewModel.swift; sourceTree = "<group>"; };
 		C800000000000023 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
-		C800000000000090 /* VoiceInputViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceInputViewModel.swift; sourceTree = "<group>"; };
 		C800000000000050 /* PairingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingService.swift; sourceTree = "<group>"; };
 		C800000000000051 /* ManualPairingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualPairingView.swift; sourceTree = "<group>"; };
 		C800000000000052 /* AgentConfigurationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentConfigurationView.swift; sourceTree = "<group>"; };
 		C800000000000053 /* AgentConfigurationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentConfigurationViewModel.swift; sourceTree = "<group>"; };
 		C800000000000054 /* PushNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushNotificationManager.swift; sourceTree = "<group>"; };
 		C800000000000055 /* Aptove.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Aptove.entitlements; sourceTree = "<group>"; };
+		C800000000000060 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		C800000000000080 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		C800000000000081 /* tr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = tr; path = tr.lproj/Localizable.strings; sourceTree = "<group>"; };
+		C800000000000090 /* VoiceInputViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceInputViewModel.swift; sourceTree = "<group>"; };
 		C800000000000101 /* ACPClientWrapperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ACPClientWrapperTests.swift; path = AptoveTests/ACPClientWrapperTests.swift; sourceTree = SOURCE_ROOT; };
 		C800000000000201 /* CoreDataStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataStack.swift; sourceTree = "<group>"; };
 		C800000000000203 /* Agent+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Agent+CoreDataClass.swift"; sourceTree = "<group>"; };
@@ -98,7 +102,6 @@
 		C80000000000020B /* Message+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Message+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		C80000000000020D /* ConnectionStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionStatus.swift; sourceTree = "<group>"; };
 		C80000000000020F /* AgentRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentRepository.swift; sourceTree = "<group>"; };
-		C800000000000304 /* MessageRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageRepository.swift; sourceTree = "<group>"; };
 		C800000000000211 /* UserDefaultsMigrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsMigrator.swift; sourceTree = "<group>"; };
 		C800000000000213 /* Aptove.xcdatamodeld */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodeld; path = Aptove.xcdatamodeld; sourceTree = "<group>"; };
 		C800000000000221 /* AgentRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AgentRepositoryTests.swift; path = AptoveTests/Data/AgentRepositoryTests.swift; sourceTree = SOURCE_ROOT; };
@@ -106,7 +109,7 @@
 		C800000000000227 /* TransportEndpoint+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TransportEndpoint+CoreDataClass.swift"; sourceTree = "<group>"; };
 		C800000000000229 /* TransportEndpoint+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TransportEndpoint+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		C800000000000231 /* TransportCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransportCredentials.swift; sourceTree = "<group>"; };
-		C800000000000060 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		C800000000000304 /* MessageRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageRepository.swift; sourceTree = "<group>"; };
 		E27B6F572F4BE96D00311836 /* AptoveTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AptoveTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -119,7 +122,7 @@
 				C800000000000032 /* ACPHTTP in Frameworks */,
 				C800000000000034 /* ACPModel in Frameworks */,
 				C800000000000036 /* CodeScanner in Frameworks */,
-			C800000000000300 /* MarkdownUI in Frameworks */,
+				C800000000000300 /* MarkdownUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -146,6 +149,7 @@
 			isa = PBXGroup;
 			children = (
 				C800000000000002 /* AptoveApp.swift */,
+				C800000000000082 /* Localizable.strings */,
 				C800000000000055 /* Aptove.entitlements */,
 				C800000000000214 /* Data */,
 				C800000000000028 /* Views */,
@@ -307,7 +311,7 @@
 				C800000000000033 /* ACPHTTP */,
 				C800000000000035 /* ACPModel */,
 				C800000000000037 /* CodeScanner */,
-			C800000000000301 /* MarkdownUI */,
+				C800000000000301 /* MarkdownUI */,
 			);
 			productName = Aptove;
 			productReference = C800000000000001 /* Aptove.app */;
@@ -357,12 +361,13 @@
 			knownRegions = (
 				en,
 				Base,
+				tr,
 			);
 			mainGroup = C800000000000025;
 			packageReferences = (
 				C80000000000003B /* XCRemoteSwiftPackageReference "swift-sdk" */,
 				C80000000000003C /* XCRemoteSwiftPackageReference "CodeScanner" */,
-			C800000000000302 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
+				C800000000000302 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
 			);
 			productRefGroup = C800000000000027 /* Products */;
 			projectDirPath = "";
@@ -381,6 +386,7 @@
 			files = (
 				C8000000000000A7 /* Preview Assets.xcassets in Resources */,
 				C8000000000000A5 /* Assets.xcassets in Resources */,
+				C800000000000083 /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -455,6 +461,18 @@
 			targetProxy = C800000000000107 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		C800000000000082 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				C800000000000080 /* en */,
+				C800000000000081 /* tr */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
 		C80000000000003D /* Debug */ = {

@@ -212,7 +212,7 @@ struct ChatView: View {
                     Text(agentName)
                         .font(.headline)
                     if viewModel.showSessionIndicator {
-                        Text(viewModel.sessionWasResumed == true ? "Session resumed" : "New session")
+                        Text(viewModel.sessionWasResumed == true ? String(localized: "chat_session_resumed") : String(localized: "chat_new_session"))
                             .font(.caption)
                             .foregroundColor(viewModel.sessionWasResumed == true ? .blue : .secondary)
                     }
@@ -246,7 +246,7 @@ struct ChatView: View {
     }
 
     private var agentName: String {
-        agentManager.agents.first { $0.id == agentId }?.name ?? "Chat"
+        agentManager.agents.first { $0.id == agentId }?.name ?? String(localized: "chat_default_title")
     }
     
     private func sendMessage() {
@@ -345,7 +345,7 @@ struct MessageTextField: UIViewRepresentable {
         func textViewDidEndEditing(_ textView: UITextView) {
             parent.isFocused = false
             if textView.text.isEmpty {
-                textView.text = "Message"
+                textView.text = String(localized: "Message")
                 textView.textColor = .placeholderText
             }
         }

@@ -1,0 +1,109 @@
+/* ContentView */
+"Agents" = "Agents";
+"Chat" = "Chat";
+"Settings" = "Settings";
+"No Agents Connected" = "No Agents Connected";
+"Tap the + button to scan a QR code\nand connect to an agent" = "Tap the + button to scan a QR code\nand connect to an agent";
+
+/* AgentListView */
+"Configure" = "Configure";
+"Delete" = "Delete";
+"Delete Agent?" = "Delete Agent?";
+"Cancel" = "Cancel";
+"No messages yet" = "No messages yet";
+"via %@" = "via %@";
+"Are you sure you want to delete \"%@\"? This will remove all conversation history." = "Are you sure you want to delete \"%@\"? This will remove all conversation history.";
+
+/* SettingsView */
+"Appearance" = "Appearance";
+"Dark Mode" = "Dark Mode";
+"settings_dark_theme_active" = "Dark theme active";
+"settings_light_theme_active" = "Light theme active";
+"About" = "About";
+"Terms of Service" = "Terms of Service";
+"Version" = "Version";
+
+/* QRScannerView */
+"Scan QR Code" = "Scan QR Code";
+"Point camera at QR code" = "Point camera at QR code";
+"Connecting..." = "Connecting...";
+"Please wait..." = "Please wait...";
+"Connection Error" = "Connection Error";
+"Success" = "Success";
+"Agent connected successfully" = "Agent connected successfully";
+"OK" = "OK";
+
+/* ManualPairingView */
+"Enter Pairing Code" = "Enter Pairing Code";
+"Local Bridge" = "Local Bridge";
+"Cloudflare Tunnel" = "Cloudflare Tunnel";
+"Tailscale" = "Tailscale";
+"Connection Type" = "Connection Type";
+"Pairing Type" = "Pairing Type";
+"For bridges running on your local network" = "For bridges running on your local network";
+"For bridges exposed via Cloudflare Tunnel" = "For bridges exposed via Cloudflare Tunnel";
+"For bridges using Tailscale. Your iPhone must be on the same tailnet. Enter the MagicDNS hostname (e.g. my-laptop.tail1234.ts.net) or Tailscale IP with port (e.g. 100.x.x.x:8080)." = "For bridges using Tailscale. Your iPhone must be on the same tailnet. Enter the MagicDNS hostname (e.g. my-laptop.tail1234.ts.net) or Tailscale IP with port (e.g. 100.x.x.x:8080).";
+"Bridge Address (e.g., 192.168.1.100:8080)" = "Bridge Address (e.g., 192.168.1.100:8080)";
+"Use HTTPS" = "Use HTTPS";
+"Bridge Address" = "Bridge Address";
+"Enter the IP address and port shown in your terminal" = "Enter the IP address and port shown in your terminal";
+"Enter the MagicDNS hostname or Tailscale IP:port shown in the bridge terminal" = "Enter the MagicDNS hostname or Tailscale IP:port shown in the bridge terminal";
+"Pairing Code (6 digits)" = "Pairing Code (6 digits)";
+"Pairing Code" = "Pairing Code";
+"Enter the 6-digit code shown in your terminal. Codes expire after 60 seconds." = "Enter the 6-digit code shown in your terminal. Codes expire after 60 seconds.";
+"Certificate Fingerprint" = "Certificate Fingerprint";
+"Required for security. Copy the TLS fingerprint shown in your terminal." = "Required for security. Copy the TLS fingerprint shown in your terminal.";
+"Connect" = "Connect";
+"Connecting to bridge..." = "Connecting to bridge...";
+"Validating certificate fingerprint..." = "Validating certificate fingerprint...";
+"Connecting via Tailscale..." = "Connecting via Tailscale...";
+"Done" = "Done";
+"Pairing Error" = "Pairing Error";
+"Invalid URL format. Please check the bridge address." = "Invalid URL format. Please check the bridge address.";
+
+/* AgentConfigurationView */
+"Configuration" = "Configuration";
+"Agent Information" = "Agent Information";
+"Name" = "Name";
+"Agent Name" = "Agent Name";
+"Status" = "Status";
+"Connected" = "Connected";
+"Disconnected" = "Disconnected";
+"Reconnecting" = "Reconnecting";
+"Transports" = "Transports";
+"Session Information" = "Session Information";
+"Session ID" = "Session ID";
+"Started" = "Started";
+"Messages" = "Messages";
+"Supports Resume" = "Supports Resume";
+"Yes" = "Yes";
+"No" = "No";
+"No active session" = "No active session";
+"Actions" = "Actions";
+"Clear Session" = "Clear Session";
+"Delete Agent" = "Delete Agent";
+"Agent not found" = "Agent not found";
+"Clear" = "Clear";
+"Error" = "Error";
+"Clear Session?" = "Clear Session?";
+"This will delete all conversation history and start a fresh session. This cannot be undone." = "This will delete all conversation history and start a fresh session. This cannot be undone.";
+"Are you sure you want to delete this agent?" = "Are you sure you want to delete this agent?";
+"Clear Session will delete all conversation history and start a fresh session." = "Clear Session will delete all conversation history and start a fresh session.";
+"Delete Agent will permanently remove this agent and all associated data." = "Delete Agent will permanently remove this agent and all associated data.";
+
+/* ChatView */
+"Converting speech to text..." = "Converting speech to text...";
+"Copy" = "Copy";
+"Approve" = "Approve";
+"Reject" = "Reject";
+"chat_default_title" = "Chat";
+"chat_session_resumed" = "Session resumed";
+"chat_new_session" = "New session";
+"Message" = "Message";
+
+/* Transport names */
+"Local" = "Local";
+"Cloudflare" = "Cloudflare";
+"Tailscale (Serve)" = "Tailscale (Serve)";
+"Tailscale (IP)" = "Tailscale (IP)";
+"Tailscale IP" = "Tailscale IP";
