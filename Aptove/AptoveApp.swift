@@ -31,6 +31,7 @@ struct AptoveApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var agentManager: AgentManager
     @StateObject private var pushManager = PushNotificationManager.shared
+    @AppStorage("appearanceMode") private var appearanceMode: String = "dark"
 
     init() {
         print("🚀 AptoveApp: Application starting...")
@@ -57,6 +58,7 @@ struct AptoveApp: App {
             ContentView()
                 .environmentObject(agentManager)
                 .environmentObject(pushManager)
+                .preferredColorScheme(AppearanceMode(rawValue: appearanceMode)?.colorScheme)
                 .onAppear {
                     print("🚀 AptoveApp: ContentView appeared - app fully launched")
                     // Request push notification permissions on launch
