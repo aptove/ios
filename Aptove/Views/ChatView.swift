@@ -34,10 +34,15 @@ struct ChatView: View {
                     }
                     .padding()
                 }
-                .onChange(of: viewModel.messages.count) { _, _ in
+                .onChange(of: viewModel.messages.count) { oldCount, _ in
                     if let lastMessage = viewModel.messages.last {
-                        withAnimation {
+                        if oldCount == 0 {
+                            // Initial load — jump instantly, no animation
                             proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                        } else {
+                            withAnimation {
+                                proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                            }
                         }
                     }
                 }
