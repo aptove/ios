@@ -2,14 +2,15 @@ import SwiftUI
 
 struct AgentListView: View {
     @EnvironmentObject var agentManager: AgentManager
+    @Binding var isInChat: Bool
     @State private var agentToDelete: Agent?
     @State private var showingDeleteConfirmation = false
-    
+
     var body: some View {
         List {
             ForEach(agentManager.agents) { agent in
                 NavigationLink {
-                    ChatView(agentId: agent.id)
+                    ChatView(agentId: agent.id, isInChat: $isInChat)
                 } label: {
                     AgentRow(agent: agent)
                 }
@@ -155,7 +156,7 @@ struct AgentRow: View {
 
 #Preview {
     NavigationStack {
-        AgentListView()
+        AgentListView(isInChat: .constant(false))
             .environmentObject(AgentManager())
     }
 }

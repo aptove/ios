@@ -8,15 +8,17 @@ struct ChatView: View {
     @StateObject private var voiceViewModel = VoiceInputViewModel()
 
     let agentId: String
+    @Binding var isInChat: Bool
 
     @State private var messageText = ""
     @State private var isInputFocused: Bool = false
     @State private var selectedImages: [UIImage] = []
     @State private var showPhotoPicker = false
     @State private var pickerItems: [PhotosPickerItem] = []
-    
-    init(agentId: String) {
+
+    init(agentId: String, isInChat: Binding<Bool>) {
         self.agentId = agentId
+        self._isInChat = isInChat
         self._viewModel = StateObject(wrappedValue: ChatViewModel(agentId: agentId))
     }
     
@@ -212,10 +214,13 @@ struct ChatView: View {
                 }
             }
         }
-        .preference(key: HideBottomBarKey.self, value: true)
         .onAppear {
+            isInChat = true
             viewModel.setAgentManager(agentManager)
             viewModel.loadMessages()
+        }
+        .onDisappear {
+            isInChat = false
         }
         .onChange(of: viewModel.voiceCorrectedText) { _, correctedText in
             if let text = correctedText {
@@ -591,7 +596,7 @@ struct MessageBubble: View {
 
 #Preview {
     NavigationStack {
-        ChatView(agentId: "preview-agent")
+        ChatView(agentId: "preview-agent", isInChat: .constant(true))
             .environmentObject(AgentManager())
     }
 }

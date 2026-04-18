@@ -1,29 +1,26 @@
 import SwiftUI
 
-struct HideBottomBarKey: PreferenceKey {
-    static var defaultValue = false
-    static func reduce(value: inout Bool, nextValue: () -> Bool) { value = value || nextValue() }
-}
+enum BottomTab { case chat, settings }
 
 struct ContentView: View {
-    // Receive the single AgentManager created in AptoveApp — do NOT create a second instance here.
     @EnvironmentObject private var agentManager: AgentManager
+    @State private var selectedTab: BottomTab = .chat
+    @State private var isInChat = false
     @State private var showingQRScanner = false
-    @State private var showingSettings = false
-    @State private var showBottomBar = true
 
     init() {
         print("🖥️  ContentView: Initializing...")
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        ZStack {
+            // Chat tab — always rendered so NavigationStack state is preserved
             NavigationStack {
                 Group {
                     if agentManager.agents.isEmpty {
                         EmptyStateView()
                     } else {
-                        AgentListView()
+                        AgentListView(isInChat: $isInChat)
                     }
                 }
                 .navigationTitle("Agents")
@@ -40,19 +37,19 @@ struct ContentView: View {
                     QRScannerView(isPresented: $showingQRScanner)
                 }
             }
-            .onPreferenceChange(HideBottomBarKey.self) { hide in
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    showBottomBar = !hide
-                }
-            }
+            .opacity(selectedTab == .chat ? 1 : 0)
+            .allowsHitTesting(selectedTab == .chat)
 
-            if showBottomBar {
-                CarouselBar(onSettings: { showingSettings = true })
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-        }
-        .sheet(isPresented: $showingSettings) {
+            // Settings tab — full screen, not a sheet
             SettingsView()
+                .opacity(selectedTab == .settings ? 1 : 0)
+                .allowsHitTesting(selectedTab == .settings)
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !isInChat {
+                BottomTabBar(selectedTab: $selectedTab)
+                    .padding(.bottom, 8)
+            }
         }
         .onAppear {
             print("🖥️  ContentView: View appeared and rendered")
@@ -60,29 +57,52 @@ struct ContentView: View {
     }
 }
 
-private struct CarouselBar: View {
-    let onSettings: () -> Void
+private struct BottomTabBar: View {
+    @Binding var selectedTab: BottomTab
 
     var body: some View {
-        HStack {
-            Spacer()
-            Button(action: onSettings) {
-                VStack(spacing: 4) {
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: 22))
-                    Text("Settings")
-                        .font(.caption2)
-                }
-                .foregroundColor(.white)
+        HStack(spacing: 0) {
+            TabBarButton(icon: "bubble.left.and.bubble.right.fill", label: "Chat", selected: selectedTab == .chat) {
+                selectedTab = .chat
             }
-            Spacer()
+            TabBarButton(icon: "gearshape.fill", label: "Settings", selected: selectedTab == .settings) {
+                selectedTab = .settings
+            }
         }
+        .padding(.horizontal, 8)
         .padding(.vertical, 10)
         .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color(.systemGray2).opacity(0.85))
-                .ignoresSafeArea(edges: .bottom)
+            RoundedRectangle(cornerRadius: 24)
+                .fill(.bar)
+                .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
         )
+        .padding(.horizontal, 24)
+    }
+}
+
+private struct TabBarButton: View {
+    let icon: String
+    let label: String
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 22))
+                Text(label)
+                    .font(.caption2)
+                    .fontWeight(.medium)
+            }
+            .foregroundColor(selected ? .blue : .secondary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(selected ? Color.blue.opacity(0.12) : Color.clear)
+            )
+        }
     }
 }
 
@@ -92,11 +112,11 @@ struct EmptyStateView: View {
             Image(systemName: "person.2.slash")
                 .font(.system(size: 64))
                 .foregroundColor(.gray)
-            
+
             Text("No Agents Connected")
                 .font(.title2)
                 .fontWeight(.semibold)
-            
+
             Text("Tap the + button to scan a QR code\nand connect to an agent")
                 .multilineTextAlignment(.center)
                 .foregroundColor(.secondary)

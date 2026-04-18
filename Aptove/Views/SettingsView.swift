@@ -1,38 +1,33 @@
 import SwiftUI
 
-enum AppearanceMode: String, CaseIterable {
-    case dark, light, system
-
-    var label: String {
-        switch self {
-        case .dark: return "Dark"
-        case .light: return "Light"
-        case .system: return "System"
-        }
-    }
-
-    var colorScheme: ColorScheme? {
-        switch self {
-        case .dark: return .dark
-        case .light: return .light
-        case .system: return nil
-        }
-    }
-}
-
 struct SettingsView: View {
-    @AppStorage("appearanceMode") private var appearanceMode: String = "dark"
+    @AppStorage("isDarkMode") private var isDarkMode: Bool = true
 
     var body: some View {
         NavigationView {
             List {
                 Section(header: Text("Appearance")) {
-                    Picker("Theme", selection: $appearanceMode) {
-                        ForEach(AppearanceMode.allCases, id: \.rawValue) { mode in
-                            Text(mode.label).tag(mode.rawValue)
+                    HStack(spacing: 14) {
+                        Image(systemName: "moon.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(.white)
+                            .frame(width: 32, height: 32)
+                            .background(Color.blue)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Dark Mode")
+                            Text(isDarkMode ? "Dark theme active" : "Light theme active")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
+
+                        Spacer()
+
+                        Toggle("", isOn: $isDarkMode)
+                            .labelsHidden()
                     }
-                    .pickerStyle(.segmented)
+                    .padding(.vertical, 4)
                 }
 
                 Section(header: Text("About")) {
