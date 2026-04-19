@@ -18,6 +18,7 @@ struct ChatView: View {
     @State private var showPhotoPicker = false
     @State private var pickerItems: [PhotosPickerItem] = []
     @State private var commandQuery: String? = nil // nil = picker hidden
+    @State private var showAttachmentPanel = false
 
     init(agentId: String, isInChat: Binding<Bool>) {
         self.agentId = agentId
@@ -149,21 +150,35 @@ struct ChatView: View {
 
                     commandPickerView
 
+                    if showAttachmentPanel {
+                        HStack(spacing: 32) {
+                            attachmentItem(icon: "photo", label: "Photos", color: .blue) {
+                                showAttachmentPanel = false
+                                showPhotoPicker = true
+                            }
+                            attachmentItem(icon: nil, slashLabel: "/", label: "Commands", color: .purple) {
+                                showAttachmentPanel = false
+                                messageText = "/"
+                                isInputFocused = true
+                            }
+                            Spacer()
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 16)
+                        .background(Color(.systemBackground))
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+
                     HStack(spacing: 12) {
                         Button {
-                            commandQuery = commandQuery == nil ? "" : nil
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                showAttachmentPanel.toggle()
+                                if showAttachmentPanel { commandQuery = nil }
+                            }
                         } label: {
-                            Image(systemName: "slash.circle")
+                            Image(systemName: "plus")
                                 .font(.title2)
-                                .foregroundColor(commandQuery != nil ? .accentColor : .blue)
-                        }
-
-                        Button {
-                            showPhotoPicker = true
-                        } label: {
-                            Image(systemName: "photo")
-                                .font(.title2)
-                                .foregroundColor(.blue)
+                                .foregroundColor(showAttachmentPanel ? .accentColor : .blue)
                         }
 
                         MessageTextField(text: $messageText, isFocused: $isInputFocused) { transcript in
@@ -218,6 +233,7 @@ struct ChatView: View {
             }
         }
         .onChange(of: messageText) { _, text in
+            if !text.isEmpty { showAttachmentPanel = false }
             if text.hasPrefix("/"), !text.contains(" ") {
                 commandQuery = String(text.dropFirst())
             } else {
@@ -280,6 +296,23 @@ struct ChatView: View {
         messageText = hasInput ? "/\(command.name) " : "/\(command.name)"
         commandQuery = nil
         if hasInput { isInputFocused = true }
+    }
+
+    @ViewBuilder
+    private func attachmentItem(icon: String?, slashLabel: String? = nil, label: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                ZStack {
+                    Circle().fill(color).frame(width: 56, height: 56)
+                    if let icon {
+                        Image(systemName: icon).foregroundColor(.white).font(.title2)
+                    } else if let slashLabel {
+                        Text(slashLabel).foregroundColor(.white).font(.system(.title2, design: .monospaced))
+                    }
+                }
+                Text(label).font(.caption).foregroundColor(.primary)
+            }
+        }
     }
 
     @ViewBuilder
