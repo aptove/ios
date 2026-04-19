@@ -16,7 +16,7 @@
 
 /* SettingsView */
 "Appearance" = "Görünüm";
-"Dark Mode" = "Karanlık Mod";
+"Dark Mode" = "Ekran Modu";
 "settings_dark_theme_active" = "Karanlık tema etkin";
 "settings_light_theme_active" = "Açık tema etkin";
 "Language" = "Dil";
