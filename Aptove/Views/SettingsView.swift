@@ -2,6 +2,19 @@ import SwiftUI
 
 struct SettingsView: View {
     @AppStorage("isDarkMode") private var isDarkMode: Bool = true
+    @AppStorage("appLanguage") private var appLanguage: String = ""
+    @AppStorage("voiceLanguage") private var voiceLanguage: String = "en-US"
+
+    private var currentLanguageName: String {
+        let code = appLanguage.isEmpty
+            ? (Locale.current.language.languageCode?.identifier ?? "en")
+            : appLanguage
+        return code == "tr" ? "Türkçe" : "English"
+    }
+
+    private var currentVoiceLanguageName: String {
+        voiceLanguage.hasPrefix("tr") ? "Türkçe" : "English"
+    }
 
     var body: some View {
         NavigationView {
@@ -30,6 +43,46 @@ struct SettingsView: View {
                     .padding(.vertical, 4)
                 }
 
+                Section(header: Text("Language")) {
+                    NavigationLink(destination: LanguagePickerView(appLanguage: $appLanguage)) {
+                        HStack(spacing: 14) {
+                            Image(systemName: "globe")
+                                .font(.system(size: 18))
+                                .foregroundColor(.white)
+                                .frame(width: 32, height: 32)
+                                .background(Color.blue)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Language")
+                                Text(currentLanguageName)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+
+                    NavigationLink(destination: VoiceLanguagePickerView(voiceLanguage: $voiceLanguage)) {
+                        HStack(spacing: 14) {
+                            Image(systemName: "mic.fill")
+                                .font(.system(size: 18))
+                                .foregroundColor(.white)
+                                .frame(width: 32, height: 32)
+                                .background(Color.blue)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Voice Language")
+                                Text(currentVoiceLanguageName)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+
                 Section(header: Text("About")) {
                     Link(destination: URL(string: "https://aptove.com/terms-of-service")!) {
                         HStack {
@@ -51,6 +104,76 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
         }
+    }
+}
+
+struct LanguagePickerView: View {
+    @Binding var appLanguage: String
+    @Environment(\.dismiss) private var dismiss
+
+    private let languages: [(code: String, name: String)] = [
+        ("en", "English"),
+        ("tr", "Türkçe")
+    ]
+
+    private var selectedCode: String {
+        appLanguage.isEmpty
+            ? (Locale.current.language.languageCode?.identifier ?? "en")
+            : appLanguage
+    }
+
+    var body: some View {
+        List {
+            ForEach(languages, id: \.code) { lang in
+                HStack {
+                    Text(lang.name)
+                    Spacer()
+                    if selectedCode == lang.code {
+                        Image(systemName: "checkmark")
+                            .foregroundColor(.blue)
+                    }
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    appLanguage = lang.code
+                    dismiss()
+                }
+            }
+        }
+        .navigationTitle("Language")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+struct VoiceLanguagePickerView: View {
+    @Binding var voiceLanguage: String
+    @Environment(\.dismiss) private var dismiss
+
+    private let languages: [(code: String, name: String)] = [
+        ("en-US", "English"),
+        ("tr-TR", "Türkçe")
+    ]
+
+    var body: some View {
+        List {
+            ForEach(languages, id: \.code) { lang in
+                HStack {
+                    Text(lang.name)
+                    Spacer()
+                    if voiceLanguage == lang.code {
+                        Image(systemName: "checkmark")
+                            .foregroundColor(.blue)
+                    }
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    voiceLanguage = lang.code
+                    dismiss()
+                }
+            }
+        }
+        .navigationTitle("Voice Language")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

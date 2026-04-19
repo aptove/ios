@@ -19,6 +19,8 @@
 "Dark Mode" = "Dark Mode";
 "settings_dark_theme_active" = "Dark theme active";
 "settings_light_theme_active" = "Light theme active";
+"Language" = "Language";
+"Voice Language" = "Voice Language";
 "About" = "About";
 "Terms of Service" = "Terms of Service";
 "Version" = "Version";

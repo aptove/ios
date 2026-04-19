@@ -13,6 +13,7 @@ class ChatViewModel: ObservableObject {
     @Published var voiceCorrectedText: String? = nil
     
     let agentId: String
+    var voiceLanguage: String = "en-US"
     private var agentManager: AgentManager?
     private var isToolApprovalHandlerSetup = false
     private var cachedClient: ACPClientWrapper?
@@ -495,11 +496,16 @@ class ChatViewModel: ObservableObject {
 
         print("🎤 [VoiceCorrection] Raw speech-to-text: \"\(rawTranscript)\"")
 
+        let instructions = voiceLanguage.hasPrefix("tr")
+            ? "Transkripsiyon hatalarını, noktalama işaretlerini ve dil bilgisini düzelt. Yalnızca tek bir alanlı geçerli JSON döndür: {\"corrected_text\": \"...\"}"
+            : "Fix transcription errors, punctuation, and grammar. Return ONLY valid JSON with a single field: {\"corrected_text\": \"...\"}"
+
         let correctionJson = """
         {
             "type": "voice_correction_request",
             "version": "1.0",
-            "instructions": "Fix transcription errors, punctuation, and grammar. Return ONLY valid JSON with a single field: {\\\"corrected_text\\\": \\\"...\\\"}",
+            "language": \(encodeJsonString(voiceLanguage)),
+            "instructions": \(encodeJsonString(instructions)),
             "raw_transcript": \(encodeJsonString(rawTranscript))
         }
         """

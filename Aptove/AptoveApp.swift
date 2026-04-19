@@ -32,6 +32,7 @@ struct AptoveApp: App {
     @StateObject private var agentManager: AgentManager
     @StateObject private var pushManager = PushNotificationManager.shared
     @AppStorage("isDarkMode") private var isDarkMode: Bool = true
+    @AppStorage("appLanguage") private var appLanguage: String = ""
 
     init() {
         print("🚀 AptoveApp: Application starting...")
@@ -59,6 +60,7 @@ struct AptoveApp: App {
                 .environmentObject(agentManager)
                 .environmentObject(pushManager)
                 .preferredColorScheme(isDarkMode ? .dark : .light)
+                .environment(\.locale, appLanguage.isEmpty ? .autoupdatingCurrent : Locale(identifier: appLanguage))
                 .onAppear {
                     print("🚀 AptoveApp: ContentView appeared - app fully launched")
                     // Request push notification permissions on launch

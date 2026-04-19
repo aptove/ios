@@ -29,7 +29,11 @@ class VoiceInputViewModel: ObservableObject {
     private var audioEngine: AVAudioEngine?
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
-    private let speechRecognizer = SFSpeechRecognizer(locale: Locale.current)
+    private var speechRecognizer: SFSpeechRecognizer? = SFSpeechRecognizer(locale: Locale.current)
+
+    func updateLocale(_ identifier: String) {
+        speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: identifier))
+    }
     private var recordingTimer: Timer?
 
     func startRecording() {

@@ -19,6 +19,8 @@
 "Dark Mode" = "Karanlık Mod";
 "settings_dark_theme_active" = "Karanlık tema etkin";
 "settings_light_theme_active" = "Açık tema etkin";
+"Language" = "Dil";
+"Voice Language" = "Ses Dili";
 "About" = "Hakkında";
 "Terms of Service" = "Kullanım Koşulları";
 "Version" = "Sürüm";

@@ -6,6 +6,7 @@ struct ChatView: View {
     @EnvironmentObject var agentManager: AgentManager
     @StateObject private var viewModel: ChatViewModel
     @StateObject private var voiceViewModel = VoiceInputViewModel()
+    @AppStorage("voiceLanguage") private var voiceLanguage: String = "en-US"
 
     let agentId: String
     @Binding var isInChat: Bool
@@ -223,6 +224,12 @@ struct ChatView: View {
             isInChat = true
             viewModel.setAgentManager(agentManager)
             viewModel.loadMessages()
+            voiceViewModel.updateLocale(voiceLanguage)
+            viewModel.voiceLanguage = voiceLanguage
+        }
+        .onChange(of: voiceLanguage) { _, newLang in
+            voiceViewModel.updateLocale(newLang)
+            viewModel.voiceLanguage = newLang
         }
         .onDisappear {
             isInChat = false
