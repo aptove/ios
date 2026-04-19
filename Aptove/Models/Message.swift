@@ -16,6 +16,7 @@ enum MessageType: String, Codable {
     case toolApprovalRequest
     case thought
     case toolStatus
+    case slashCommand
 }
 
 struct PermissionOptionInfo: Codable, Identifiable {

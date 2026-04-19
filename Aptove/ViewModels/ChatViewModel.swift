@@ -205,10 +205,12 @@ class ChatViewModel: ObservableObject {
         }
 
         let imageDataList = images.compactMap { $0.jpegData(compressionQuality: 0.8) }
+        let messageType: MessageType = text.hasPrefix("/") && !text.contains("\n") ? .slashCommand : .text
         let userMessage = Message(
             text: text,
             sender: .user,
             status: .sending,
+            type: messageType,
             images: imageDataList.isEmpty ? nil : imageDataList
         )
         

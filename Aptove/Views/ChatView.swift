@@ -151,6 +151,14 @@ struct ChatView: View {
 
                     HStack(spacing: 12) {
                         Button {
+                            commandQuery = commandQuery == nil ? "" : nil
+                        } label: {
+                            Image(systemName: "slash.circle")
+                                .font(.title2)
+                                .foregroundColor(commandQuery != nil ? .accentColor : .blue)
+                        }
+
+                        Button {
                             showPhotoPicker = true
                         } label: {
                             Image(systemName: "photo")
@@ -271,7 +279,7 @@ struct ChatView: View {
         let hasInput = command.input != nil
         messageText = hasInput ? "/\(command.name) " : "/\(command.name)"
         commandQuery = nil
-        isInputFocused = true
+        if hasInput { isInputFocused = true }
     }
 
     @ViewBuilder
@@ -409,10 +417,16 @@ struct MessageTextField: UIViewRepresentable {
         }
 
         func textViewDidEndEditing(_ textView: UITextView) {
-            parent.isFocused = false
             if textView.text.isEmpty {
                 textView.text = String(localized: "Message")
                 textView.textColor = .placeholderText
+            }
+            // Defer the binding write — UIKit fires this delegate synchronously inside
+            // UIView.resignFirstResponder(), which can be called from SwiftUI's updateUIView
+            // pass. Mutating a @Binding mid-render triggers the "Modifying state during view
+            // update" warning, so schedule it for the next run-loop turn instead.
+            DispatchQueue.main.async { [weak self] in
+                self?.parent.isFocused = false
             }
         }
     }
@@ -450,6 +464,8 @@ struct MessageBubble: View {
                     thoughtBubbleView
                 } else if message.type == .toolStatus {
                     toolStatusBubbleView
+                } else if message.type == .slashCommand {
+                    slashCommandBubbleView
                 } else {
                     textBubbleView
                 }
@@ -507,6 +523,22 @@ struct MessageBubble: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private var slashCommandBubbleView: some View {
+        HStack(spacing: 4) {
+            Text("/")
+                .font(.system(.subheadline, design: .monospaced))
+                .foregroundColor(.accentColor)
+            Text(message.text.drop(while: { $0 == "/" }).trimmingCharacters(in: .whitespaces))
+                .font(.system(.subheadline, design: .monospaced))
+                .foregroundColor(.primary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(Color(.systemGray5))
+        .clipShape(Capsule())
     }
 
     @ViewBuilder

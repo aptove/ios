@@ -42,6 +42,7 @@ private class AptoveClient: @preconcurrency Client, ClientSessionOperations {
 
         // Route availableCommandsUpdate through the persistent wrapper callback
         if case .availableCommandsUpdate(let u) = update {
+            wrapper?.cachedAvailableCommands = u.availableCommands
             wrapper?.onAvailableCommandsUpdate?(u.availableCommands)
             return
         }
@@ -512,8 +513,15 @@ class ACPClientWrapper: ObservableObject {
     var onUnexpectedDisconnect: (() -> Void)?
     private var transportObserverTask: Task<Void, Never>?
 
+    /// Cache of the last received available commands — populated before the callback fires
+    /// so late subscribers (e.g. ChatViewModel) can read them on first subscription.
+    fileprivate(set) var cachedAvailableCommands: [AvailableCommand] = []
+
     /// Persistent callback for available commands updates (fired outside of sendMessage scope).
-    var onAvailableCommandsUpdate: (([AvailableCommand]) -> Void)?
+    /// Setting this property immediately replays the cached commands if any are already known.
+    var onAvailableCommandsUpdate: (([AvailableCommand]) -> Void)? {
+        didSet { if let f = onAvailableCommandsUpdate, !cachedAvailableCommands.isEmpty { f(cachedAvailableCommands) } }
+    }
 
     // Streaming callback for real-time updates
     var onResponseChunk: ((String) -> Void)?
