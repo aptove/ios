@@ -24,6 +24,9 @@ private class AptoveClient: @preconcurrency Client, ClientSessionOperations {
     var onThought: ((String) -> Void)?
     var onToolCall: ((String) -> Void)?
     var onToolUpdate: ((String, String) -> Void)? // (toolCallId, content)
+
+    // Back-reference to the wrapper for persistent callbacks
+    weak var wrapper: ACPClientWrapper?
     
     //Store pending permission requests with continuations
     var pendingPermissions: [String: CheckedContinuation<RequestPermissionResponse, Error>] = [:]
@@ -36,7 +39,13 @@ private class AptoveClient: @preconcurrency Client, ClientSessionOperations {
     
     func onSessionUpdate(_ update: SessionUpdate) async {
         print("📨 Session update: \(update)")
-        
+
+        // Route availableCommandsUpdate through the persistent wrapper callback
+        if case .availableCommandsUpdate(let u) = update {
+            wrapper?.onAvailableCommandsUpdate?(u.availableCommands)
+            return
+        }
+
         // Log tool calls specially to debug approval flow
         if case .toolCall(let toolCallUpdate) = update {
             print("🔧 Tool call details:")
@@ -46,7 +55,7 @@ private class AptoveClient: @preconcurrency Client, ClientSessionOperations {
             print("   - Status: \(String(describing: toolCallUpdate.status))")
             print("   - RawInput: \(String(describing: toolCallUpdate.rawInput))")
         }
-        
+
         onUpdate?(update)
     }
     
@@ -267,6 +276,7 @@ class ACPClientWrapper: ObservableObject {
                 
                 print("🔌 ACPClientWrapper.connect(): Creating AptoveClient...")
                 let client = AptoveClient()
+                client.wrapper = self
                 self.client = client
                 print("🔌 ACPClientWrapper.connect(): Client created")
                 
@@ -501,6 +511,9 @@ class ACPClientWrapper: ObservableObject {
     /// Use this to trigger multi-transport reconnect logic in AgentManager.
     var onUnexpectedDisconnect: (() -> Void)?
     private var transportObserverTask: Task<Void, Never>?
+
+    /// Persistent callback for available commands updates (fired outside of sendMessage scope).
+    var onAvailableCommandsUpdate: (([AvailableCommand]) -> Void)?
 
     // Streaming callback for real-time updates
     var onResponseChunk: ((String) -> Void)?

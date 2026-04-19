@@ -11,6 +11,7 @@ class ChatViewModel: ObservableObject {
     @Published var showSessionIndicator = false
     @Published var isVoiceCorrectionPending = false
     @Published var voiceCorrectedText: String? = nil
+    @Published var availableCommands: [AvailableCommand] = []
     
     let agentId: String
     var voiceLanguage: String = "en-US"
@@ -110,11 +111,20 @@ class ChatViewModel: ObservableObject {
         }
     }
     
+    func filteredCommands(for query: String) -> [AvailableCommand] {
+        guard !query.isEmpty else { return availableCommands }
+        return availableCommands.filter { $0.name.lowercased().hasPrefix(query.lowercased()) }
+    }
+
     /// Synchronous version of tool approval handler setup (call from MainActor)
     private func setupToolApprovalHandlerSync(client: ACPClientWrapper) {
         guard !isToolApprovalHandlerSetup else { return }
         isToolApprovalHandlerSetup = true
-        
+
+        client.onAvailableCommandsUpdate = { [weak self] commands in
+            Task { @MainActor in self?.availableCommands = commands }
+        }
+
         print("💬 ChatViewModel: Setting up tool approval handler for agent \(agentId)")
         client.onToolApprovalRequest = { [weak self] toolCallId, title, command, permissions in
             Task { @MainActor in

@@ -1,6 +1,7 @@
 import SwiftUI
 import MarkdownUI
 import PhotosUI
+import ACPModel
 
 struct ChatView: View {
     @EnvironmentObject var agentManager: AgentManager
@@ -16,6 +17,7 @@ struct ChatView: View {
     @State private var selectedImages: [UIImage] = []
     @State private var showPhotoPicker = false
     @State private var pickerItems: [PhotosPickerItem] = []
+    @State private var commandQuery: String? = nil // nil = picker hidden
 
     init(agentId: String, isInChat: Binding<Bool>) {
         self.agentId = agentId
@@ -145,6 +147,8 @@ struct ChatView: View {
                         .background(Color(.systemGroupedBackground))
                     }
 
+                    commandPickerView
+
                     HStack(spacing: 12) {
                         Button {
                             showPhotoPicker = true
@@ -205,6 +209,13 @@ struct ChatView: View {
                 }
             }
         }
+        .onChange(of: messageText) { _, text in
+            if text.hasPrefix("/"), !text.contains(" ") {
+                commandQuery = String(text.dropFirst())
+            } else {
+                commandQuery = nil
+            }
+        }
         .navigationTitle(agentName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -256,6 +267,54 @@ struct ChatView: View {
         agentManager.agents.first { $0.id == agentId }?.name ?? String(localized: "chat_default_title")
     }
     
+    private func applyCommand(_ command: AvailableCommand) {
+        let hasInput = command.input != nil
+        messageText = hasInput ? "/\(command.name) " : "/\(command.name)"
+        commandQuery = nil
+        isInputFocused = true
+    }
+
+    @ViewBuilder
+    private var commandPickerView: some View {
+        let suggestions = viewModel.filteredCommands(for: commandQuery ?? "")
+        if commandQuery != nil && !suggestions.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(suggestions, id: \.name) { command in
+                    Button {
+                        applyCommand(command)
+                    } label: {
+                        HStack(spacing: 8) {
+                            Text("/")
+                                .font(.system(.body, design: .monospaced))
+                                .foregroundColor(.blue)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(command.name)
+                                    .font(.system(.body, design: .monospaced))
+                                    .foregroundColor(.primary)
+                                Text(command.description)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer()
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                    }
+                    Divider()
+                }
+            }
+            .background(Color(.systemBackground))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color(.separator), lineWidth: 0.5)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .padding(.horizontal)
+            .padding(.top, 4)
+        }
+    }
+
     private func sendMessage() {
         let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty || !selectedImages.isEmpty else { return }
