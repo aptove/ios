@@ -26,8 +26,17 @@ private class AptoveClient: @preconcurrency Client, ClientSessionOperations {
     var onToolUpdate: ((String, String) -> Void)? // (toolCallId, content)
 
     // Back-reference to the wrapper for persistent callbacks
-    weak var wrapper: ACPClientWrapper?
-    
+    weak var wrapper: ACPClientWrapper? {
+        didSet {
+            guard let w = wrapper, !pendingAvailableCommands.isEmpty else { return }
+            w.cachedAvailableCommands = pendingAvailableCommands
+            w.onAvailableCommandsUpdate?(pendingAvailableCommands)
+        }
+    }
+
+    // Buffer for available_commands_update that arrives before wrapper is set
+    var pendingAvailableCommands: [AvailableCommand] = []
+
     //Store pending permission requests with continuations
     var pendingPermissions: [String: CheckedContinuation<RequestPermissionResponse, Error>] = [:]
     var pendingPermissionOptions: [String: [PermissionOption]] = [:]
@@ -42,6 +51,7 @@ private class AptoveClient: @preconcurrency Client, ClientSessionOperations {
 
         // Route availableCommandsUpdate through the persistent wrapper callback
         if case .availableCommandsUpdate(let u) = update {
+            pendingAvailableCommands = u.availableCommands
             wrapper?.cachedAvailableCommands = u.availableCommands
             wrapper?.onAvailableCommandsUpdate?(u.availableCommands)
             return

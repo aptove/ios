@@ -177,7 +177,8 @@ class QRScannerViewModel: ObservableObject {
             pairingStatus = "Adding agent..."
             print("✅ QRScannerViewModel.connectWithConfig(): Connection successful, adding agent...")
             let agentId = UUID().uuidString
-            let finalName = agentName ?? extractAgentName(from: config.url)
+            let folderName = URL(fileURLWithPath: config.cwd).lastPathComponent
+            let finalName = (!folderName.isEmpty && folderName != "/") ? folderName : (agentName ?? extractAgentName(from: config.url))
             print("📷 QRScannerViewModel.connectWithConfig(): Agent ID: \(agentId), Name: \(finalName)")
             
             print("📷 QRScannerViewModel.connectWithConfig(): Calling manager.addAgent()...")
