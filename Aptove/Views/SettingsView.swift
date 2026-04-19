@@ -5,6 +5,10 @@ struct SettingsView: View {
     @AppStorage("appLanguage") private var appLanguage: String = ""
     @AppStorage("voiceLanguage") private var voiceLanguage: String = "en-US"
 
+    private var themeSubtitle: LocalizedStringKey {
+        isDarkMode ? "settings_dark_theme_active" : "settings_light_theme_active"
+    }
+
     private var currentLanguageName: String {
         let code = appLanguage.isEmpty
             ? (Locale.current.language.languageCode?.identifier ?? "en")
@@ -21,16 +25,16 @@ struct SettingsView: View {
             List {
                 Section(header: Text("Appearance")) {
                     HStack(spacing: 14) {
-                        Image(systemName: "moon.fill")
+                        Image(systemName: isDarkMode ? "moon.fill" : "sun.max.fill")
                             .font(.system(size: 18))
                             .foregroundColor(.white)
                             .frame(width: 32, height: 32)
-                            .background(Color.blue)
+                            .background(isDarkMode ? Color.blue : Color.orange)
                             .clipShape(RoundedRectangle(cornerRadius: 8))
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Dark Mode")
-                            Text(isDarkMode ? String(localized: "settings_dark_theme_active") : String(localized: "settings_light_theme_active"))
+                            Text(themeSubtitle)
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }

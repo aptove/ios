@@ -29,7 +29,11 @@ struct AgentConfigurationView: View {
                             Circle()
                                 .fill(statusColor(for: agent.status))
                                 .frame(width: 8, height: 8)
-                            Text(statusText(for: agent.status))
+                            switch agent.status {
+                            case .connected:    Text("Connected")
+                            case .disconnected: Text("Disconnected")
+                            case .reconnecting: Text("Reconnecting")
+                            }
                         }
                     }
                 }
@@ -58,11 +62,15 @@ struct AgentConfigurationView: View {
                         }
 
                         if let startedAt = agent.sessionStartedAt {
-                            LabeledContent("Started", value: formatDate(startedAt))
+                            LabeledContent("Started") {
+                                Text(startedAt, format: .dateTime.month(.abbreviated).day().year().hour().minute())
+                            }
                         }
 
                         LabeledContent("Messages", value: "\(viewModel.messageCount)")
-                        LabeledContent("Supports Resume", value: agent.supportsLoadSession ? "Yes" : "No")
+                        LabeledContent("Supports Resume") {
+                            Text(agent.supportsLoadSession ? "Yes" : "No")
+                        }
                     } else {
                         Text("No active session")
                             .foregroundColor(.secondary)
@@ -159,20 +167,6 @@ struct AgentConfigurationView: View {
         }
     }
 
-    private func statusText(for status: ConnectionStatus) -> String {
-        switch status {
-        case .connected:    return "Connected"
-        case .disconnected: return "Disconnected"
-        case .reconnecting: return "Reconnecting"
-        }
-    }
-
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
-    }
 }
 
 // MARK: - Transport Endpoint Row

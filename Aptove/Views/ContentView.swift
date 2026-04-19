@@ -82,7 +82,7 @@ private struct BottomTabBar: View {
 
 private struct TabBarButton: View {
     let icon: String
-    let label: String
+    let label: LocalizedStringKey
     let selected: Bool
     let action: () -> Void
 
