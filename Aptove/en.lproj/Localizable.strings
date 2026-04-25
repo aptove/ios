@@ -44,12 +44,12 @@
 "Pairing Type" = "Pairing Type";
 "For bridges running on your local network" = "For bridges running on your local network";
 "For bridges exposed via Cloudflare Tunnel" = "For bridges exposed via Cloudflare Tunnel";
-"For bridges using Tailscale. Your iPhone must be on the same tailnet. Enter the MagicDNS hostname (e.g. my-laptop.tail1234.ts.net) or Tailscale IP with port (e.g. 100.x.x.x:8080)." = "For bridges using Tailscale. Your iPhone must be on the same tailnet. Enter the MagicDNS hostname (e.g. my-laptop.tail1234.ts.net) or Tailscale IP with port (e.g. 100.x.x.x:8080).";
+"For bridges using Tailscale. Your iPhone must be on the same tailnet. Enter the MagicDNS hostname shown in the bridge terminal (e.g. my-laptop.tail1234.ts.net)." = "For bridges using Tailscale. Your iPhone must be on the same tailnet. Enter the MagicDNS hostname shown in the bridge terminal (e.g. my-laptop.tail1234.ts.net).";
 "Bridge Address (e.g., 192.168.1.100:8080)" = "Bridge Address (e.g., 192.168.1.100:8080)";
 "Use HTTPS" = "Use HTTPS";
 "Bridge Address" = "Bridge Address";
 "Enter the IP address and port shown in your terminal" = "Enter the IP address and port shown in your terminal";
-"Enter the MagicDNS hostname or Tailscale IP:port shown in the bridge terminal" = "Enter the MagicDNS hostname or Tailscale IP:port shown in the bridge terminal";
+"Enter the MagicDNS hostname shown in the bridge terminal" = "Enter the MagicDNS hostname shown in the bridge terminal";
 "Pairing Code (6 digits)" = "Pairing Code (6 digits)";
 "Pairing Code" = "Pairing Code";
 "Enter the 6-digit code shown in your terminal. Codes expire after 60 seconds." = "Enter the 6-digit code shown in your terminal. Codes expire after 60 seconds.";
@@ -106,6 +106,4 @@
 /* Transport names */
 "Local" = "Local";
 "Cloudflare" = "Cloudflare";
-"Tailscale (Serve)" = "Tailscale (Serve)";
-"Tailscale (IP)" = "Tailscale (IP)";
-"Tailscale IP" = "Tailscale IP";
+"Tailscale" = "Tailscale";

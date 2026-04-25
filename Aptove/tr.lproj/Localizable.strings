@@ -44,12 +44,12 @@
 "Pairing Type" = "Eşleştirme Türü";
 "For bridges running on your local network" = "Yerel ağınızdaki köprüler için";
 "For bridges exposed via Cloudflare Tunnel" = "Cloudflare Tüneli üzerinden erişilen köprüler için";
-"For bridges using Tailscale. Your iPhone must be on the same tailnet. Enter the MagicDNS hostname (e.g. my-laptop.tail1234.ts.net) or Tailscale IP with port (e.g. 100.x.x.x:8080)." = "Tailscale kullanan köprüler için. iPhone'unuz aynı tailnet'te olmalıdır. MagicDNS ana makine adını (ör. bilgisayarim.tail1234.ts.net) veya Tailscale IP:port (ör. 100.x.x.x:8080) girin.";
+"For bridges using Tailscale. Your iPhone must be on the same tailnet. Enter the MagicDNS hostname shown in the bridge terminal (e.g. my-laptop.tail1234.ts.net)." = "Tailscale kullanan köprüler için. iPhone'unuz aynı tailnet'te olmalıdır. Köprü terminalinde gösterilen MagicDNS ana makine adını girin (ör. bilgisayarim.tail1234.ts.net).";
 "Bridge Address (e.g., 192.168.1.100:8080)" = "Köprü Adresi (ör. 192.168.1.100:8080)";
 "Use HTTPS" = "HTTPS Kullan";
 "Bridge Address" = "Köprü Adresi";
 "Enter the IP address and port shown in your terminal" = "Terminalinizde gösterilen IP adresi ve portu girin";
-"Enter the MagicDNS hostname or Tailscale IP:port shown in the bridge terminal" = "Köprü terminalinde gösterilen MagicDNS adını veya Tailscale IP:port'unu girin";
+"Enter the MagicDNS hostname shown in the bridge terminal" = "Köprü terminalinde gösterilen MagicDNS ana makine adını girin";
 "Pairing Code (6 digits)" = "Eşleştirme Kodu (6 basamak)";
 "Pairing Code" = "Eşleştirme Kodu";
 "Enter the 6-digit code shown in your terminal. Codes expire after 60 seconds." = "Terminalinizde gösterilen 6 basamaklı kodu girin. Kodlar 60 saniye sonra geçersiz olur.";
@@ -106,6 +106,4 @@
 /* Transport names */
 "Local" = "Yerel";
 "Cloudflare" = "Cloudflare";
-"Tailscale (Serve)" = "Tailscale (Serve)";
-"Tailscale (IP)" = "Tailscale (IP)";
-"Tailscale IP" = "Tailscale IP";
+"Tailscale" = "Tailscale";

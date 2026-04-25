@@ -62,7 +62,7 @@ struct ManualPairingView: View {
                         case .cloudflare:
                             Text("For bridges exposed via Cloudflare Tunnel")
                         case .tailscale:
-                            Text("For bridges using Tailscale. Your iPhone must be on the same tailnet. Enter the MagicDNS hostname (e.g. my-laptop.tail1234.ts.net) or Tailscale IP with port (e.g. 100.x.x.x:8080).")
+                            Text("For bridges using Tailscale. Your iPhone must be on the same tailnet. Enter the MagicDNS hostname shown in the bridge terminal (e.g. my-laptop.tail1234.ts.net).")
                         }
                     }
                     
@@ -81,7 +81,7 @@ struct ManualPairingView: View {
                         Text("Bridge Address")
                     } footer: {
                         if pairingType == .tailscale {
-                            Text("Enter the MagicDNS hostname or Tailscale IP:port shown in the bridge terminal")
+                            Text("Enter the MagicDNS hostname shown in the bridge terminal")
                         } else {
                             Text("Enter the IP address and port shown in your terminal")
                         }

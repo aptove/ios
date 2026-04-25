@@ -134,7 +134,6 @@ struct AgentRow: View {
         case "local":           return "Local"
         case "cloudflare":      return "Cloudflare"
         case "tailscale-serve": return "Tailscale"
-        case "tailscale-ip":    return "Tailscale IP"
         default:                return transport
         }
     }

@@ -197,8 +197,7 @@ private struct TransportEndpointRow: View {
         switch transport {
         case "local":           return "Local"
         case "cloudflare":      return "Cloudflare"
-        case "tailscale-serve": return "Tailscale (Serve)"
-        case "tailscale-ip":    return "Tailscale (IP)"
+        case "tailscale-serve": return "Tailscale"
         default:                return transport.capitalized
         }
     }
