@@ -125,6 +125,21 @@ class ChatViewModel: ObservableObject {
             Task { @MainActor in self?.availableCommands = commands }
         }
 
+        client.onRemoteUserMessage = { [weak self] text in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let msg = Message(
+                    text: text,
+                    sender: .user,
+                    status: .sent,
+                    type: .text
+                )
+                messages.append(msg)
+                updateConversation()
+                saveMessagesToDisk()
+            }
+        }
+
         print("💬 ChatViewModel: Setting up tool approval handler for agent \(agentId)")
         client.onToolApprovalRequest = { [weak self] toolCallId, title, command, permissions in
             Task { @MainActor in
@@ -317,9 +332,13 @@ class ChatViewModel: ObservableObject {
                 onChunk: { chunk in
                     // Update agent message incrementally on main thread
                     Task { @MainActor in
-                        // If messages were appended after our current slot (e.g. a tool approval
-                        // card or tool status), seal the current bubble and start a new one.
-                        if agentMessageIndex < self.messages.count - 1 && !accumulatedText.isEmpty {
+                        // If non-thought messages were appended after our current slot (e.g. a tool
+                        // approval card or tool status), seal the current bubble and start a new one.
+                        // Thought messages appearing mid-stream do NOT split the bubble — they just
+                        // sit below the streaming text while the same agent bubble keeps growing.
+                        let trailingAreOnlyThoughts = self.messages.dropFirst(agentMessageIndex + 1)
+                            .allSatisfy { $0.type == .thought }
+                        if agentMessageIndex < self.messages.count - 1 && !accumulatedText.isEmpty && !trailingAreOnlyThoughts {
                             self.messages[agentMessageIndex] = Message(
                                 id: self.messages[agentMessageIndex].id,
                                 text: accumulatedText,

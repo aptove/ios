@@ -155,6 +155,10 @@ class ACPClientWrapper: ObservableObject {
     @Published var connectionMessage: String = ""
     @Published var sessionWasResumed: Bool? = nil // nil = unknown, true = resumed, false = new
     
+    /// Stable identifier for this device's connection, sent as X-Client-Id header.
+    /// Used to suppress echoes of our own messages from bridge/remoteUserMessage.
+    let deviceClientId: String = UUID().uuidString
+
     let config: ConnectionConfig
     let agentId: String
     let connectionTimeout: TimeInterval
@@ -258,6 +262,9 @@ class ACPClientWrapper: ObservableObject {
                     print("🔌 ACPClientWrapper.connect(): Adding X-Bridge-Token header")
                     headers["X-Bridge-Token"] = authToken
                 }
+
+                // Add client ID for multi-device message sync
+                headers["X-Client-Id"] = deviceClientId
                 
                 if !headers.isEmpty {
                     print("🔌 ACPClientWrapper.connect(): Setting \(headers.count) HTTP headers")
@@ -281,39 +288,42 @@ class ACPClientWrapper: ObservableObject {
                 connectionMessage = "Establishing connection...\nThis may take a moment if authorization is required."
                 
                 print("🔌 ACPClientWrapper.connect(): Creating WebSocketTransport...")
-                let transport = WebSocketTransport(url: url, session: session)
-                attemptTransport = transport
-                self.transport = transport
-                
+                let wsTransport = WebSocketTransport(url: url, session: session)
+                attemptTransport = wsTransport
+                let filteredTransport = BridgeFilteringTransport(inner: wsTransport) { [weak self] notif in
+                    self?.handleBridgeNotification(notif)
+                }
+                self.transport = wsTransport
+
                 print("🔌 ACPClientWrapper.connect(): Creating AptoveClient...")
                 let client = AptoveClient()
                 client.wrapper = self
                 self.client = client
                 print("🔌 ACPClientWrapper.connect(): Client created")
-                
+
                 // Set up permission request handler
                 print("🔌 ACPClientWrapper.connect(): Setting up permission request handler...")
                 client.onPermissionRequest = { [weak self] requestId, toolCall, permissions in
                     print("🔐 Permission request received in handler: \(requestId)")
                     Task { @MainActor in
                         guard let self = self else { return }
-                        
+
                         // Extract command from toolCall
                         var command: String?
                         if case .object(let dict) = toolCall.rawInput,
                            case .string(let cmd) = dict["command"] {
                             command = cmd
                         }
-                        
+
                         let title = toolCall.title ?? "Tool Approval Required"
                         print("⚠️ Permission request: \(title), options: \(permissions.count)")
                         self.onToolApprovalRequest?(requestId, title, command, permissions)
                     }
                 }
-                
+
                 // Pass the connectionTimeout to ensure Protocol layer respects our extended timeout
                 print("🔌 ACPClientWrapper.connect(): Creating ClientConnection...")
-                let conn = ClientConnection(transport: transport, client: client, defaultTimeoutSeconds: connectionTimeout)
+                let conn = ClientConnection(transport: filteredTransport, client: client, defaultTimeoutSeconds: connectionTimeout)
                 print("🔌 ACPClientWrapper.connect(): ClientConnection created")
                 
                 // Connect and initialize with a short deadline so a silent bridge
@@ -522,6 +532,10 @@ class ACPClientWrapper: ObservableObject {
     /// Use this to trigger multi-transport reconnect logic in AgentManager.
     var onUnexpectedDisconnect: (() -> Void)?
     private var transportObserverTask: Task<Void, Never>?
+
+    /// Called when another device sends a user message to the same session.
+    /// The string is the plain text of the remote message.
+    var onRemoteUserMessage: ((String) -> Void)?
 
     /// Cache of the last received available commands — populated before the callback fires
     /// so late subscribers (e.g. ChatViewModel) can read them on first subscription.
@@ -792,11 +806,29 @@ class ACPClientWrapper: ObservableObject {
         return nil
     }
 
+    private func handleBridgeNotification(_ notif: JsonRpcNotification) {
+        guard notif.method == "bridge/remoteUserMessage",
+              case .object(let paramsObj) = notif.params,
+              case .string(let senderId) = paramsObj["senderId"],
+              senderId != deviceClientId else { return }
+
+        guard case .array(let contentArray) = paramsObj["content"] else { return }
+
+        let text = contentArray.compactMap { block -> String? in
+            guard case .object(let blockObj) = block,
+                  case .string(let t) = blockObj["text"] else { return nil }
+            return t
+        }.joined()
+
+        guard !text.isEmpty else { return }
+        onRemoteUserMessage?(text)
+    }
+
     enum ClientError: LocalizedError {
         case noActiveSession
         case invalidResponse
         case invalidToolCall
-        
+
         var errorDescription: String? {
             switch self {
             case .noActiveSession:
@@ -808,6 +840,45 @@ class ACPClientWrapper: ObservableObject {
             }
         }
     }
+}
+
+/// Wraps a Transport and intercepts `bridge/*` notifications before they reach the ACP SDK.
+/// The ACP SDK has no handler for bridge-specific methods and would silently drop them.
+final class BridgeFilteringTransport: Transport, @unchecked Sendable {
+    private let inner: any Transport
+    private let onBridgeNotification: (JsonRpcNotification) -> Void
+
+    let messages: AsyncStream<JsonRpcMessage>
+    private let messageContinuation: AsyncStream<JsonRpcMessage>.Continuation
+    var state: AsyncStream<TransportState> { inner.state }
+
+    init(inner: any Transport, onBridgeNotification: @escaping (JsonRpcNotification) -> Void) {
+        self.inner = inner
+        self.onBridgeNotification = onBridgeNotification
+        var cont: AsyncStream<JsonRpcMessage>.Continuation!
+        self.messages = AsyncStream { cont = $0 }
+        self.messageContinuation = cont
+    }
+
+    func start() async throws {
+        try await inner.start()
+        let innerMessages = inner.messages
+        let continuation = messageContinuation
+        let handler = onBridgeNotification
+        Task {
+            for await message in innerMessages {
+                if case .notification(let notif) = message, notif.method.hasPrefix("bridge/") {
+                    handler(notif)
+                } else {
+                    continuation.yield(message)
+                }
+            }
+            continuation.finish()
+        }
+    }
+
+    func send(_ message: JsonRpcMessage) async throws { try await inner.send(message) }
+    func close() async { messageContinuation.finish(); await inner.close() }
 }
 
 /// URLSession delegate to handle self-signed certificates
