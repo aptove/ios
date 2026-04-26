@@ -33,6 +33,7 @@ struct AptoveApp: App {
     @StateObject private var pushManager = PushNotificationManager.shared
     @AppStorage("isDarkMode") private var isDarkMode: Bool = true
     @AppStorage("appLanguage") private var appLanguage: String = ""
+    @State private var showSplash = true
 
     init() {
         print("🚀 AptoveApp: Application starting...")
@@ -56,16 +57,30 @@ struct AptoveApp: App {
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environmentObject(agentManager)
-                .environmentObject(pushManager)
-                .preferredColorScheme(isDarkMode ? .dark : .light)
-                .environment(\.locale, appLanguage.isEmpty ? .autoupdatingCurrent : Locale(identifier: appLanguage))
-                .onAppear {
-                    print("🚀 AptoveApp: ContentView appeared - app fully launched")
-                    // Request push notification permissions on launch
-                    pushManager.requestAuthorization()
+            ZStack {
+                ContentView()
+                    .environmentObject(agentManager)
+                    .environmentObject(pushManager)
+                    .preferredColorScheme(isDarkMode ? .dark : .light)
+                    .environment(\.locale, appLanguage.isEmpty ? .autoupdatingCurrent : Locale(identifier: appLanguage))
+                    .onAppear {
+                        print("🚀 AptoveApp: ContentView appeared - app fully launched")
+                        // Request push notification permissions on launch
+                        pushManager.requestAuthorization()
+                    }
+
+                if showSplash {
+                    SplashView()
+                        .transition(.opacity)
+                        .onAppear {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                                withAnimation(.easeOut(duration: 0.4)) {
+                                    showSplash = false
+                                }
+                            }
+                        }
                 }
+            }
         }
     }
 }
