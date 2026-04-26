@@ -158,7 +158,7 @@ struct ChatView: View {
                             }
                             attachmentItem(icon: nil, slashLabel: "/", label: "Commands", color: .purple) {
                                 showAttachmentPanel = false
-                                messageText = "/"
+                                commandQuery = ""
                                 isInputFocused = true
                             }
                             Spacer()
