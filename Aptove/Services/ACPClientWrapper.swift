@@ -398,7 +398,7 @@ class ACPClientWrapper: ObservableObject {
 
                     // Watch for unexpected transport close (network loss, bridge restart, etc.)
                     // Cancelled in disconnect() so intentional closes don't fire this callback.
-                    let capturedTransport = transport
+                    guard let capturedTransport = transport else { break }
                     transportObserverTask?.cancel()
                     transportObserverTask = Task { [weak self] in
                         for await state in capturedTransport.state {
