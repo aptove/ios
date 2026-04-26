@@ -19,6 +19,7 @@ struct ChatView: View {
     @State private var pickerItems: [PhotosPickerItem] = []
     @State private var commandQuery: String? = nil // nil = picker hidden
     @State private var showAttachmentPanel = false
+    @State private var showMemoryEntry = false
 
     init(agentId: String, isInChat: Binding<Bool>) {
         self.agentId = agentId
@@ -161,6 +162,10 @@ struct ChatView: View {
                                 commandQuery = ""
                                 isInputFocused = true
                             }
+                            attachmentItem(icon: "brain", label: "Memory", color: .orange) {
+                                showAttachmentPanel = false
+                                showMemoryEntry = true
+                            }
                             Spacer()
                         }
                         .padding(.horizontal, 20)
@@ -216,6 +221,10 @@ struct ChatView: View {
                           selection: $pickerItems,
                           maxSelectionCount: 10,
                           matching: .images)
+            .sheet(isPresented: $showMemoryEntry) {
+                MemoryEntryView(agentId: agentId)
+                    .environmentObject(agentManager)
+            }
             .onChange(of: pickerItems) { _, items in
                 // Guard prevents re-triggering when we clear pickerItems below
                 guard !items.isEmpty else { return }

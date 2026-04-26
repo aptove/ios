@@ -528,6 +528,23 @@ class ACPClientWrapper: ObservableObject {
         }
     }
     
+    /// Append a memory entry to the bridge's MEMORY.md file.
+    func sendMemoryEntry(_ text: String) async {
+        guard let transport = self.transport else {
+            print("❌ ACPClientWrapper: No transport, cannot send memory entry")
+            return
+        }
+        let params: JsonValue = .object(["text": .string(text)])
+        let notification = JsonRpcNotification(method: "bridge/appendMemory", params: params)
+        let message = JsonRpcMessage.notification(notification)
+        do {
+            try await transport.send(message)
+            print("🧠 ACPClientWrapper: Memory entry sent")
+        } catch {
+            print("❌ ACPClientWrapper: Failed to send memory entry: \(error)")
+        }
+    }
+
     /// Called when the WebSocket transport closes unexpectedly (not via `disconnect()`).
     /// Use this to trigger multi-transport reconnect logic in AgentManager.
     var onUnexpectedDisconnect: (() -> Void)?

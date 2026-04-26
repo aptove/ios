@@ -478,4 +478,10 @@ class AgentManager: ObservableObject {
             return lastActivity1 > lastActivity2
         }
     }
+
+    /// Send a memory entry to the bridge for the given agent.
+    func sendMemoryEntry(_ text: String, for agentId: String) async {
+        guard let client = await getConnectedClient(for: agentId) else { return }
+        await client.sendMemoryEntry(text)
+    }
 }
