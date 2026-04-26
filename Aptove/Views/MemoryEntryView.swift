@@ -63,9 +63,6 @@ struct MemoryEntryView: View {
                 }
             }
             .onAppear { isTextFocused = true }
-            .onChange(of: voiceViewModel.recordingState) { _, state in
-                if case .processing = state { /* waiting for transcript */ }
-            }
         }
     }
 
