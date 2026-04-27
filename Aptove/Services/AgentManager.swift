@@ -479,6 +479,12 @@ class AgentManager: ObservableObject {
         }
     }
 
+    /// Correct a voice transcript using the AI agent for the given agent.
+    func correctVoiceTranscript(_ rawTranscript: String, for agentId: String, language: String) async -> String {
+        guard let client = await getConnectedClient(for: agentId) else { return rawTranscript }
+        return await client.correctTranscript(rawTranscript, language: language)
+    }
+
     /// Send a memory entry to the bridge for the given agent.
     func sendMemoryEntry(_ text: String, for agentId: String) async {
         guard let client = await getConnectedClient(for: agentId) else { return }

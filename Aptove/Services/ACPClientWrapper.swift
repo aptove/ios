@@ -528,6 +528,48 @@ class ACPClientWrapper: ObservableObject {
         }
     }
     
+    /// Correct a voice transcript using the AI agent.
+    /// Returns the corrected text, or the raw transcript if correction fails.
+    func correctTranscript(_ rawTranscript: String, language: String) async -> String {
+        let instructions = language.hasPrefix("tr")
+            ? "Transkripsiyon hatalarını, noktalama işaretlerini ve dil bilgisini düzelt. Yalnızca tek bir alanlı geçerli JSON döndür: {\"corrected_text\": \"...\"}"
+            : "Fix transcription errors, punctuation, and grammar. Return ONLY valid JSON with a single field: {\"corrected_text\": \"...\"}"
+
+        func encodeJson(_ s: String) -> String {
+            "\"" + s
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "\"", with: "\\\"")
+                .replacingOccurrences(of: "\n", with: "\\n")
+                .replacingOccurrences(of: "\r", with: "\\r")
+                .replacingOccurrences(of: "\t", with: "\\t")
+            + "\""
+        }
+
+        let json = """
+        {"type":"voice_correction_request","version":"1.0","language":\(encodeJson(language)),"instructions":\(encodeJson(instructions)),"raw_transcript":\(encodeJson(rawTranscript))}
+        """
+
+        var accumulated = ""
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            Task { @MainActor in
+                do {
+                    try await self.sendMessage(json, onChunk: { accumulated += $0 }, onComplete: { _, _ in cont.resume() })
+                } catch {
+                    cont.resume()
+                }
+            }
+        }
+
+        // Parse {"corrected_text": "..."}
+        if let data = accumulated.data(using: .utf8),
+           let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let corrected = obj["corrected_text"] as? String,
+           !corrected.isEmpty {
+            return corrected
+        }
+        return rawTranscript
+    }
+
     /// Append a memory entry to the bridge's MEMORY.md file.
     func sendMemoryEntry(_ text: String) async {
         guard let transport = self.transport else {

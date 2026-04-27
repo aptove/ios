@@ -2,14 +2,16 @@ import SwiftUI
 import Speech
 
 /// Sheet that lets the user add a memory entry (text or voice) and send it to the bridge.
+/// Voice dictation uses the AI agent for transcript correction, same as the chat input.
 struct MemoryEntryView: View {
     let agentId: String
     @EnvironmentObject private var agentManager: AgentManager
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("voiceLanguage") private var voiceLanguage: String = "en-US"
 
     @State private var text = ""
     @State private var isSending = false
-    @State private var errorMessage: String?
+    @State private var isCorrectingTranscript = false
     @StateObject private var voiceViewModel = VoiceInputViewModel()
     @FocusState private var isTextFocused: Bool
 
@@ -41,14 +43,6 @@ struct MemoryEntryView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 14)
                 .background(Color(.systemGroupedBackground))
-
-                if let err = errorMessage {
-                    Text(err)
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                        .padding(.horizontal)
-                        .padding(.bottom, 8)
-                }
             }
             .navigationTitle("Add Memory")
             .navigationBarTitleDisplayMode(.inline)
@@ -58,7 +52,7 @@ struct MemoryEntryView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { saveMemory() }
-                        .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending)
+                        .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSending || isCorrectingTranscript)
                         .fontWeight(.semibold)
                 }
             }
@@ -70,31 +64,40 @@ struct MemoryEntryView: View {
 
     @ViewBuilder
     private var voiceStatusView: some View {
-        switch voiceViewModel.recordingState {
-        case .recording:
-            HStack(spacing: 6) {
-                Image(systemName: "waveform")
-                    .foregroundStyle(.red)
-                    .symbolEffect(.variableColor.iterative)
-                Text("Recording…")
-                    .font(.subheadline)
-                    .foregroundStyle(.red)
-            }
-        case .processing:
+        if isCorrectingTranscript {
             HStack(spacing: 6) {
                 ProgressView().scaleEffect(0.8)
-                Text("Transcribing…")
+                Text("Correcting…")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
-        case .error(let msg):
-            Text(msg)
-                .font(.caption)
-                .foregroundStyle(.red)
-        default:
-            Text("Tap mic to dictate")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+        } else {
+            switch voiceViewModel.recordingState {
+            case .recording:
+                HStack(spacing: 6) {
+                    Image(systemName: "waveform")
+                        .foregroundStyle(.red)
+                        .symbolEffect(.variableColor.iterative)
+                    Text("Recording…")
+                        .font(.subheadline)
+                        .foregroundStyle(.red)
+                }
+            case .processing:
+                HStack(spacing: 6) {
+                    ProgressView().scaleEffect(0.8)
+                    Text("Transcribing…")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            case .error(let msg):
+                Text(msg)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            default:
+                Text("Tap mic to dictate")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -105,8 +108,14 @@ struct MemoryEntryView: View {
                 voiceViewModel.stopRecording()
             } else {
                 voiceViewModel.onTranscriptReady = { transcript in
-                    text += (text.isEmpty ? "" : " ") + transcript
                     voiceViewModel.recordingState = .idle
+                    isCorrectingTranscript = true
+                    Task {
+                        let corrected = await agentManager.correctVoiceTranscript(
+                            transcript, for: agentId, language: voiceLanguage)
+                        text += (text.isEmpty ? "" : " ") + corrected
+                        isCorrectingTranscript = false
+                    }
                 }
                 voiceViewModel.startRecording()
             }
@@ -115,6 +124,7 @@ struct MemoryEntryView: View {
                 .font(.system(size: 36))
                 .foregroundStyle(isRecording ? .red : .blue)
         }
+        .disabled(isCorrectingTranscript)
     }
 
     // MARK: - Actions
