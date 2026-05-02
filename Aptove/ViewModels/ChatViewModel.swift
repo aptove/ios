@@ -518,7 +518,10 @@ class ChatViewModel: ObservableObject {
             cachedClient = client
         }
 
-        guard let client = client else {
+        // If there is no client, or the client is not currently connected,
+        // degrade immediately to the raw transcript — do not attempt reconnect,
+        // which would leave the user stuck in .processing for up to 30 s.
+        guard let client, case .connected = client.connectionState else {
             voiceCorrectedText = rawTranscript
             return
         }

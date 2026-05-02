@@ -283,6 +283,9 @@ struct ChatView: View {
                 messageText = text
                 isInputFocused = true
                 viewModel.voiceCorrectedText = nil
+                // Always reset recording state when text is ready — handles both
+                // successful AI correction and immediate fallback (no/lost connection).
+                voiceViewModel.recordingState = .idle
             }
         }
         .onChange(of: viewModel.isVoiceCorrectionPending) { _, pending in
