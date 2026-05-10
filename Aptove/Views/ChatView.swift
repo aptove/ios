@@ -514,7 +514,7 @@ struct MessageBubble: View {
                 } else if message.type == .slashCommand {
                     slashCommandBubbleView
                 } else {
-                    textBubbleView(fullWidth: isAgent)
+                    textBubbleView
                 }
 
                 HStack(spacing: 4) {
@@ -527,12 +527,15 @@ struct MessageBubble: View {
                     }
                 }
             }
-            .frame(maxWidth: isAgent ? .infinity : nil, alignment: .leading)
+
+            if isAgent {
+                Spacer(minLength: 0)
+            }
         }
     }
     
     @ViewBuilder
-    private func textBubbleView(fullWidth: Bool) -> some View {
+    private var textBubbleView: some View {
         VStack(alignment: .leading, spacing: 6) {
             if let images = message.images, !images.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -555,7 +558,6 @@ struct MessageBubble: View {
                     .markdownBlockStyle(\.codeBlock) { CodeBlockView(config: $0) }
             }
         }
-        .frame(maxWidth: fullWidth ? .infinity : nil, alignment: .leading)
         .padding(12)
         .background(backgroundColor)
         .foregroundColor(textColor)
@@ -598,7 +600,6 @@ struct MessageBubble: View {
                 .font(.subheadline)
                 .italic()
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
         .background(Color.purple.opacity(0.1))
         .foregroundColor(.purple)
@@ -612,7 +613,6 @@ struct MessageBubble: View {
             Text(message.text)
                 .font(.subheadline)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
         .background(Color.blue.opacity(0.1))
         .foregroundColor(.blue)
