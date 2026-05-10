@@ -91,7 +91,7 @@ private class AptoveClient: @preconcurrency Client, ClientSessionOperations {
     // Terminal Operations — not yet supported on iOS; auto-reject to avoid hanging the agent.
     func terminalCreate(request: CreateTerminalRequest) async throws -> CreateTerminalResponse {
         print("🖥️ terminalCreate CALLED - command: \(request.command) — auto-rejecting (unsupported)")
-        throw ClientError.invalidToolCall
+        throw ClientError.notImplemented("Terminal commands are not supported on iOS")
     }
     
     func terminalOutput(sessionId: SessionId, terminalId: String, meta: MetaField?) async throws -> TerminalOutputResponse {
