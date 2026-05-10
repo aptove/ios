@@ -8,6 +8,7 @@ struct ChatView: View {
     @StateObject private var viewModel: ChatViewModel
     @StateObject private var voiceViewModel = VoiceInputViewModel()
     @AppStorage("voiceLanguage") private var voiceLanguage: String = "en-US"
+    @AppStorage("isVerboseMode") private var isVerboseMode: Bool = true
 
     let agentId: String
     @Binding var isInChat: Bool
@@ -32,7 +33,10 @@ struct ChatView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 12) {
-                        ForEach(viewModel.messages) { message in
+                        ForEach(viewModel.messages.filter { message in
+                            if isVerboseMode { return true }
+                            return message.type != .thought && message.type != .toolStatus
+                        }) { message in
                             MessageBubble(message: message, viewModel: viewModel)
                                 .id(message.id)
                         }
@@ -591,19 +595,13 @@ struct MessageBubble: View {
 
     @ViewBuilder
     private var thoughtBubbleView: some View {
-        HStack(spacing: 8) {
-            if message.isThinking {
-                ProgressView()
-                    .scaleEffect(0.8)
-            }
-            Text(message.text)
-                .font(.subheadline)
-                .italic()
-        }
-        .padding(10)
-        .background(Color.purple.opacity(0.1))
-        .foregroundColor(.purple)
-        .cornerRadius(12)
+        Text(message.text)
+            .font(.subheadline)
+            .italic()
+            .padding(10)
+            .background(Color.purple.opacity(0.1))
+            .foregroundColor(.purple)
+            .cornerRadius(12)
     }
 
     @ViewBuilder

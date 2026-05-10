@@ -19,6 +19,9 @@
 "Dark Mode" = "Ekran Modu";
 "settings_dark_theme_active" = "Karanlık tema etkin";
 "settings_light_theme_active" = "Açık tema etkin";
+"Verbose Messages" = "Ayrıntılı Mesajlar";
+"settings_verbose_messages_on" = "Düşünceler ve araç çağrıları gösteriliyor";
+"settings_verbose_messages_off" = "Düşünceler ve araç çağrıları gizleniyor";
 "Language" = "Dil";
 "Voice Language" = "Ses Dili";
 "About" = "Hakkında";

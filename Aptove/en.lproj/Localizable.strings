@@ -19,6 +19,9 @@
 "Dark Mode" = "Screen Mode";
 "settings_dark_theme_active" = "Dark theme active";
 "settings_light_theme_active" = "Light theme active";
+"Verbose Messages" = "Verbose Messages";
+"settings_verbose_messages_on" = "Showing thoughts and tool calls";
+"settings_verbose_messages_off" = "Hiding thoughts and tool calls";
 "Language" = "Language";
 "Voice Language" = "Voice Language";
 "About" = "About";

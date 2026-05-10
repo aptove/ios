@@ -4,9 +4,14 @@ struct SettingsView: View {
     @AppStorage("isDarkMode") private var isDarkMode: Bool = true
     @AppStorage("appLanguage") private var appLanguage: String = ""
     @AppStorage("voiceLanguage") private var voiceLanguage: String = "en-US"
+    @AppStorage("isVerboseMode") private var isVerboseMode: Bool = true
 
     private var themeSubtitle: LocalizedStringKey {
         isDarkMode ? "settings_dark_theme_active" : "settings_light_theme_active"
+    }
+
+    private var verboseModeSubtitle: LocalizedStringKey {
+        isVerboseMode ? "settings_verbose_messages_on" : "settings_verbose_messages_off"
     }
 
     private var currentLanguageName: String {
@@ -42,6 +47,28 @@ struct SettingsView: View {
                         Spacer()
 
                         Toggle("", isOn: $isDarkMode)
+                            .labelsHidden()
+                    }
+                    .padding(.vertical, 4)
+
+                    HStack(spacing: 14) {
+                        Image(systemName: "text.bubble")
+                            .font(.system(size: 18))
+                            .foregroundColor(.white)
+                            .frame(width: 32, height: 32)
+                            .background(Color.purple)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Verbose Messages")
+                            Text(verboseModeSubtitle)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+
+                        Spacer()
+
+                        Toggle("", isOn: $isVerboseMode)
                             .labelsHidden()
                     }
                     .padding(.vertical, 4)
