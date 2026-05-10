@@ -497,34 +497,47 @@ struct MessageBubble: View {
     let viewModel: ChatViewModel
 
     var body: some View {
-        VStack(alignment: message.sender == .user ? .trailing : .leading, spacing: 4) {
-            if message.type == .toolApprovalRequest {
-                toolApprovalView
-            } else if message.type == .thought {
-                thoughtBubbleView
-            } else if message.type == .toolStatus {
-                toolStatusBubbleView
-            } else if message.type == .slashCommand {
-                slashCommandBubbleView
-            } else {
-                textBubbleView
+        let hasCode = message.text.contains("```") || message.type == .toolApprovalRequest
+
+        HStack {
+            if message.sender == .user && !hasCode {
+                Spacer(minLength: 60)
             }
 
-            HStack(spacing: 4) {
-                Text(timeString)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+            VStack(alignment: message.sender == .user ? .trailing : .leading, spacing: 4) {
+                if message.type == .toolApprovalRequest {
+                    toolApprovalView
+                } else if message.type == .thought {
+                    thoughtBubbleView
+                } else if message.type == .toolStatus {
+                    toolStatusBubbleView
+                } else if message.type == .slashCommand {
+                    slashCommandBubbleView
+                } else {
+                    textBubbleView(fullWidth: hasCode)
+                }
 
-                if message.sender == .user {
-                    statusIcon
+                HStack(spacing: 4) {
+                    Text(timeString)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+
+                    if message.sender == .user {
+                        statusIcon
+                    }
                 }
             }
+            .frame(maxWidth: hasCode ? .infinity : nil,
+                   alignment: message.sender == .user ? .trailing : .leading)
+
+            if message.sender == .agent && !hasCode {
+                Spacer(minLength: 60)
+            }
         }
-        .frame(maxWidth: .infinity, alignment: message.sender == .user ? .trailing : .leading)
     }
     
     @ViewBuilder
-    private var textBubbleView: some View {
+    private func textBubbleView(fullWidth: Bool) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             if let images = message.images, !images.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -547,7 +560,7 @@ struct MessageBubble: View {
                     .markdownBlockStyle(\.codeBlock) { CodeBlockView(config: $0) }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: fullWidth ? .infinity : nil, alignment: .leading)
         .padding(12)
         .background(backgroundColor)
         .foregroundColor(textColor)
@@ -590,7 +603,6 @@ struct MessageBubble: View {
                 .font(.subheadline)
                 .italic()
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
         .background(Color.purple.opacity(0.1))
         .foregroundColor(.purple)
@@ -604,7 +616,6 @@ struct MessageBubble: View {
             Text(message.text)
                 .font(.subheadline)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
         .background(Color.blue.opacity(0.1))
         .foregroundColor(.blue)
