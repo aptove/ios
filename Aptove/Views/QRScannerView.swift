@@ -16,7 +16,10 @@ struct QRScannerView: View {
                 if isScannerActive && !isConnecting {
                     CodeScannerView(
                         codeTypes: [.qr],
+                        scanMode: .oncePerRequest,
+                        scanInterval: 0.1,
                         simulatedData: "https://192.168.1.100:8080/pair/local?code=123456&fp=SHA256:ABC123",
+                        shouldVibrateOnSuccess: false,
                         completion: handleScan
                     )
                     .id(scannerID) // Use ID to force complete recreation
@@ -175,6 +178,9 @@ struct QRScannerView: View {
             isConnecting = true
             Task {
                 await viewModel.handleQRCode(result.string)
+                if !viewModel.showingSuccess {
+                    isConnecting = false
+                }
             }
         case .failure(let error):
             viewModel.errorMessage = error.localizedDescription

@@ -87,7 +87,10 @@ class QRScannerViewModel: ObservableObject {
             // so the app switches to it immediately rather than keeping a stale connection.
             manager.setPreferredTransport(agentId: existingAgent.id, transport: result.transport)
             await manager.disconnectAgent(agentId: existingAgent.id)
-            _ = await manager.connectAgent(agentId: existingAgent.id)
+            let connected = await manager.connectAgent(agentId: existingAgent.id)
+            guard connected else {
+                throw ScanError.connectionFailed
+            }
             print("✅ QRScannerViewModel: \(message)")
             pairingStatus = message
             showingSuccess = true
@@ -166,7 +169,10 @@ class QRScannerViewModel: ObservableObject {
                 manager.setPreferredTransport(agentId: existingAgent.id, transport: transport)
             }
             await manager.disconnectAgent(agentId: existingAgent.id)
-            _ = await manager.connectAgent(agentId: existingAgent.id)
+            let connected = await manager.connectAgent(agentId: existingAgent.id)
+            guard connected else {
+                throw ScanError.connectionFailed
+            }
             print("✅ QRScannerViewModel.connectWithConfig(): \(message)")
             showingSuccess = true
             return
