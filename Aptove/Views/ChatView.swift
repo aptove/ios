@@ -497,14 +497,14 @@ struct MessageBubble: View {
     let viewModel: ChatViewModel
 
     var body: some View {
-        let hasCode = message.text.contains("```") || message.type == .toolApprovalRequest
+        let isAgent = message.sender == .agent
 
         HStack {
-            if message.sender == .user && !hasCode {
+            if !isAgent {
                 Spacer(minLength: 60)
             }
 
-            VStack(alignment: message.sender == .user ? .trailing : .leading, spacing: 4) {
+            VStack(alignment: isAgent ? .leading : .trailing, spacing: 4) {
                 if message.type == .toolApprovalRequest {
                     toolApprovalView
                 } else if message.type == .thought {
@@ -514,7 +514,7 @@ struct MessageBubble: View {
                 } else if message.type == .slashCommand {
                     slashCommandBubbleView
                 } else {
-                    textBubbleView(fullWidth: hasCode)
+                    textBubbleView(fullWidth: isAgent)
                 }
 
                 HStack(spacing: 4) {
@@ -527,12 +527,7 @@ struct MessageBubble: View {
                     }
                 }
             }
-            .frame(maxWidth: hasCode ? .infinity : nil,
-                   alignment: message.sender == .user ? .trailing : .leading)
-
-            if message.sender == .agent && !hasCode {
-                Spacer(minLength: 60)
-            }
+            .frame(maxWidth: isAgent ? .infinity : nil, alignment: .leading)
         }
     }
     
@@ -603,6 +598,7 @@ struct MessageBubble: View {
                 .font(.subheadline)
                 .italic()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
         .background(Color.purple.opacity(0.1))
         .foregroundColor(.purple)
@@ -616,6 +612,7 @@ struct MessageBubble: View {
             Text(message.text)
                 .font(.subheadline)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
         .background(Color.blue.opacity(0.1))
         .foregroundColor(.blue)
