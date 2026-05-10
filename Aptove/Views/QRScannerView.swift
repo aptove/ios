@@ -10,23 +10,28 @@ struct QRScannerView: View {
     @State private var isScannerActive = true
     @State private var scannerID = UUID() // Force recreation of scanner
     
+    @ViewBuilder
+    private var scannerLayer: some View {
+        if isScannerActive && !isConnecting {
+            CodeScannerView(
+                codeTypes: [.qr],
+                scanMode: .oncePerRequest,
+                scanInterval: 0.1,
+                simulatedData: "https://192.168.1.100:8080/pair/local?code=123456&fp=SHA256:ABC123",
+                shouldVibrateOnSuccess: false,
+                completion: handleScan
+            )
+            .id(scannerID)
+        } else {
+            Color.black
+                .ignoresSafeArea()
+        }
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
-                if isScannerActive && !isConnecting {
-                    CodeScannerView(
-                        codeTypes: [.qr],
-                        scanMode: .oncePerRequest,
-                        scanInterval: 0.1,
-                        simulatedData: "https://192.168.1.100:8080/pair/local?code=123456&fp=SHA256:ABC123",
-                        shouldVibrateOnSuccess: false,
-                        completion: handleScan
-                    )
-                    .id(scannerID) // Use ID to force complete recreation
-                } else {
-                    Color.black
-                        .ignoresSafeArea()
-                }
+                scannerLayer
                 
                 VStack {
                     Spacer()
