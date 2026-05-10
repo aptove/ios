@@ -55,6 +55,8 @@
 		C800000000000230 /* TransportCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000231 /* TransportCredentials.swift */; };
 		C800000000000300 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = C800000000000301 /* MarkdownUI */; };
 		C800000000000303 /* MessageRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000304 /* MessageRepository.swift */; };
+		C800000000000400 /* Splash in Frameworks */ = {isa = PBXBuildFile; productRef = C800000000000404 /* Splash */; };
+		C800000000000401 /* SplashHighlighter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000402 /* SplashHighlighter.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -114,6 +116,7 @@
 		C800000000000229 /* TransportEndpoint+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TransportEndpoint+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		C800000000000231 /* TransportCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransportCredentials.swift; sourceTree = "<group>"; };
 		C800000000000304 /* MessageRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageRepository.swift; sourceTree = "<group>"; };
+		C800000000000402 /* SplashHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashHighlighter.swift; sourceTree = "<group>"; };
 		E27B6F572F4BE96D00311836 /* AptoveTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AptoveTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -127,6 +130,7 @@
 				C800000000000034 /* ACPModel in Frameworks */,
 				C800000000000036 /* CodeScanner in Frameworks */,
 				C800000000000300 /* MarkdownUI in Frameworks */,
+				C800000000000400 /* Splash in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -187,6 +191,7 @@
 				C800000000000060 /* SettingsView.swift */,
 				C800000000000305 /* SplashView.swift */,
 				C800000000000307 /* MemoryEntryView.swift */,
+				C800000000000402 /* SplashHighlighter.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -318,6 +323,7 @@
 				C800000000000035 /* ACPModel */,
 				C800000000000037 /* CodeScanner */,
 				C800000000000301 /* MarkdownUI */,
+				C800000000000404 /* Splash */,
 			);
 			productName = Aptove;
 			productReference = C800000000000001 /* Aptove.app */;
@@ -374,6 +380,7 @@
 				C80000000000003B /* XCRemoteSwiftPackageReference "swift-sdk" */,
 				C80000000000003C /* XCRemoteSwiftPackageReference "CodeScanner" */,
 				C800000000000302 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
+				C800000000000403 /* XCRemoteSwiftPackageReference "Splash" */,
 			);
 			productRefGroup = C800000000000027 /* Products */;
 			projectDirPath = "";
@@ -445,6 +452,7 @@
 				C80000000000020C /* ConnectionStatus.swift in Sources */,
 				C80000000000020E /* AgentRepository.swift in Sources */,
 				C800000000000303 /* MessageRepository.swift in Sources */,
+				C800000000000401 /* SplashHighlighter.swift in Sources */,
 				C800000000000210 /* UserDefaultsMigrator.swift in Sources */,
 				C800000000000212 /* Aptove.xcdatamodeld in Sources */,
 			);
@@ -767,6 +775,14 @@
 				minimumVersion = 2.0.0;
 			};
 		};
+		C800000000000403 /* XCRemoteSwiftPackageReference "Splash" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/JohnSundell/Splash";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.16.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -794,6 +810,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C800000000000302 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */;
 			productName = MarkdownUI;
+		};
+		C800000000000404 /* Splash */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C800000000000403 /* XCRemoteSwiftPackageReference "Splash" */;
+			productName = Splash;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
