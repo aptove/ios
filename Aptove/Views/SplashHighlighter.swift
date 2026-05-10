@@ -12,10 +12,8 @@ struct SplashHighlighter: CodeSyntaxHighlighter {
     }
 
     func highlightCode(_ content: String, language: String?) -> Text {
-        guard language != nil else {
-            return Text(content)
-        }
-        return syntaxHighlighter.highlight(content)
+        guard language != nil else { return Text(content) }
+        return Text(syntaxHighlighter.highlight(content))
     }
 }
 
@@ -32,6 +30,7 @@ extension CodeSyntaxHighlighter where Self == SplashHighlighter {
 }
 
 // MARK: - Text Output Format
+// Builds an AttributedString (O(N) appends) instead of chaining Text+Text (O(N²)).
 
 struct TextOutputFormat: OutputFormat {
     private let theme: Splash.Theme
@@ -48,39 +47,42 @@ struct TextOutputFormat: OutputFormat {
 extension TextOutputFormat {
     struct Builder: OutputBuilder {
         private let theme: Splash.Theme
-        private var accumulatedText: [Text]
+        private var attributed = AttributedString()
 
         fileprivate init(theme: Splash.Theme) {
             self.theme = theme
-            accumulatedText = []
         }
 
         mutating func addToken(_ token: String, ofType type: TokenType) {
-            let color = theme.tokenColors[type] ?? theme.plainTextColor
-            accumulatedText.append(Text(token).foregroundColor(SwiftUI.Color(color)))
+            let uiColor = theme.tokenColors[type] ?? theme.plainTextColor
+            var part = AttributedString(token)
+            part.foregroundColor = SwiftUI.Color(uiColor)
+            attributed.append(part)
         }
 
         mutating func addPlainText(_ text: String) {
-            accumulatedText.append(
-                Text(text).foregroundColor(SwiftUI.Color(theme.plainTextColor))
-            )
+            var part = AttributedString(text)
+            part.foregroundColor = SwiftUI.Color(theme.plainTextColor)
+            attributed.append(part)
         }
 
         mutating func addWhitespace(_ whitespace: String) {
-            accumulatedText.append(Text(whitespace))
+            attributed.append(AttributedString(whitespace))
         }
 
-        func build() -> Text {
-            accumulatedText.reduce(Text(""), +)
+        func build() -> AttributedString {
+            attributed
         }
     }
 }
 
 // MARK: - Code Block View
+// Runs Splash off the main thread and caches by colorScheme to avoid re-highlighting on re-renders.
 
 struct CodeBlockView: View {
     let config: CodeBlockConfiguration
     @Environment(\.colorScheme) private var colorScheme
+    @State private var highlighted: AttributedString?
 
     private var theme: Splash.Theme {
         colorScheme == .dark
@@ -111,13 +113,14 @@ struct CodeBlockView: View {
             Divider()
 
             ScrollView(.horizontal, showsIndicators: false) {
-                config.label
+                Text(highlighted ?? AttributedString(config.content))
                     .relativeLineSpacing(.em(0.25))
                     .markdownTextStyle {
                         FontFamilyVariant(.monospaced)
                         FontSize(.em(0.85))
                     }
                     .padding(12)
+                    .foregroundColor(SwiftUI.Color(theme.plainTextColor))
             }
             .background(SwiftUI.Color(theme.backgroundColor))
         }
@@ -127,5 +130,24 @@ struct CodeBlockView: View {
                 .stroke(SwiftUI.Color(theme.plainTextColor).opacity(0.15), lineWidth: 1)
         )
         .padding(.vertical, 4)
+        .task(id: colorScheme) {
+            await computeHighlight()
+        }
+    }
+
+    private func computeHighlight() async {
+        let content = config.content
+        let language = config.language
+        let isDark = colorScheme == .dark
+
+        let result: AttributedString = await Task.detached(priority: .userInitiated) {
+            guard language != nil else { return AttributedString(content) }
+            let theme: Splash.Theme = isDark
+                ? .wwdc17(withFont: .init(size: 16))
+                : .sunset(withFont: .init(size: 16))
+            return SyntaxHighlighter(format: TextOutputFormat(theme: theme)).highlight(content)
+        }.value
+
+        highlighted = result
     }
 }

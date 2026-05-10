@@ -495,7 +495,6 @@ struct WaveformView: View {
 struct MessageBubble: View {
     let message: Message
     let viewModel: ChatViewModel
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(alignment: message.sender == .user ? .trailing : .leading, spacing: 4) {
@@ -546,7 +545,6 @@ struct MessageBubble: View {
             if !message.text.isEmpty {
                 Markdown(message.text)
                     .markdownBlockStyle(\.codeBlock) { CodeBlockView(config: $0) }
-                    .markdownCodeSyntaxHighlighter(.splashAdapting(to: colorScheme))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
