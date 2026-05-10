@@ -133,7 +133,7 @@ struct SettingsView: View {
                     }
                 }
             }
-            .navigationTitle("Settings")
+            .navigationTitle(Bundle.localized("Settings", language: appLanguage))
         }
     }
 }

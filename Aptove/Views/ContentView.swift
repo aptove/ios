@@ -2,8 +2,20 @@ import SwiftUI
 
 enum BottomTab { case chat, settings }
 
+extension Bundle {
+    /// Loads a localized string from the `.lproj` bundle for `language`, bypassing the
+    /// UIKit navigation bar's inability to respect SwiftUI's `\.locale` environment.
+    static func localized(_ key: String, language: String) -> String {
+        let lang = language.isEmpty ? "en" : language
+        guard let path = main.path(forResource: lang, ofType: "lproj"),
+              let bundle = Bundle(path: path) else { return key }
+        return bundle.localizedString(forKey: key, value: key, table: nil)
+    }
+}
+
 struct ContentView: View {
     @EnvironmentObject private var agentManager: AgentManager
+    @AppStorage("appLanguage") private var appLanguage: String = ""
     @State private var selectedTab: BottomTab = .chat
     @State private var isInChat = false
     @State private var showingQRScanner = false
@@ -23,7 +35,7 @@ struct ContentView: View {
                         AgentListView(isInChat: $isInChat)
                     }
                 }
-                .navigationTitle("Agents")
+                .navigationTitle(Bundle.localized("Agents", language: appLanguage))
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
                         Button {
