@@ -10,6 +10,8 @@ struct ConnectionConfig: Codable {
     let version: String
     /// The working directory where the bridge was started (provided during pairing).
     let cwd: String
+    /// Stable bridge agent UUID used for multi-transport deduplication (present in static JSON QR codes).
+    let agentId: String?
 
     enum CodingKeys: String, CodingKey {
         case url
@@ -20,9 +22,10 @@ struct ConnectionConfig: Codable {
         case protocolVersion = "protocol"
         case version
         case cwd
+        case agentId
     }
 
-    init(url: String, clientId: String? = nil, clientSecret: String? = nil, authToken: String? = nil, certFingerprint: String? = nil, protocolVersion: String = "acp", version: String = "1.0.0", cwd: String) {
+    init(url: String, clientId: String? = nil, clientSecret: String? = nil, authToken: String? = nil, certFingerprint: String? = nil, protocolVersion: String = "acp", version: String = "1.0.0", cwd: String, agentId: String? = nil) {
         self.url = url
         self.clientId = clientId
         self.clientSecret = clientSecret
@@ -31,6 +34,7 @@ struct ConnectionConfig: Codable {
         self.protocolVersion = protocolVersion
         self.version = version
         self.cwd = cwd
+        self.agentId = agentId
     }
     
     func validate() throws {

@@ -30,7 +30,9 @@ class QRScannerViewModel: ObservableObject {
                 // Legacy JSON format (for backwards compatibility)
                 print("📷 QRScannerViewModel.handleQRCode(): Detected legacy JSON format")
                 let config = try handleLegacyJSON(qrString)
-                try await connectWithConfig(config, bridgeAgentId: nil, transport: nil)
+                // Infer transport from config fields (clientId present → Cloudflare)
+                let transport: String? = config.clientId != nil ? "cloudflare" : nil
+                try await connectWithConfig(config, bridgeAgentId: config.agentId, transport: transport)
             }
             
         } catch let error as PairingError {
@@ -147,7 +149,29 @@ class QRScannerViewModel: ObservableObject {
             print("❌ QRScannerViewModel.connectWithConfig(): No agent manager!")
             throw ScanError.noAgentManager
         }
-        
+
+        // Multi-transport dedup: bridgeAgentId takes priority over URL matching.
+        // This handles the case where the same bridge is scanned with a different transport
+        // (e.g., first local, then Cloudflare — different URLs, same agent).
+        if let bridgeAgentId = bridgeAgentId,
+           let existingAgent = manager.findAgent(byBridgeAgentId: bridgeAgentId) {
+            print("📷 QRScannerViewModel.connectWithConfig(): Found existing agent by bridgeAgentId \(bridgeAgentId), adding transport")
+            pairingStatus = "Adding transport to existing agent..."
+            let message = try manager.addOrUpdateTransportEndpoint(
+                agentId: existingAgent.id,
+                transport: transport ?? "cloudflare",
+                config: config
+            )
+            if let transport = transport {
+                manager.setPreferredTransport(agentId: existingAgent.id, transport: transport)
+            }
+            await manager.disconnectAgent(agentId: existingAgent.id)
+            _ = await manager.connectAgent(agentId: existingAgent.id)
+            print("✅ QRScannerViewModel.connectWithConfig(): \(message)")
+            showingSuccess = true
+            return
+        }
+
         // Check if agent already exists - if so, update credentials instead of rejecting
         if let existingAgent = manager.findAgent(withURL: config.url, clientId: config.clientId) {
             print("📷 QRScannerViewModel.connectWithConfig(): Agent exists, updating credentials for \(existingAgent.id)")
