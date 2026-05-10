@@ -498,39 +498,30 @@ struct MessageBubble: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        HStack {
-            if message.sender == .user {
-                Spacer(minLength: 60)
+        VStack(alignment: message.sender == .user ? .trailing : .leading, spacing: 4) {
+            if message.type == .toolApprovalRequest {
+                toolApprovalView
+            } else if message.type == .thought {
+                thoughtBubbleView
+            } else if message.type == .toolStatus {
+                toolStatusBubbleView
+            } else if message.type == .slashCommand {
+                slashCommandBubbleView
+            } else {
+                textBubbleView
             }
-            
-            VStack(alignment: message.sender == .user ? .trailing : .leading, spacing: 4) {
-                if message.type == .toolApprovalRequest {
-                    toolApprovalView
-                } else if message.type == .thought {
-                    thoughtBubbleView
-                } else if message.type == .toolStatus {
-                    toolStatusBubbleView
-                } else if message.type == .slashCommand {
-                    slashCommandBubbleView
-                } else {
-                    textBubbleView
+
+            HStack(spacing: 4) {
+                Text(timeString)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+
+                if message.sender == .user {
+                    statusIcon
                 }
-                
-                HStack(spacing: 4) {
-                    Text(timeString)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                    
-                    if message.sender == .user {
-                        statusIcon
-                    }
-                }
-            }
-            
-            if message.sender == .agent {
-                Spacer(minLength: 60)
             }
         }
+        .frame(maxWidth: .infinity, alignment: message.sender == .user ? .trailing : .leading)
     }
     
     @ViewBuilder
@@ -558,6 +549,7 @@ struct MessageBubble: View {
                     .markdownCodeSyntaxHighlighter(.splashAdapting(to: colorScheme))
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
         .background(backgroundColor)
         .foregroundColor(textColor)
@@ -600,12 +592,13 @@ struct MessageBubble: View {
                 .font(.subheadline)
                 .italic()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
         .background(Color.purple.opacity(0.1))
         .foregroundColor(.purple)
         .cornerRadius(12)
     }
-    
+
     @ViewBuilder
     private var toolStatusBubbleView: some View {
         HStack(spacing: 8) {
@@ -613,12 +606,13 @@ struct MessageBubble: View {
             Text(message.text)
                 .font(.subheadline)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
         .background(Color.blue.opacity(0.1))
         .foregroundColor(.blue)
         .cornerRadius(12)
     }
-    
+
     @ViewBuilder
     private var toolApprovalView: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -703,6 +697,7 @@ struct MessageBubble: View {
                 .cornerRadius(8)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
         .background(Color.orange.opacity(0.05))
         .cornerRadius(16)
