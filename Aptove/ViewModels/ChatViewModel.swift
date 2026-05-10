@@ -643,28 +643,23 @@ class ChatViewModel: ObservableObject {
     }
     
     func approveTool(messageId: String, optionId: String = "allow_once") async {
+        defer { showNextQueuedApproval() }
+
         guard let message = messages.first(where: { $0.id == messageId }),
-              let toolApproval = message.toolApproval else {
-            return
-        }
-        
-        // Use cached client
+              let toolApproval = message.toolApproval else { return }
         guard let client = cachedClient else { return }
-        
+
         do {
             try await client.approveTool(toolCallId: toolApproval.toolCallId, optionId: optionId)
-            
-            // Update message to show approval
+
             if let index = messages.firstIndex(where: { $0.id == messageId }) {
-                var updatedApproval = toolApproval
-                updatedApproval = ToolApprovalInfo(
+                let updatedApproval = ToolApprovalInfo(
                     toolCallId: toolApproval.toolCallId,
                     title: toolApproval.title,
                     command: toolApproval.command,
                     approved: true,
                     options: toolApproval.options
                 )
-                
                 messages[index] = Message(
                     id: message.id,
                     text: message.text,
@@ -676,36 +671,30 @@ class ChatViewModel: ObservableObject {
                 )
                 updateConversation()
                 saveMessagesToDisk()
-                showNextQueuedApproval()
             }
         } catch {
             print("Error approving tool: \(error)")
         }
     }
-    
+
     func rejectTool(messageId: String) async {
+        defer { showNextQueuedApproval() }
+
         guard let message = messages.first(where: { $0.id == messageId }),
-              let toolApproval = message.toolApproval else {
-            return
-        }
-        
-        // Use cached client
+              let toolApproval = message.toolApproval else { return }
         guard let client = cachedClient else { return }
-        
+
         do {
             try await client.rejectTool(toolCallId: toolApproval.toolCallId)
-            
-            // Update message to show rejection
+
             if let index = messages.firstIndex(where: { $0.id == messageId }) {
-                var updatedApproval = toolApproval
-                updatedApproval = ToolApprovalInfo(
+                let updatedApproval = ToolApprovalInfo(
                     toolCallId: toolApproval.toolCallId,
                     title: toolApproval.title,
                     command: toolApproval.command,
                     approved: false,
                     options: toolApproval.options
                 )
-                
                 messages[index] = Message(
                     id: message.id,
                     text: message.text,
@@ -717,7 +706,6 @@ class ChatViewModel: ObservableObject {
                 )
                 updateConversation()
                 saveMessagesToDisk()
-                showNextQueuedApproval()
             }
         } catch {
             print("Error rejecting tool: \(error)")

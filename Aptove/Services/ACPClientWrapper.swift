@@ -42,9 +42,7 @@ private class AptoveClient: @preconcurrency Client, ClientSessionOperations {
     var pendingPermissionOptions: [String: [PermissionOption]] = [:]
     var onPermissionRequest: ((String, ToolCallUpdateData, [PermissionOption]) -> Void)?
     
-    // Terminal approval
-    var onTerminalApprovalRequest: ((String, String) -> Void)? // command, title
-    var pendingTerminalApprovals: [String: CheckedContinuation<Bool, Never>] = [:] // command -> approved
+    // Terminal approval (not yet supported — terminalCreate auto-rejects)
     
     func onSessionUpdate(_ update: SessionUpdate) async {
         print("📨 Session update: \(update)")
@@ -90,26 +88,10 @@ private class AptoveClient: @preconcurrency Client, ClientSessionOperations {
         await onSessionUpdate(notification)
     }
     
-    // Terminal Operations - with approval
+    // Terminal Operations — not yet supported on iOS; auto-reject to avoid hanging the agent.
     func terminalCreate(request: CreateTerminalRequest) async throws -> CreateTerminalResponse {
-        print("🖥️ terminalCreate CALLED - command: \(request.command)")
-        
-        let command = request.command
-        
-        // Request approval
-        let approved = await withCheckedContinuation { continuation in
-            let requestId = UUID().uuidString
-            pendingTerminalApprovals[requestId] = continuation
-            onTerminalApprovalRequest?(command, "Execute terminal command")
-        }
-        
-        if !approved {
-            throw ClientError.requestFailed("User rejected command execution")
-        }
-        
-        // For now, return a fake terminal ID - actual execution would happen here
-        print("✅ Terminal command approved, returning fake response")
-        return CreateTerminalResponse(terminalId: UUID().uuidString)
+        print("🖥️ terminalCreate CALLED - command: \(request.command) — auto-rejecting (unsupported)")
+        throw ClientError.requestFailed("Terminal commands are not supported on iOS")
     }
     
     func terminalOutput(sessionId: SessionId, terminalId: String, meta: MetaField?) async throws -> TerminalOutputResponse {
@@ -296,6 +278,8 @@ class ACPClientWrapper: ObservableObject {
                 self.transport = wsTransport
 
                 print("🔌 ACPClientWrapper.connect(): Creating AptoveClient...")
+                // Cancel any continuations from the previous client before replacing it.
+                cancelPendingClientRequests()
                 let client = AptoveClient()
                 client.wrapper = self
                 self.client = client
@@ -447,6 +431,9 @@ class ACPClientWrapper: ObservableObject {
         // does not trigger the unexpected-disconnect callback.
         transportObserverTask?.cancel()
         transportObserverTask = nil
+
+        // Resume any suspended permission continuations so the agent isn't left hanging.
+        cancelPendingClientRequests()
 
         if let conn = connection {
             await conn.disconnect()
@@ -841,6 +828,17 @@ class ACPClientWrapper: ObservableObject {
     
     func getPermissionOptions(for toolCallId: String) -> [PermissionOption]? {
         return client?.pendingPermissionOptions[toolCallId]
+    }
+
+    /// Resume all suspended permission continuations with an error so the agent side
+    /// is not left hanging when the connection drops or a new client is created.
+    private func cancelPendingClientRequests() {
+        guard let client = client else { return }
+        for continuation in client.pendingPermissions.values {
+            continuation.resume(throwing: ClientError.requestFailed("Connection closed"))
+        }
+        client.pendingPermissions.removeAll()
+        client.pendingPermissionOptions.removeAll()
     }
     
     /// Check if an error is a "Session not found" JSON-RPC error from the agent.
