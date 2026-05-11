@@ -458,10 +458,16 @@ class ACPClientWrapper: ObservableObject {
         print("✅ Session conversation cleared, workspace retained")
     }
     
-    /// Register the APNs push token with the bridge for background notifications
+    /// Register the APNs push token with the bridge for background notifications.
+    /// Skipped when the bridge has no push relay configured (pushRelayUrl is nil).
     func registerPushToken() async {
+        guard config.pushRelayUrl != nil else {
+            print("📲 ACPClientWrapper: Bridge has no push relay configured, skipping registration")
+            return
+        }
+
         let pushManager = PushNotificationManager.shared
-        
+
         guard let deviceToken = await pushManager.getDeviceToken() else {
             print("📲 ACPClientWrapper: No push token available, skipping registration")
             return

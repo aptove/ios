@@ -184,7 +184,8 @@ class AgentManager: ObservableObject {
             authToken: config.authToken,
             certFingerprint: config.certFingerprint,
             clientId: config.clientId,
-            clientSecret: config.clientSecret
+            clientSecret: config.clientSecret,
+            pushRelayUrl: config.pushRelayUrl
         )
         try TransportCredentialManager.save(credentials, for: endpoint.endpointId ?? UUID().uuidString)
 
@@ -381,7 +382,8 @@ class AgentManager: ObservableObject {
                 clientSecret: credentials?.clientSecret,
                 authToken: credentials?.authToken,
                 certFingerprint: credentials?.certFingerprint,
-                cwd: entity.cwd
+                cwd: entity.cwd,
+                pushRelayUrl: credentials?.pushRelayUrl
             )
 
             // Swap client for this endpoint's config

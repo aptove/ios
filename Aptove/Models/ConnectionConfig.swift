@@ -12,6 +12,10 @@ struct ConnectionConfig: Codable {
     let cwd: String
     /// Stable bridge agent UUID used for multi-transport deduplication (present in static JSON QR codes).
     let agentId: String?
+    /// Push relay URL from the bridge's pairing response.
+    /// Non-nil only when the bridge has push fully configured.
+    /// Mobile clients use this as the gate for registering push tokens.
+    let pushRelayUrl: String?
 
     enum CodingKeys: String, CodingKey {
         case url
@@ -23,9 +27,10 @@ struct ConnectionConfig: Codable {
         case version
         case cwd
         case agentId
+        case pushRelayUrl
     }
 
-    init(url: String, clientId: String? = nil, clientSecret: String? = nil, authToken: String? = nil, certFingerprint: String? = nil, protocolVersion: String = "acp", version: String = "1.0.0", cwd: String, agentId: String? = nil) {
+    init(url: String, clientId: String? = nil, clientSecret: String? = nil, authToken: String? = nil, certFingerprint: String? = nil, protocolVersion: String = "acp", version: String = "1.0.0", cwd: String, agentId: String? = nil, pushRelayUrl: String? = nil) {
         self.url = url
         self.clientId = clientId
         self.clientSecret = clientSecret
@@ -35,6 +40,7 @@ struct ConnectionConfig: Codable {
         self.version = version
         self.cwd = cwd
         self.agentId = agentId
+        self.pushRelayUrl = pushRelayUrl
     }
     
     func validate() throws {

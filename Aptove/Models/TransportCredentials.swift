@@ -7,6 +7,8 @@ struct TransportCredentials: Codable {
     let certFingerprint: String?
     let clientId: String?
     let clientSecret: String?
+    /// Push relay URL from the bridge's pairing response (same for all endpoints of a bridge).
+    let pushRelayUrl: String?
 }
 
 // MARK: - Keychain Storage
