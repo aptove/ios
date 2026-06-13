@@ -72,11 +72,15 @@ struct AptoveApp: App {
                     .onChange(of: scenePhase) { _, newPhase in
                         switch newPhase {
                         case .active:
-                            print("🌅 [push-dbg] App became ACTIVE (foreground) — WebSocket should be alive")
+                            print("🌅 [push-dbg] App became ACTIVE — reconnecting agents")
+                            agentManager.autoConnectAllAgents()
                         case .inactive:
                             print("🌄 [push-dbg] App became INACTIVE (transitioning)")
                         case .background:
-                            print("🌙 [push-dbg] App entered BACKGROUND — bridge should detect disconnect and push")
+                            print("🌙 [push-dbg] App entered BACKGROUND — closing WebSocket so bridge detects disconnect and pushes")
+                            Task {
+                                await agentManager.disconnectAll()
+                            }
                         @unknown default:
                             break
                         }

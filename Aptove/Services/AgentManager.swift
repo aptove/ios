@@ -460,6 +460,21 @@ class AgentManager: ObservableObject {
         repository.updateConnectionStatus(agentId: agentId, status: .disconnected)
     }
 
+    /// Disconnect all currently connected agents.
+    ///
+    /// Called when the app enters background so the bridge detects the closed
+    /// WebSocket and sends a push notification. `disconnect()` cancels the
+    /// transport observer first, so no spurious auto-reconnect fires.
+    func disconnectAll() async {
+        let connectedIds = agents
+            .filter { $0.status == .connected || $0.status == .reconnecting }
+            .map { $0.id }
+        print("🌙 [push-dbg] AgentManager: disconnecting \(connectedIds.count) agent(s) for background")
+        for agentId in connectedIds {
+            await disconnectAgent(agentId: agentId)
+        }
+    }
+
     /// Legacy single-URL connection (for agents without transport endpoints).
     private func connectAgentLegacy(agentId: String) async -> Bool {
         guard let client = await getConnectedClient(for: agentId) else { return false }
