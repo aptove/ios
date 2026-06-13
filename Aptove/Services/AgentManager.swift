@@ -34,6 +34,11 @@ class AgentManager: ObservableObject {
     /// Safe to access without extra locking because AgentManager is @MainActor.
     private var connectingAgents: Set<String> = []
 
+    /// Consecutive failure counts per agent for exponential backoff in the retry loop.
+    private var retryFailureCounts: [String: Int] = [:]
+    /// Earliest time the retry loop is allowed to attempt each agent again.
+    private var retryNotBefore: [String: Date] = [:]
+
     init(repository: AgentRepository = AgentRepository()) {
         self.repository = repository
         print("📱 AgentManager: Initializing...")
@@ -73,18 +78,36 @@ class AgentManager: ObservableObject {
         }
     }
 
-    /// Start a background timer that retries disconnected agents every 30 seconds.
+    /// Start a background timer that retries disconnected agents with exponential backoff.
+    ///
+    /// Backoff schedule per agent: 30s → 60s → 120s → 240s → 480s → 600s (cap).
+    /// An agent that keeps failing (e.g. wrong auth token, bridge not running) backs off
+    /// to 10-minute retries instead of hammering every 30 seconds.
     private func startBackgroundRetry() {
         retryTask?.cancel()
         retryTask = Task {
             repeat {
-                try? await Task.sleep(nanoseconds: 30_000_000_000) // 30s
+                try? await Task.sleep(nanoseconds: 30_000_000_000) // base interval
                 guard !Task.isCancelled else { return }
+                let now = Date()
                 let disconnected = self.agents.filter { $0.status == .disconnected }
                 for agent in disconnected {
+                    // Skip if still within the backoff window for this agent
+                    if let notBefore = self.retryNotBefore[agent.id], notBefore > now {
+                        continue
+                    }
                     let agentId = agent.id
-                    Task {
-                        _ = await self.connectAgent(agentId: agentId)
+                    let success = await self.connectAgent(agentId: agentId)
+                    if success {
+                        self.retryFailureCounts[agentId] = 0
+                        self.retryNotBefore.removeValue(forKey: agentId)
+                    } else {
+                        let failures = (self.retryFailureCounts[agentId] ?? 0) + 1
+                        self.retryFailureCounts[agentId] = failures
+                        // 30s, 60s, 120s, 240s, 480s, 600s cap
+                        let backoff = min(30.0 * pow(2.0, Double(failures - 1)), 600.0)
+                        self.retryNotBefore[agentId] = now.addingTimeInterval(backoff)
+                        print("📱 AgentManager: \(agentId) backoff \(Int(backoff))s (failure #\(failures))")
                     }
                 }
             } while !Task.isCancelled
@@ -413,6 +436,9 @@ class AgentManager: ObservableObject {
                     setPreferredTransport(agentId: agentId, transport: endpoint.transport)
                 }
                 print("✅ AgentManager.connectAgent: Connected via \(endpoint.transport ?? "?")")
+                // Clear backoff state so the retry loop picks this agent up immediately if it disconnects again
+                retryFailureCounts[agentId] = 0
+                retryNotBefore.removeValue(forKey: agentId)
                 return true
             } else {
                 repository.updateEndpointStatus(endpointId: endpointId, isActive: false)
