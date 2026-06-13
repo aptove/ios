@@ -34,6 +34,7 @@ struct AptoveApp: App {
     @AppStorage("isDarkMode") private var isDarkMode: Bool = true
     @AppStorage("appLanguage") private var appLanguage: String = ""
     @State private var showSplash = true
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         print("🚀 AptoveApp: Application starting...")
@@ -67,6 +68,18 @@ struct AptoveApp: App {
                         print("🚀 AptoveApp: ContentView appeared - app fully launched")
                         // Request push notification permissions on launch
                         pushManager.requestAuthorization()
+                    }
+                    .onChange(of: scenePhase) { _, newPhase in
+                        switch newPhase {
+                        case .active:
+                            print("🌅 [push-dbg] App became ACTIVE (foreground) — WebSocket should be alive")
+                        case .inactive:
+                            print("🌄 [push-dbg] App became INACTIVE (transitioning)")
+                        case .background:
+                            print("🌙 [push-dbg] App entered BACKGROUND — bridge should detect disconnect and push")
+                        @unknown default:
+                            break
+                        }
                     }
 
                 if showSplash {
