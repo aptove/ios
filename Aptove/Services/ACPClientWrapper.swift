@@ -482,7 +482,7 @@ class ACPClientWrapper: ObservableObject {
         
         // Build JSON-RPC notification using the SDK's public types
         let params: JsonValue = .object([
-            "platform": .string("apns"),
+            "platform": .string("ios"),
             "deviceToken": .string(deviceToken),
             "bundleId": .string(bundleId)
         ])
