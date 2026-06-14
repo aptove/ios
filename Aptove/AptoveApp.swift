@@ -1,5 +1,6 @@
 import SwiftUI
 import UserNotifications
+import UIKit
 
 /// AppDelegate for handling push notification registration
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
@@ -72,14 +73,26 @@ struct AptoveApp: App {
                     .onChange(of: scenePhase) { _, newPhase in
                         switch newPhase {
                         case .active:
-                            print("🌅 [push-dbg] App became ACTIVE — reconnecting agents")
-                            agentManager.autoConnectAllAgents()
+                            print("🌅 [push-dbg] App became ACTIVE — reconnecting agents (0.5s delay for in-flight disconnect)")
+                            // Small delay so any in-flight background disconnect completes before
+                            // we reconnect, preventing two simultaneous connections on the bridge.
+                            Task {
+                                try? await Task.sleep(nanoseconds: 500_000_000)
+                                agentManager.autoConnectAllAgents()
+                            }
                         case .inactive:
                             print("🌄 [push-dbg] App became INACTIVE (transitioning)")
                         case .background:
                             print("🌙 [push-dbg] App entered BACKGROUND — closing WebSocket so bridge detects disconnect and pushes")
+                            // Request background execution time so iOS doesn't suspend the process
+                            // before the WebSocket close frame is delivered to the bridge.
+                            var bgTaskId = UIBackgroundTaskIdentifier.invalid
+                            bgTaskId = UIApplication.shared.beginBackgroundTask(withName: "ws-background-disconnect") {
+                                UIApplication.shared.endBackgroundTask(bgTaskId)
+                            }
                             Task {
                                 await agentManager.disconnectAll()
+                                UIApplication.shared.endBackgroundTask(bgTaskId)
                             }
                         @unknown default:
                             break

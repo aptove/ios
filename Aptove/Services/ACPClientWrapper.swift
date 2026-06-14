@@ -190,6 +190,8 @@ class ACPClientWrapper: ObservableObject {
     }
     
     func connect(existingSessionId: String?) async {
+        // An intentional disconnect is over — allow sendMessage() to reconnect again.
+        isIntentionallyDisconnecting = false
         print("🔌 ACPClientWrapper.connect(): Starting connection flow...")
         if let sessionId = existingSessionId {
             print("🔌 ACPClientWrapper.connect(): Will try to load session: \(sessionId)")
@@ -427,6 +429,8 @@ class ACPClientWrapper: ObservableObject {
     }
     
     func disconnect() async {
+        // Signal in-flight sendMessage() Tasks to skip their reconnect loop.
+        isIntentionallyDisconnecting = true
         // Cancel the transport observer first so an intentional disconnect
         // does not trigger the unexpected-disconnect callback.
         transportObserverTask?.cancel()
@@ -585,6 +589,10 @@ class ACPClientWrapper: ObservableObject {
     var onUnexpectedDisconnect: (() -> Void)?
     private var transportObserverTask: Task<Void, Never>?
 
+    /// Set to true by `disconnect()` to suppress the sendMessage() internal reconnect
+    /// when the disconnect is intentional (e.g. app backgrounding). Cleared by `connect()`.
+    private var isIntentionallyDisconnecting = false
+
     /// Called when another device sends a user message to the same session.
     /// The string is the plain text of the remote message.
     var onRemoteUserMessage: ((String) -> Void)?
@@ -716,6 +724,17 @@ class ACPClientWrapper: ObservableObject {
                 // retry the prompt once.
                 guard reconnectLimit > 0 else {
                     print("🔄 Auto-reconnect disabled (maxReconnectAttempts=0)")
+                    await MainActor.run {
+                        self.connectionState = .disconnected
+                        onComplete(nil, error.localizedDescription)
+                    }
+                    return
+                }
+
+                // Skip reconnect if disconnect() was called intentionally (e.g. app backgrounding).
+                // AgentManager will reconnect via autoConnectAllAgents() when the app foregrounds.
+                if await MainActor.run(body: { self.isIntentionallyDisconnecting }) {
+                    print("🔄 Skipping auto-reconnect — intentional disconnect in progress")
                     await MainActor.run {
                         self.connectionState = .disconnected
                         onComplete(nil, error.localizedDescription)
