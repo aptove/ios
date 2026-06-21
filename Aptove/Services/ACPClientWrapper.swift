@@ -85,6 +85,7 @@ private class AptoveClient: @preconcurrency Client, ClientSessionOperations {
     }
     
     func notify(notification: SessionUpdate, meta: MetaField?) async {
+        print("[push-dbg] AptoveClient.notify() onUpdate=\(onUpdate != nil ? "SET" : "NIL") — \(String(describing: notification).prefix(120))")
         await onSessionUpdate(notification)
     }
     
@@ -286,6 +287,28 @@ class ACPClientWrapper: ObservableObject {
                 client.wrapper = self
                 self.client = client
                 print("🔌 ACPClientWrapper.connect(): Client created")
+
+                // If sendMessage() was interrupted by an intentional disconnect (app backgrounded),
+                // restore the onUpdate handler so buffered agent messages appear in the UI when the
+                // bridge replays them after session resume.
+                if let pending = pendingOnUpdate {
+                    print("🔄 [push-dbg] Restoring pending response handler to new AptoveClient after reconnect")
+                    client.onUpdate = pending
+                } else {
+                    // No active sendMessage() — buffer agent message chunks from bridge replay
+                    // so ChatViewModel can display them when the user opens the chat.
+                    client.onUpdate = { [weak self] update in
+                        guard let self else { return }
+                        if case .agentMessageChunk(let chunk) = update,
+                           case .text(let textContent) = chunk.content {
+                            if self.pendingBufferedResponse == nil {
+                                self.pendingBufferedResponse = ""
+                            }
+                            self.pendingBufferedResponse?.append(textContent.text)
+                            print("🔄 [push-dbg] Buffered agent chunk (cold-start): \(textContent.text)")
+                        }
+                    }
+                }
 
                 // Set up permission request handler
                 print("🔌 ACPClientWrapper.connect(): Setting up permission request handler...")
@@ -593,6 +616,17 @@ class ACPClientWrapper: ObservableObject {
     /// when the disconnect is intentional (e.g. app backgrounding). Cleared by `connect()`.
     private var isIntentionallyDisconnecting = false
 
+    /// Preserved response handler from a sendMessage() call that was interrupted by a
+    /// background disconnect. Re-attached to the new AptoveClient after reconnect so the
+    /// agent's response is displayed when the app foregrounds.
+    private var pendingOnUpdate: ((SessionUpdate) -> Void)?
+    /// Preserved completion callback paired with pendingOnUpdate.
+    private var pendingOnComplete: ((StopReason?, String?) -> Void)?
+
+    /// Agent response text accumulated during cold-start buffer replay (no ChatView open).
+    /// Consumed by ChatViewModel when the chat view opens.
+    var pendingBufferedResponse: String?
+
     /// Called when another device sends a user message to the same session.
     /// The string is the plain text of the remote message.
     var onRemoteUserMessage: ((String) -> Void)?
@@ -692,59 +726,76 @@ class ACPClientWrapper: ObservableObject {
         let reconnectLimit = self.maxReconnectAttempts
         
         Task {
+            // Save response callbacks BEFORE awaiting conn.prompt() so connect() can restore
+            // client.onUpdate (= pendingOnUpdate) to any new AptoveClient created during a
+            // background disconnect + reconnect, ensuring buffered agent chunks appear in the UI.
+            await MainActor.run {
+                self.pendingOnUpdate = self.client?.onUpdate
+                self.pendingOnComplete = { [weak self] stopReason, err in
+                    self?.pendingOnUpdate = nil
+                    self?.pendingOnComplete = nil
+                    onComplete(stopReason, err)
+                }
+            }
+
             do {
                 let response = try await conn.prompt(request: promptRequest)
                 print("📥 Prompt completed: \(response.stopReason)")
-                
+
                 // Small delay to ensure final chunks arrive
                 try? await Task.sleep(nanoseconds: 100_000_000)
-                
+
                 await MainActor.run {
+                    // Response arrived on the live connection — clear pending and finalise.
+                    self.pendingOnUpdate = nil
+                    self.pendingOnComplete = nil
                     onComplete(response.stopReason, nil)
                 }
             } catch {
                 print("❌ Prompt error: \(error)")
-                
-                // --- Distinguish agent errors from transport errors ---
-                // JSON-RPC errors from the agent (quota exceeded, invalid
-                // request, etc.) should NOT trigger reconnect — surface
-                // the error message directly to the user.
+
+                // --- Agent JSON-RPC errors (quota, invalid params, etc.) ---
+                // Do NOT reconnect — surface the error directly.
                 if let agentErrorMessage = Self.agentErrorMessage(from: error) {
                     print("⚠️ Agent error (no reconnect): \(agentErrorMessage)")
                     await MainActor.run {
+                        self.pendingOnUpdate = nil
+                        self.pendingOnComplete = nil
                         onComplete(nil, agentErrorMessage)
                     }
                     return
                 }
 
-                // --- Auto-reconnect on transport failure ---
-                // If the WebSocket died silently, conn.prompt() throws a
-                // transport error. We mark disconnected, reconnect using
-                // the existing session ID (bridge keeps it alive), and
-                // retry the prompt once.
                 guard reconnectLimit > 0 else {
                     print("🔄 Auto-reconnect disabled (maxReconnectAttempts=0)")
                     await MainActor.run {
                         self.connectionState = .disconnected
+                        self.pendingOnUpdate = nil
+                        self.pendingOnComplete = nil
                         onComplete(nil, error.localizedDescription)
                     }
                     return
                 }
 
-                // Skip reconnect if disconnect() was called intentionally (e.g. app backgrounding).
-                // AgentManager will reconnect via autoConnectAllAgents() when the app foregrounds.
+                // If bridge/bufferReplayComplete already fired pendingOnComplete while this
+                // Task was suspended (e.g., autoConnectAllAgents() ran before Task resumed),
+                // the response is already displayed and the UI is finalised — nothing to do.
+                let alreadyHandled = await MainActor.run { self.pendingOnComplete == nil }
+                if alreadyHandled {
+                    print("🔄 [push-dbg] Response already handled via buffer replay — done")
+                    return
+                }
+
+                // If disconnect() was called intentionally (app backgrounding), pendingOnUpdate
+                // and pendingOnComplete are already set above. Just return; the app will reconnect
+                // via autoConnectAllAgents() and bridge/bufferReplayComplete will fire them.
                 if await MainActor.run(body: { self.isIntentionallyDisconnecting }) {
-                    print("🔄 Skipping auto-reconnect — intentional disconnect in progress")
-                    await MainActor.run {
-                        self.connectionState = .disconnected
-                        onComplete(nil, error.localizedDescription)
-                    }
+                    print("🔄 [push-dbg] Intentional disconnect — waiting for bridge/bufferReplayComplete on reconnect")
+                    await MainActor.run { self.connectionState = .disconnected }
                     return
                 }
 
-                // If the agent says the session doesn't exist, clear it
-                // so the reconnect creates a fresh session instead of
-                // retrying the same stale session ID in a loop.
+                // --- Auto-reconnect on unintentional transport failure ---
                 let isSessionNotFound = Self.isSessionNotFoundError(error)
                 let reconnectSessionId: String? = isSessionNotFound ? nil : savedSessionId
                 if isSessionNotFound {
@@ -754,61 +805,68 @@ class ACPClientWrapper: ObservableObject {
 
                 for attempt in 1...reconnectLimit {
                     print("🔄 Transport error detected — reconnect attempt \(attempt)/\(reconnectLimit)")
-
                     await MainActor.run {
                         self.connectionState = .disconnected
                         self.connection = nil
                         self.transport = nil
                     }
 
-                    // Reconnect using the saved session ID so the bridge
-                    // resumes the existing agent session. If the session was
-                    // not found, connect without a session ID to create a new one.
                     await self.connect(existingSessionId: reconnectSessionId)
-                    
+
+                    // connect() may have already restored pendingOnUpdate to the new client
+                    // and bridge/bufferReplayComplete may have fired during the await.
+                    let handledDuringConnect = await MainActor.run { self.pendingOnComplete == nil }
+                    if handledDuringConnect {
+                        print("🔄 [push-dbg] Response handled via buffer replay during reconnect — done")
+                        return
+                    }
+
                     let reconnected: Bool = await MainActor.run {
                         if case .connected = self.connectionState { return true }
                         return false
                     }
-                    
                     guard reconnected else {
                         print("❌ Reconnect attempt \(attempt) failed — connection not restored")
                         continue
                     }
-                    
-                    print("✅ Reconnected — retrying prompt")
-                    
-                    // Rebuild the prompt request with the (possibly new) session ID
+
+                    // Session resumed → bridge will replay buffered messages and fire
+                    // bridge/bufferReplayComplete → pendingOnComplete.
+                    // Do NOT retry the prompt (would duplicate the request to the agent).
+                    if await MainActor.run(body: { self.sessionWasResumed == true }) {
+                        print("🔄 [push-dbg] Session resumed after transport error — waiting for bridge/bufferReplayComplete")
+                        return
+                    }
+
+                    print("✅ Reconnected to fresh session — retrying prompt")
+
                     guard let newConn = await MainActor.run(body: { self.connection }),
                           let newSessionId = await MainActor.run(body: { self.currentSessionId }) else {
                         print("❌ Connection objects nil after reconnect")
                         continue
                     }
-                    
-                    let retryRequest = PromptRequest(
-                        sessionId: newSessionId,
-                        prompt: content
-                    )
-                    
+
+                    let retryRequest = PromptRequest(sessionId: newSessionId, prompt: content)
                     do {
                         let retryResponse = try await newConn.prompt(request: retryRequest)
                         print("📥 Retry prompt completed: \(retryResponse.stopReason)")
-
                         try? await Task.sleep(nanoseconds: 100_000_000)
-
                         await MainActor.run {
+                            self.pendingOnUpdate = nil
+                            self.pendingOnComplete = nil
                             onComplete(retryResponse.stopReason, nil)
                         }
-                        return // success — exit the retry loop
+                        return
                     } catch {
                         print("❌ Retry prompt also failed: \(error)")
-                        // Loop continues to next reconnect attempt (if any)
                     }
                 }
-                
+
                 // All reconnect attempts exhausted
                 print("❌ All \(reconnectLimit) reconnect attempt(s) failed")
                 await MainActor.run {
+                    self.pendingOnUpdate = nil
+                    self.pendingOnComplete = nil
                     onComplete(nil, "Connection lost — could not reconnect")
                 }
             }
@@ -889,6 +947,39 @@ class ACPClientWrapper: ObservableObject {
     }
 
     private func handleBridgeNotification(_ notif: JsonRpcNotification) {
+        // Bridge signals that all buffered agent messages have been replayed.
+        // If sendMessage() was interrupted by a background disconnect, pendingOnComplete
+        // was preserved instead of called. Fire it now so the UI finalises the response.
+        if notif.method == "bridge/bufferReplayComplete" {
+            let replayCount: Int
+            if case .object(let p) = notif.params, case .int(let n) = p["count"] {
+                replayCount = n
+            } else {
+                replayCount = 0
+            }
+            print("🔄 [push-dbg] bridge/bufferReplayComplete received (count=\(replayCount))")
+
+            if replayCount > 0, let complete = pendingOnComplete {
+                // Buffered messages were replayed — finalise the response after giving the
+                // async ACP chain (notify → onUpdate → onChunk) time to update accumulatedText.
+                print("🔄 [push-dbg] scheduling pendingOnComplete to finalise buffered response")
+                pendingOnComplete = nil
+                pendingOnUpdate = nil
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 300_000_000)
+                    complete(.endTurn, nil)
+                }
+            } else if replayCount == 0 {
+                // No buffered messages — agent may still be responding via the live connection.
+                // pendingOnUpdate is already restored on the new client by connect(); real-time
+                // chunks will arrive via notify(). The sendMessage() Task will handle completion.
+                print("🔄 [push-dbg] bridge/bufferReplayComplete count=0 — agent still responding via live connection")
+            } else {
+                print("🔄 [push-dbg] bridge/bufferReplayComplete: no pending callback — cold-start buffer: \(pendingBufferedResponse?.count ?? 0) chars")
+            }
+            return
+        }
+
         guard notif.method == "bridge/remoteUserMessage",
               case .object(let paramsObj) = notif.params,
               case .string(let senderId) = paramsObj["senderId"],

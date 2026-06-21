@@ -9,9 +9,7 @@ struct AgentListView: View {
     var body: some View {
         List {
             ForEach(agentManager.agents) { agent in
-                NavigationLink {
-                    ChatView(agentId: agent.id, isInChat: $isInChat)
-                } label: {
+                NavigationLink(value: agent.id) {
                     AgentRow(agent: agent)
                 }
                 .contextMenu {

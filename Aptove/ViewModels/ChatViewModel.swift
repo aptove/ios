@@ -105,6 +105,21 @@ class ChatViewModel: ObservableObject {
                 if !self.isToolApprovalHandlerSetup {
                     self.setupToolApprovalHandlerSync(client: client)
                 }
+
+                // Consume any buffered agent response from cold-start push replay
+                if let buffered = client.pendingBufferedResponse, !buffered.isEmpty {
+                    print("🔄 [push-dbg] ChatViewModel consuming cold-start buffer: \(buffered.count) chars")
+                    client.pendingBufferedResponse = nil
+                    let msg = Message(
+                        text: buffered,
+                        sender: .agent,
+                        status: .sent,
+                        type: .text
+                    )
+                    self.messages.append(msg)
+                    self.updateConversation()
+                    self.saveMessagesToDisk()
+                }
             } else {
                 print("🔥 ChatViewModel: Pre-warm complete but no client")
             }

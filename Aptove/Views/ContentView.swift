@@ -15,10 +15,12 @@ extension Bundle {
 
 struct ContentView: View {
     @EnvironmentObject private var agentManager: AgentManager
+    @EnvironmentObject private var pushManager: PushNotificationManager
     @AppStorage("appLanguage") private var appLanguage: String = ""
     @State private var selectedTab: BottomTab = .chat
     @State private var isInChat = false
     @State private var showingQRScanner = false
+    @State private var navigationPath = NavigationPath()
 
     init() {
         print("🖥️  ContentView: Initializing...")
@@ -27,13 +29,16 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             // Chat tab — always rendered so NavigationStack state is preserved
-            NavigationStack {
+            NavigationStack(path: $navigationPath) {
                 Group {
                     if agentManager.agents.isEmpty {
                         EmptyStateView()
                     } else {
                         AgentListView(isInChat: $isInChat)
                     }
+                }
+                .navigationDestination(for: String.self) { agentId in
+                    ChatView(agentId: agentId, isInChat: $isInChat)
                 }
                 .navigationTitle(Bundle.localized("Agents", language: appLanguage))
                 .toolbar {
@@ -65,6 +70,25 @@ struct ContentView: View {
         }
         .onAppear {
             print("🖥️  ContentView: View appeared and rendered")
+        }
+        .onChange(of: pushManager.tappedAgentName) { _, agentName in
+            guard let agentName else { return }
+            pushManager.tappedAgentName = nil
+            print("🔔 [push-dbg] Navigating to agent: \(agentName)")
+
+            // Match by name (push payload carries agent name, not internal ID)
+            guard let agent = agentManager.agents.first(where: { $0.name == agentName }) else {
+                print("🔔 [push-dbg] No agent found with name '\(agentName)'")
+                return
+            }
+
+            // Ensure we're on the chat tab and pop to root before pushing
+            selectedTab = .chat
+            navigationPath = NavigationPath()
+            // Small delay so NavigationStack resets before pushing
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                navigationPath.append(agent.id)
+            }
         }
     }
 }

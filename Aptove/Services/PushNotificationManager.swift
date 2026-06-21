@@ -11,9 +11,12 @@ class PushNotificationManager: NSObject, ObservableObject {
     
     /// The current APNs device token (hex-encoded)
     @Published private(set) var deviceToken: String?
-    
+
     /// Whether push notifications are authorized
     @Published private(set) var isAuthorized: Bool = false
+
+    /// Agent name extracted from the tapped push notification — consumed by ContentView for navigation.
+    @Published var tappedAgentName: String?
     
     /// Callbacks waiting for a device token
     private var tokenCallbacks: [(String) -> Void] = []

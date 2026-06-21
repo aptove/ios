@@ -25,6 +25,21 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         completionHandler([.banner, .badge, .sound])
     }
+
+    // Handle notification tap — extract agent name for deep-link navigation
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        let userInfo = response.notification.request.content.userInfo
+        print("🔔 [push-dbg] Notification tapped, userInfo: \(userInfo)")
+
+        if let data = userInfo["data"] as? [String: Any],
+           let agentName = data["agentName"] as? String {
+            print("🔔 [push-dbg] Extracted agentName from push: \(agentName)")
+            Task { @MainActor in
+                PushNotificationManager.shared.tappedAgentName = agentName
+            }
+        }
+        completionHandler()
+    }
 }
 
 @main
@@ -86,7 +101,7 @@ struct AptoveApp: App {
                             print("🌙 [push-dbg] App entered BACKGROUND — closing WebSocket so bridge detects disconnect and pushes")
                             // Request background execution time so iOS doesn't suspend the process
                             // before the WebSocket close frame is delivered to the bridge.
-                            var bgTaskId = UIBackgroundTaskIdentifier.invalid
+                            nonisolated(unsafe) var bgTaskId = UIBackgroundTaskIdentifier.invalid
                             bgTaskId = UIApplication.shared.beginBackgroundTask(withName: "ws-background-disconnect") {
                                 UIApplication.shared.endBackgroundTask(bgTaskId)
                             }
