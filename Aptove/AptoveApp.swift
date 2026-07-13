@@ -101,13 +101,16 @@ struct AptoveApp: App {
                             print("🌙 [push-dbg] App entered BACKGROUND — closing WebSocket so bridge detects disconnect and pushes")
                             // Request background execution time so iOS doesn't suspend the process
                             // before the WebSocket close frame is delivered to the bridge.
-                            nonisolated(unsafe) var bgTaskId = UIBackgroundTaskIdentifier.invalid
-                            bgTaskId = UIApplication.shared.beginBackgroundTask(withName: "ws-background-disconnect") {
-                                UIApplication.shared.endBackgroundTask(bgTaskId)
+                            // Box the task ID so both closures read the value at call time,
+                            // not a copy captured before beginBackgroundTask returns.
+                            final class BGTaskBox: @unchecked Sendable { var id = UIBackgroundTaskIdentifier.invalid }
+                            let bgTask = BGTaskBox()
+                            bgTask.id = UIApplication.shared.beginBackgroundTask(withName: "ws-background-disconnect") {
+                                UIApplication.shared.endBackgroundTask(bgTask.id)
                             }
                             Task {
                                 await agentManager.disconnectAll()
-                                UIApplication.shared.endBackgroundTask(bgTaskId)
+                                UIApplication.shared.endBackgroundTask(bgTask.id)
                             }
                         @unknown default:
                             break

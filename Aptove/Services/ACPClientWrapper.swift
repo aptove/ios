@@ -423,11 +423,6 @@ class ACPClientWrapper: ObservableObject {
                         }
                     }
 
-                    // Register push token with bridge after successful connection
-                    Task {
-                        await self.registerPushToken()
-                    }
-
                     return
             } catch {
                     // Close the transport explicitly so the bridge releases the connection slot.
@@ -486,13 +481,9 @@ class ACPClientWrapper: ObservableObject {
     }
     
     /// Register the APNs push token with the bridge for background notifications.
-    /// Skipped when the bridge has no push relay configured (pushRelayUrl is nil).
+    /// Called in response to bridge/requestPushToken — the bridge drives this
+    /// only when push relay is configured, so no client-side guard is needed.
     func registerPushToken() async {
-        guard config.pushRelayUrl != nil else {
-            print("📲 ACPClientWrapper: Bridge has no push relay configured, skipping registration")
-            return
-        }
-
         let pushManager = PushNotificationManager.shared
 
         guard let deviceToken = await pushManager.getDeviceToken() else {
@@ -947,6 +938,14 @@ class ACPClientWrapper: ObservableObject {
     }
 
     private func handleBridgeNotification(_ notif: JsonRpcNotification) {
+        // Bridge requests the client's push token (sent when push relay is configured).
+        if notif.method == "bridge/requestPushToken" {
+            Task {
+                await self.registerPushToken()
+            }
+            return
+        }
+
         // Bridge signals that all buffered agent messages have been replayed.
         // If sendMessage() was interrupted by a background disconnect, pendingOnComplete
         // was preserved instead of called. Fire it now so the UI finalises the response.
