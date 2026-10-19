@@ -1088,13 +1088,13 @@ class ACPClientWrapper: ObservableObject {
             agentInfo = v2Resp.info
             agentCapabilitiesV1 = nil
             supportsLoadSession = false
-            print("✅ V2 protocol negotiated: \(v2Resp.info?.name ?? "unknown")")
+            print("✅ V2 protocol negotiated: \(v2Resp.info.name)")
         } else {
             let v1Resp = try JSONDecoder().decode(InitializeResponse.self, from: respData)
             negotiatedVersion = .current
             agentInfo = v1Resp.agentInfo
             agentCapabilitiesV1 = v1Resp.agentCapabilities
-            supportsLoadSession = v1Resp.agentCapabilities?.loadSession ?? false
+            supportsLoadSession = v1Resp.agentCapabilities.loadSession
             print("✅ V1 protocol negotiated: \(v1Resp.agentInfo?.name ?? "unknown"), loadSession=\(supportsLoadSession)")
         }
 
