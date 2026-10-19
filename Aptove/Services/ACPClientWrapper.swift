@@ -165,10 +165,13 @@ class ACPClientWrapper: ObservableObject {
         currentSessionId?.value
     }
 
-    private var connection: ClientConnection?
+    private var rawProto: ACPProtocol?
     private var transport: (any Transport)?
     private var currentSessionId: SessionId?
     private var client: AptoveClient?
+    private var negotiatedVersion: ProtocolVersion = .current
+    private var agentCapabilitiesV1: AgentCapabilities?
+    private var v2PromptContinuation: AsyncStream<V2SessionUpdate>.Continuation?
     
     // Store for collecting agent responses
     private var currentResponse: String = ""
@@ -331,18 +334,22 @@ class ACPClientWrapper: ObservableObject {
                 }
 
                 // Pass the connectionTimeout to ensure Protocol layer respects our extended timeout
-                print("🔌 ACPClientWrapper.connect(): Creating ClientConnection...")
-                let conn = ClientConnection(transport: filteredTransport, client: client, defaultTimeoutSeconds: connectionTimeout)
-                print("🔌 ACPClientWrapper.connect(): ClientConnection created")
-                
+                print("🔌 ACPClientWrapper.connect(): Creating ACPProtocol...")
+                let proto = ACPProtocol(transport: filteredTransport, defaultTimeoutSeconds: connectionTimeout)
+                print("🔌 ACPClientWrapper.connect(): ACPProtocol created")
+
                 // Connect and initialize with a short deadline so a silent bridge
                 // (connected but not responding) fails fast and triggers a retry.
                 // Always close the transport on failure so the bridge releases the connection slot.
                 let initializeTimeout: TimeInterval = 30
                 connectionMessage = "Initializing agent..."
-                print("🔌 ACPClientWrapper.connect(): Calling conn.connect() (timeout: \(Int(initializeTimeout))s)...")
+                print("🔌 ACPClientWrapper.connect(): Starting protocol (timeout: \(Int(initializeTimeout))s)...")
                 let agentInfo = try await withThrowingTaskGroup(of: Implementation?.self) { group in
-                    group.addTask { try await conn.connect() }
+                    group.addTask {
+                        try await proto.start()
+                        return try await self.performNegotiatedConnect(
+                            proto: proto, client: client, existingSessionId: existingSessionId)
+                    }
                     group.addTask {
                         try await Task.sleep(nanoseconds: UInt64(initializeTimeout * 1_000_000_000))
                         throw URLError(.timedOut)
@@ -351,56 +358,15 @@ class ACPClientWrapper: ObservableObject {
                     group.cancelAll()
                     return result
                 }
-                print("✅ ACPClientWrapper.connect(): Connection established!")
-                
+                print("✅ ACPClientWrapper.connect(): Connected (protocol v\(self.negotiatedVersion))!")
+
                 // Store the agent's self-reported name from the InitializeResponse
                 self.connectedAgentName = agentInfo?.name
                 if let name = self.connectedAgentName {
                     print("🤖 ACPClientWrapper.connect(): Agent name: \(name)")
                 }
-                
-                // Store loadSession capability
-                let capabilities = await conn.agentCapabilities
-                self.supportsLoadSession = capabilities?.loadSession ?? false
-                print("🔄 ACPClientWrapper.connect(): Agent supports loadSession: \(self.supportsLoadSession)")
-                
-                // Try to load existing session if provided and supported
-                var sessionLoaded = false
-                if let sessionIdToLoad = existingSessionId, self.supportsLoadSession {
-                    connectionMessage = "Resuming session..."
-                    print("🔄 ACPClientWrapper.connect(): Attempting to load session: \(sessionIdToLoad)")
-                    
-                    do {
-                        let loadRequest = LoadSessionRequest(
-                            sessionId: SessionId(value: sessionIdToLoad),
-                            cwd: self.cwd,
-                            mcpServers: []
-                        )
-                        _ = try await conn.loadSession(request: loadRequest)
-                        self.currentSessionId = SessionId(value: sessionIdToLoad)
-                        sessionLoaded = true
-                        self.sessionWasResumed = true
-                        print("✅ ACPClientWrapper.connect(): Session loaded successfully: \(sessionIdToLoad)")
-                    } catch {
-                        print("⚠️ ACPClientWrapper.connect(): Failed to load session: \(error.localizedDescription)")
-                        // Will fall through to create new session
-                    }
-                }
-                
-                // Create new session if we didn't load one
-                if !sessionLoaded {
-                    connectionMessage = "Creating session..."
-                    print("🔧 Creating session with cwd: \(self.cwd)")
 
-                    let sessionRequest = NewSessionRequest(cwd: self.cwd, mcpServers: [])
-                    print("🔌 ACPClientWrapper.connect(): Calling conn.createSession()...")
-                    let sessionResponse = try await conn.createSession(request: sessionRequest)
-                    print("✅ Session created with ID: \(sessionResponse.sessionId)")
-                    self.currentSessionId = sessionResponse.sessionId
-                    self.sessionWasResumed = false
-                }
-                
-                    self.connection = conn
+                    self.rawProto = proto
                     connectionMessage = "Connected successfully!"
                     connectionState = .connected
                     print("✅ ACPClientWrapper.connect(): Connection flow complete!")
@@ -457,9 +423,9 @@ class ACPClientWrapper: ObservableObject {
         // Resume any suspended permission continuations so the agent isn't left hanging.
         cancelPendingClientRequests()
 
-        if let conn = connection {
-            await conn.disconnect()
-            connection = nil
+        if let proto = rawProto {
+            await proto.close()
+            rawProto = nil
             currentSessionId = nil
         }
 
@@ -648,7 +614,7 @@ class ACPClientWrapper: ObservableObject {
     }
 
     func sendMessage(_ content: [ContentBlock], onChunk: @escaping (String) -> Void, onThought: ((String) -> Void)? = nil, onToolCall: ((String) -> Void)? = nil, onToolUpdate: ((String, String) -> Void)? = nil, onComplete: @escaping (StopReason?, String?) -> Void = { _, _ in }) async throws {
-        guard let conn = connection, let sessionId = currentSessionId, let client = client else {
+        guard let proto = rawProto, let sessionId = currentSessionId, let client = client else {
             throw ClientError.noActiveSession
         }
 
@@ -662,66 +628,61 @@ class ACPClientWrapper: ObservableObject {
         let capturedOnToolCall   = onToolCall
         let capturedOnToolUpdate = onToolUpdate
 
-        // Set up streaming response collector
-        client.onUpdate = { [weak self] update in
-            guard self != nil else { return }
+        // Set up V1 streaming response collector (not used for V2 — stream handles updates directly)
+        if negotiatedVersion != .v2 {
+            client.onUpdate = { [weak self] update in
+                guard self != nil else { return }
 
-            switch update {
-            case .agentMessageChunk(let chunk):
-                if case .text(let textContent) = chunk.content {
-                    print("📥 Agent response chunk: \(textContent.text)")
-                    onChunk(textContent.text)
-                }
-            case .agentThoughtChunk(let chunk):
-                if case .text(let textContent) = chunk.content {
-                    print("💭 Agent thought: \(textContent.text)")
-                    capturedOnThought?(textContent.text)
-                }
-            case .toolCall(let toolCall):
-                print("🔧 Tool call: \(toolCall.title) - status: \(String(describing: toolCall.status))")
-                capturedOnToolCall?(toolCall.title)
-            case .toolCallUpdate(let toolUpdate):
-                print("🔧 Tool update: \(toolUpdate.toolCallId.value) - status: \(String(describing: toolUpdate.status))")
-                // Extract text content from the update
-                var textContent = ""
-                if let content = toolUpdate.content {
-                    for item in content {
-                        if case .content(let contentData) = item,
-                           case .text(let textData) = contentData.content {
-                            textContent += textData.text
+                switch update {
+                case .agentMessageChunk(let chunk):
+                    if case .text(let textContent) = chunk.content {
+                        print("📥 Agent response chunk: \(textContent.text)")
+                        onChunk(textContent.text)
+                    }
+                case .agentThoughtChunk(let chunk):
+                    if case .text(let textContent) = chunk.content {
+                        print("💭 Agent thought: \(textContent.text)")
+                        capturedOnThought?(textContent.text)
+                    }
+                case .toolCall(let toolCall):
+                    print("🔧 Tool call: \(toolCall.title) - status: \(String(describing: toolCall.status))")
+                    capturedOnToolCall?(toolCall.title)
+                case .toolCallUpdate(let toolUpdate):
+                    print("🔧 Tool update: \(toolUpdate.toolCallId.value) - status: \(String(describing: toolUpdate.status))")
+                    // Extract text content from the update
+                    var textContent = ""
+                    if let content = toolUpdate.content {
+                        for item in content {
+                            if case .content(let contentData) = item,
+                               case .text(let textData) = contentData.content {
+                                textContent += textData.text
+                            }
                         }
                     }
+                    // Only surface updates that carry actual text content
+                    if !textContent.isEmpty {
+                        print("📥 Tool output: \(textContent)")
+                        capturedOnToolUpdate?(toolUpdate.toolCallId.value, textContent)
+                    } else if let status = toolUpdate.status {
+                        print("📥 Tool status change (suppressed from UI): \(status)")
+                    }
+                default:
+                    print("📨 Other update: \(update)")
                 }
-                // Only surface updates that carry actual text content
-                if !textContent.isEmpty {
-                    print("📥 Tool output: \(textContent)")
-                    capturedOnToolUpdate?(toolUpdate.toolCallId.value, textContent)
-                } else if let status = toolUpdate.status {
-                    print("📥 Tool status change (suppressed from UI): \(status)")
-                }
-            default:
-                print("📨 Other update: \(update)")
             }
         }
-        
-        let promptRequest = PromptRequest(
-            sessionId: sessionId,
-            prompt: content
-        )
-        
-        print("📤 Prompt request created: \(promptRequest)")
         
         // Send prompt in background - don't block main thread
         // Captures `sessionId` (the value at call time) for reconnect-retry.
         let savedSessionId = sessionId.value
         let reconnectLimit = self.maxReconnectAttempts
-        
+        let isV2 = self.negotiatedVersion == .v2
+
         Task {
-            // Save response callbacks BEFORE awaiting conn.prompt() so connect() can restore
-            // client.onUpdate (= pendingOnUpdate) to any new AptoveClient created during a
-            // background disconnect + reconnect, ensuring buffered agent chunks appear in the UI.
+            // Save response callbacks BEFORE awaiting the prompt so connect() can restore
+            // them to a new client/proto after a background disconnect + reconnect.
             await MainActor.run {
-                self.pendingOnUpdate = self.client?.onUpdate
+                self.pendingOnUpdate = isV2 ? nil : self.client?.onUpdate
                 self.pendingOnComplete = { [weak self] stopReason, err in
                     self?.pendingOnUpdate = nil
                     self?.pendingOnComplete = nil
@@ -730,8 +691,57 @@ class ACPClientWrapper: ObservableObject {
             }
 
             do {
-                let response = try await conn.prompt(request: promptRequest)
-                print("📥 Prompt completed: \(response.stopReason)")
+                let stopReason: StopReason?
+                if isV2 {
+                    let v2Prompt = content.compactMap { block -> V2ContentBlock? in
+                        if case .text(let tc) = block { return .text(V2ContentBlock.Text(text: tc.text)) }
+                        return nil
+                    }
+                    let v2Request = V2PromptRequest(sessionId: sessionId, prompt: v2Prompt)
+                    print("📤 V2 prompt request created for session: \(sessionId.value)")
+
+                    let (stream, cont) = AsyncStream<V2SessionUpdate>.makeStream()
+                    await MainActor.run { self.v2PromptContinuation = cont }
+
+                    _ = try await proto.request(
+                        method: "session/prompt",
+                        params: v2Request,
+                        responseType: V2PromptResponse.self
+                    )
+
+                    var collectedStopReason: StopReason? = .endTurn
+                    streamLoop: for await update in stream {
+                        switch update {
+                        case .agentMessageChunk(let chunk):
+                            if case .text(let t) = chunk.content {
+                                await MainActor.run { onChunk(t.text) }
+                            }
+                        case .agentThoughtChunk(let chunk):
+                            if case .text(let t) = chunk.content {
+                                await MainActor.run { capturedOnThought?(t.text) }
+                            }
+                        case .stateUpdate(let state):
+                            if case .idle(let sr, _, _) = state {
+                                collectedStopReason = Self.mapV2StopReason(sr)
+                                cont.finish()
+                                break streamLoop
+                            }
+                        default: break
+                        }
+                    }
+                    await MainActor.run { self.v2PromptContinuation = nil }
+                    stopReason = collectedStopReason
+                } else {
+                    let promptRequest = PromptRequest(sessionId: sessionId, prompt: content)
+                    print("📤 V1 prompt request created for session: \(sessionId.value)")
+                    let response = try await proto.request(
+                        method: "session/prompt",
+                        params: promptRequest,
+                        responseType: PromptResponse.self
+                    )
+                    print("📥 Prompt completed: \(response.stopReason)")
+                    stopReason = response.stopReason
+                }
 
                 // Small delay to ensure final chunks arrive
                 try? await Task.sleep(nanoseconds: 100_000_000)
@@ -740,10 +750,11 @@ class ACPClientWrapper: ObservableObject {
                     // Response arrived on the live connection — clear pending and finalise.
                     self.pendingOnUpdate = nil
                     self.pendingOnComplete = nil
-                    onComplete(response.stopReason, nil)
+                    onComplete(stopReason, nil)
                 }
             } catch {
                 print("❌ Prompt error: \(error)")
+                await MainActor.run { self.v2PromptContinuation = nil }
 
                 // --- Agent JSON-RPC errors (quota, invalid params, etc.) ---
                 // Do NOT reconnect — surface the error directly.
@@ -798,7 +809,7 @@ class ACPClientWrapper: ObservableObject {
                     print("🔄 Transport error detected — reconnect attempt \(attempt)/\(reconnectLimit)")
                     await MainActor.run {
                         self.connectionState = .disconnected
-                        self.connection = nil
+                        self.rawProto = nil
                         self.transport = nil
                     }
 
@@ -831,21 +842,40 @@ class ACPClientWrapper: ObservableObject {
 
                     print("✅ Reconnected to fresh session — retrying prompt")
 
-                    guard let newConn = await MainActor.run(body: { self.connection }),
+                    guard let newProto = await MainActor.run(body: { self.rawProto }),
                           let newSessionId = await MainActor.run(body: { self.currentSessionId }) else {
                         print("❌ Connection objects nil after reconnect")
                         continue
                     }
 
-                    let retryRequest = PromptRequest(sessionId: newSessionId, prompt: content)
                     do {
-                        let retryResponse = try await newConn.prompt(request: retryRequest)
-                        print("📥 Retry prompt completed: \(retryResponse.stopReason)")
+                        let retryStopReason: StopReason?
+                        if await MainActor.run(body: { self.negotiatedVersion == .v2 }) {
+                            let v2Prompt = content.compactMap { block -> V2ContentBlock? in
+                                if case .text(let tc) = block { return .text(V2ContentBlock.Text(text: tc.text)) }
+                                return nil
+                            }
+                            _ = try await newProto.request(
+                                method: "session/prompt",
+                                params: V2PromptRequest(sessionId: newSessionId, prompt: v2Prompt),
+                                responseType: V2PromptResponse.self
+                            )
+                            retryStopReason = .endTurn
+                        } else {
+                            let retryRequest = PromptRequest(sessionId: newSessionId, prompt: content)
+                            let retryResponse = try await newProto.request(
+                                method: "session/prompt",
+                                params: retryRequest,
+                                responseType: PromptResponse.self
+                            )
+                            print("📥 Retry prompt completed: \(retryResponse.stopReason)")
+                            retryStopReason = retryResponse.stopReason
+                        }
                         try? await Task.sleep(nanoseconds: 100_000_000)
                         await MainActor.run {
                             self.pendingOnUpdate = nil
                             self.pendingOnComplete = nil
-                            onComplete(retryResponse.stopReason, nil)
+                            onComplete(retryStopReason, nil)
                         }
                         return
                     } catch {
@@ -994,6 +1024,231 @@ class ACPClientWrapper: ObservableObject {
 
         guard !text.isEmpty else { return }
         onRemoteUserMessage?(text)
+    }
+
+    // MARK: - Protocol negotiation helpers
+
+    /// Sends a universal initialize request, probes the protocol version in the response,
+    /// then creates or resumes the session. Sets `negotiatedVersion`, `agentCapabilitiesV1`,
+    /// and `supportsLoadSession` as side-effects. Returns the agent's `Implementation` info.
+    private func performNegotiatedConnect(
+        proto: ACPProtocol,
+        client: AptoveClient,
+        existingSessionId: String?
+    ) async throws -> Implementation? {
+        // Register unified session/update notification handler
+        await proto.onNotification(method: "session/update") { [weak self] notification in
+            await self?.handleSessionUpdateNotification(notification)
+        }
+        // Permission request handler
+        await proto.onRequest(
+            method: "session/request_permission",
+            requestType: RequestPermissionRequest.self
+        ) { [weak self] request in
+            guard let self else { throw ClientError.noActiveSession }
+            return try await self.handlePermissionRequest(request)
+        }
+        // Terminal handlers (auto-reject on iOS)
+        await proto.onRequest(
+            method: "terminal/create",
+            requestType: CreateTerminalRequest.self
+        ) { [weak self] request in
+            guard let self else { throw ClientError.noActiveSession }
+            return try await self.handleTerminalCreate(request)
+        }
+
+        // -- Negotiate protocol version via a single universal init request --
+        // Sends all V1 fields + protocolVersion=2, then probes the response.
+        struct UniversalInitRequest: Encodable {
+            let protocolVersion: ProtocolVersion
+            let clientCapabilities: ClientCapabilities
+            let clientInfo: Implementation?
+            let info: Implementation?
+        }
+        let initReq = UniversalInitRequest(
+            protocolVersion: .v2,
+            clientCapabilities: client.capabilities,
+            clientInfo: client.info,
+            info: client.info
+        )
+        let rawResp = try await proto.request(
+            method: "initialize",
+            params: initReq,
+            responseType: JsonValue.self
+        )
+        let respData = try JSONEncoder().encode(rawResp)
+
+        struct VersionProbe: Decodable { let protocolVersion: ProtocolVersion }
+        let probe = try JSONDecoder().decode(VersionProbe.self, from: respData)
+
+        let agentInfo: Implementation?
+        if probe.protocolVersion == .v2 {
+            let v2Resp = try JSONDecoder().decode(V2InitializeResponse.self, from: respData)
+            negotiatedVersion = .v2
+            agentInfo = v2Resp.info
+            agentCapabilitiesV1 = nil
+            supportsLoadSession = false
+            print("✅ V2 protocol negotiated: \(v2Resp.info?.name ?? "unknown")")
+        } else {
+            let v1Resp = try JSONDecoder().decode(InitializeResponse.self, from: respData)
+            negotiatedVersion = .current
+            agentInfo = v1Resp.agentInfo
+            agentCapabilitiesV1 = v1Resp.agentCapabilities
+            supportsLoadSession = v1Resp.agentCapabilities?.loadSession ?? false
+            print("✅ V1 protocol negotiated: \(v1Resp.agentInfo?.name ?? "unknown"), loadSession=\(supportsLoadSession)")
+        }
+
+        // -- Session: resume existing or create new --
+        var sessionLoaded = false
+        if let sessionIdToLoad = existingSessionId {
+            connectionMessage = "Resuming session..."
+            if negotiatedVersion == .v2 {
+                do {
+                    let resumeReq = V2ResumeSessionRequest(
+                        sessionId: SessionId(value: sessionIdToLoad),
+                        cwd: cwd,
+                        replayFrom: .start(_meta: nil)
+                    )
+                    _ = try await proto.request(
+                        method: "session/resume",
+                        params: resumeReq,
+                        responseType: V2ResumeSessionResponse.self
+                    )
+                    currentSessionId = SessionId(value: sessionIdToLoad)
+                    sessionLoaded = true
+                    sessionWasResumed = true
+                    print("✅ V2 session/resume: \(sessionIdToLoad)")
+                } catch {
+                    print("⚠️ V2 session/resume failed: \(error.localizedDescription)")
+                }
+            } else if supportsLoadSession {
+                do {
+                    let loadReq = LoadSessionRequest(
+                        sessionId: SessionId(value: sessionIdToLoad),
+                        cwd: cwd,
+                        mcpServers: []
+                    )
+                    _ = try await proto.request(
+                        method: "session/load",
+                        params: loadReq,
+                        responseType: LoadSessionResponse.self
+                    )
+                    currentSessionId = SessionId(value: sessionIdToLoad)
+                    sessionLoaded = true
+                    sessionWasResumed = true
+                    print("✅ V1 session/load: \(sessionIdToLoad)")
+                } catch {
+                    print("⚠️ V1 session/load failed: \(error.localizedDescription)")
+                }
+            }
+        }
+
+        if !sessionLoaded {
+            connectionMessage = "Creating session..."
+            if negotiatedVersion == .v2 {
+                let resp = try await proto.request(
+                    method: "session/new",
+                    params: V2NewSessionRequest(cwd: cwd),
+                    responseType: V2NewSessionResponse.self
+                )
+                currentSessionId = resp.sessionId
+                sessionWasResumed = false
+                print("✅ V2 session/new: \(resp.sessionId.value)")
+            } else {
+                let resp = try await proto.request(
+                    method: "session/new",
+                    params: NewSessionRequest(cwd: cwd, mcpServers: []),
+                    responseType: NewSessionResponse.self
+                )
+                currentSessionId = resp.sessionId
+                sessionWasResumed = false
+                print("✅ V1 session/new: \(resp.sessionId.value)")
+            }
+        }
+
+        return agentInfo
+    }
+
+    /// Forwards permission requests to the AptoveClient's approval UI.
+    private func handlePermissionRequest(_ request: RequestPermissionRequest) async throws -> RequestPermissionResponse {
+        guard let client else { throw ClientError.noActiveSession }
+        return try await client.requestPermissions(
+            toolCall: request.toolCall,
+            permissions: request.options,
+            meta: nil
+        )
+    }
+
+    /// Forwards terminal/create to AptoveClient (auto-rejects on iOS).
+    private func handleTerminalCreate(_ request: CreateTerminalRequest) async throws -> CreateTerminalResponse {
+        guard let client else { throw ClientError.noActiveSession }
+        return try await client.terminalCreate(request: request)
+    }
+
+    /// Handles V1 `session/update` notifications by decoding and routing to AptoveClient.
+    private func handleSessionUpdateNotification(_ notification: JsonRpcNotification) async {
+        guard let params = notification.params else { return }
+        if negotiatedVersion == .v2 {
+            await handleV2SessionUpdate(params: params)
+        } else {
+            await handleV1SessionUpdate(params: params)
+        }
+    }
+
+    private func handleV1SessionUpdate(params: JsonValue) async {
+        do {
+            let data = try JSONEncoder().encode(params)
+            struct NotificationParams: Codable {
+                let sessionId: String
+                let update: SessionUpdate
+            }
+            let notificationParams = try JSONDecoder().decode(NotificationParams.self, from: data)
+            await client?.onSessionUpdate(notificationParams.update)
+        } catch {
+            print("⚠️ V1 session/update decode failed: \(error)")
+        }
+    }
+
+    private func handleV2SessionUpdate(params: JsonValue) async {
+        do {
+            let data = try JSONEncoder().encode(params)
+            let notif = try JSONDecoder().decode(V2UpdateSessionNotification.self, from: data)
+            let update = notif.update
+
+            // Feed active prompt stream (if any)
+            v2PromptContinuation?.yield(update)
+
+            // Handle persistent (non-prompt) updates
+            switch update {
+            case .availableCommandsUpdate(let u):
+                let commands = u.availableCommands.map { v2cmd -> AvailableCommand in
+                    let input: AvailableCommandInput? = v2cmd.input.flatMap { inp in
+                        if case .text(let t) = inp { return .unstructured(UnstructuredInput(hint: t.hint)) }
+                        return nil
+                    }
+                    return AvailableCommand(name: v2cmd.name, description: v2cmd.description, input: input)
+                }
+                // Route through AptoveClient so existing wrapper machinery fires
+                await client?.onSessionUpdate(.availableCommandsUpdate(AvailableCommandsUpdate(availableCommands: commands)))
+            default:
+                break
+            }
+        } catch {
+            print("⚠️ V2 session/update decode failed: \(error)")
+        }
+    }
+
+    /// Maps a V2StopReason to a V1 StopReason.
+    private static func mapV2StopReason(_ v2: V2StopReason?) -> StopReason? {
+        guard let v2 else { return .endTurn }
+        switch v2.rawValue {
+        case "end_turn": return .endTurn
+        case "max_tokens": return .maxTokens
+        case "max_turn_requests": return .maxTurnRequests
+        case "refusal": return .refusal
+        case "cancelled": return .cancelled
+        default: return .endTurn
+        }
     }
 
     enum ClientError: LocalizedError {
