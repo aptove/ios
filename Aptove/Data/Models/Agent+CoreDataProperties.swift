@@ -24,6 +24,8 @@ extension AgentEntity {
     @NSManaged public var bridgeAgentId: String?
     /// User-selected preferred transport name (e.g. "tailscale-serve", "cloudflare", "local").
     @NSManaged public var preferredTransport: String?
+    /// User-selected ACP protocol version mode ("auto", "v1", "v2"). Nil means auto.
+    @NSManaged public var acpVersionMode: String?
 
     // MARK: - JSON Data
     @NSManaged public var capabilities: String?

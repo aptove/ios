@@ -165,6 +165,8 @@ class ACPClientWrapper: ObservableObject {
         currentSessionId?.value
     }
 
+    let versionMode: ACPVersionMode
+
     private var rawProto: ACPProtocol?
     private var transport: (any Transport)?
     private var currentSessionId: SessionId?
@@ -176,17 +178,18 @@ class ACPClientWrapper: ObservableObject {
     // Store for collecting agent responses
     private var currentResponse: String = ""
     
-    nonisolated init(config: ConnectionConfig, agentId: String, connectionTimeout: TimeInterval = 300, maxRetries: Int = 3, maxReconnectAttempts: Int = 1) {
+    nonisolated init(config: ConnectionConfig, agentId: String, versionMode: ACPVersionMode = .auto, connectionTimeout: TimeInterval = 300, maxRetries: Int = 3, maxReconnectAttempts: Int = 1) {
         print("🔌 ACPClientWrapper: Initializing for agent \(agentId)")
         print("🔌 ACPClientWrapper: URL: \(config.websocketURL)")
         print("🔌 ACPClientWrapper: Timeout: \(connectionTimeout)s, Max retries: \(maxRetries), Max reconnect: \(maxReconnectAttempts)")
         self.config = config
         self.agentId = agentId
+        self.versionMode = versionMode
         self.connectionTimeout = connectionTimeout
         self.maxRetries = maxRetries
         self.maxReconnectAttempts = maxReconnectAttempts
         self.cwd = config.cwd
-        print("🔌 ACPClientWrapper: Initialization complete (cwd: \(self.cwd))")
+        print("🔌 ACPClientWrapper: Initialization complete (cwd: \(self.cwd), versionMode: \(versionMode.rawValue))")
     }
     
     func connect() async {
@@ -1057,16 +1060,20 @@ class ACPClientWrapper: ObservableObject {
             return try await self.handleTerminalCreate(request)
         }
 
-        // -- Negotiate protocol version via a single universal init request --
-        // Sends all V1 fields + protocolVersion=2, then probes the response.
+        // -- Negotiate protocol version --
+        // versionMode controls what we send and how we interpret the response.
         struct UniversalInitRequest: Encodable {
             let protocolVersion: ProtocolVersion
             let clientCapabilities: ClientCapabilities
             let clientInfo: Implementation?
             let info: Implementation?
         }
+
+        // For .v1 mode: send v1 directly — no probe needed.
+        // For .v2 and .auto: send v2 and inspect the response.
+        let requestedVersion: ProtocolVersion = (versionMode == .v1) ? .current : .v2
         let initReq = UniversalInitRequest(
-            protocolVersion: .v2,
+            protocolVersion: requestedVersion,
             clientCapabilities: client.capabilities,
             clientInfo: client.info,
             info: client.info
@@ -1078,24 +1085,38 @@ class ACPClientWrapper: ObservableObject {
         )
         let respData = try JSONEncoder().encode(rawResp)
 
-        struct VersionProbe: Decodable { let protocolVersion: ProtocolVersion }
-        let probe = try JSONDecoder().decode(VersionProbe.self, from: respData)
-
         let agentInfo: Implementation?
-        if probe.protocolVersion == .v2 {
-            let v2Resp = try JSONDecoder().decode(V2InitializeResponse.self, from: respData)
-            negotiatedVersion = .v2
-            agentInfo = v2Resp.info
-            agentCapabilitiesV1 = nil
-            supportsLoadSession = false
-            print("✅ V2 protocol negotiated: \(v2Resp.info.name)")
-        } else {
+        if versionMode == .v1 {
+            // Skip probe — treat response as V1 unconditionally.
             let v1Resp = try JSONDecoder().decode(InitializeResponse.self, from: respData)
             negotiatedVersion = .current
             agentInfo = v1Resp.agentInfo
             agentCapabilitiesV1 = v1Resp.agentCapabilities
             supportsLoadSession = v1Resp.agentCapabilities.loadSession
-            print("✅ V1 protocol negotiated: \(v1Resp.agentInfo?.name ?? "unknown"), loadSession=\(supportsLoadSession)")
+            print("✅ V1 protocol (forced): \(v1Resp.agentInfo?.name ?? "unknown"), loadSession=\(supportsLoadSession)")
+        } else {
+            struct VersionProbe: Decodable { let protocolVersion: ProtocolVersion }
+            let probe = try JSONDecoder().decode(VersionProbe.self, from: respData)
+
+            if probe.protocolVersion == .v2 {
+                let v2Resp = try JSONDecoder().decode(V2InitializeResponse.self, from: respData)
+                negotiatedVersion = .v2
+                agentInfo = v2Resp.info
+                agentCapabilitiesV1 = nil
+                supportsLoadSession = false
+                print("✅ V2 protocol negotiated: \(v2Resp.info.name)")
+            } else if versionMode == .v2 {
+                // User explicitly required V2 but agent responded with V1.
+                throw ClientError.v2NotSupported
+            } else {
+                // .auto — fall back to V1
+                let v1Resp = try JSONDecoder().decode(InitializeResponse.self, from: respData)
+                negotiatedVersion = .current
+                agentInfo = v1Resp.agentInfo
+                agentCapabilitiesV1 = v1Resp.agentCapabilities
+                supportsLoadSession = v1Resp.agentCapabilities.loadSession
+                print("✅ V1 protocol negotiated (auto fallback): \(v1Resp.agentInfo?.name ?? "unknown"), loadSession=\(supportsLoadSession)")
+            }
         }
 
         // -- Session: resume existing or create new --
@@ -1255,6 +1276,7 @@ class ACPClientWrapper: ObservableObject {
         case noActiveSession
         case invalidResponse
         case invalidToolCall
+        case v2NotSupported
 
         var errorDescription: String? {
             switch self {
@@ -1264,6 +1286,8 @@ class ACPClientWrapper: ObservableObject {
                 return "Invalid response from agent"
             case .invalidToolCall:
                 return "Invalid or expired tool call"
+            case .v2NotSupported:
+                return "This agent does not support ACP V2. Change the version setting to V1 or Auto in the agent configuration."
             }
         }
     }

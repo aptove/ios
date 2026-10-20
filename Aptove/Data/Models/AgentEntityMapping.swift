@@ -4,6 +4,7 @@ import CoreData
 extension AgentEntity {
     /// Convert this CoreData AgentEntity to an Agent struct for use in ViewModels
     func toModel() -> Agent {
+        let versionMode = acpVersionMode.flatMap { ACPVersionMode(rawValue: $0) } ?? .auto
         return Agent(
             id: agentId ?? UUID().uuidString,
             name: name ?? "Unknown Agent",
@@ -14,7 +15,8 @@ extension AgentEntity {
             sessionStartedAt: sessionStartedAt,
             supportsLoadSession: supportsLoadSession,
             bridgeAgentId: bridgeAgentId,
-            preferredTransport: preferredTransport
+            preferredTransport: preferredTransport,
+            acpVersionMode: versionMode
         )
     }
 

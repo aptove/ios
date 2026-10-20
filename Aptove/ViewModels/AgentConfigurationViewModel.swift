@@ -21,6 +21,7 @@ class AgentConfigurationViewModel: ObservableObject {
     @Published var error: String?
     @Published var shouldDismiss: Bool = false
     @Published var editableName: String = ""
+    @Published var acpVersionMode: ACPVersionMode = .auto
 
     let agentId: String
     private var agentManager: AgentManager?
@@ -67,12 +68,21 @@ class AgentConfigurationViewModel: ObservableObject {
             editableName = name
             hasLoadedName = true
         }
+
+        if let mode = agent?.acpVersionMode {
+            acpVersionMode = mode
+        }
     }
 
     func saveNameIfChanged() {
         let trimmed = editableName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed != agent?.name else { return }
         agentManager?.renameAgent(agentId: agentId, newName: trimmed)
+    }
+
+    func saveVersionMode(_ mode: ACPVersionMode) {
+        guard mode != agent?.acpVersionMode else { return }
+        agentManager?.setVersionMode(agentId: agentId, mode: mode)
     }
 
     func deleteEndpoint(id: String) {

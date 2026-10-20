@@ -292,7 +292,8 @@ class AgentManager: ObservableObject {
         }
 
         let initStart = CFAbsoluteTimeGetCurrent()
-        let client = ACPClientWrapper(config: config, agentId: agentId)
+        let versionMode = agents.first(where: { $0.id == agentId })?.acpVersionMode ?? .auto
+        let client = ACPClientWrapper(config: config, agentId: agentId, versionMode: versionMode)
         print("📱 AgentManager.getClient: Client created (\(Int((CFAbsoluteTimeGetCurrent() - initStart) * 1000))ms)")
 
         await clientCache.setClient(client, for: agentId)
@@ -413,7 +414,8 @@ class AgentManager: ObservableObject {
             // Swap client for this endpoint's config
             _ = await clientCache.removeClient(for: agentId)
             let existingSessionId = agents.first { $0.id == agentId }?.activeSessionId
-            let client = ACPClientWrapper(config: config, agentId: agentId)
+            let versionMode = agents.first(where: { $0.id == agentId })?.acpVersionMode ?? .auto
+            let client = ACPClientWrapper(config: config, agentId: agentId, versionMode: versionMode)
 
             // Trigger multi-transport reconnect when the WebSocket closes unexpectedly.
             client.onUnexpectedDisconnect = { [weak self] in
@@ -500,6 +502,14 @@ class AgentManager: ObservableObject {
     func setPreferredTransport(agentId: String, transport: String?) {
         guard let entity = repository.getAgentEntity(agentId: agentId) else { return }
         entity.preferredTransport = transport
+        repository.updateAgent(entity)
+    }
+
+    /// Set the ACP protocol version mode for an agent.
+    /// The change takes effect on the next connection attempt.
+    func setVersionMode(agentId: String, mode: ACPVersionMode) {
+        guard let entity = repository.getAgentEntity(agentId: agentId) else { return }
+        entity.acpVersionMode = mode.rawValue
         repository.updateAgent(entity)
     }
 

@@ -52,6 +52,24 @@ struct AgentConfigurationView: View {
                     }
                 }
 
+                // Protocol Version Section
+                Section {
+                    Picker("ACP Version", selection: $viewModel.acpVersionMode) {
+                        ForEach(ACPVersionMode.allCases, id: \.self) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .onChange(of: viewModel.acpVersionMode) { _, newMode in
+                        viewModel.saveVersionMode(newMode)
+                    }
+                    Text(viewModel.acpVersionMode.description)
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                } header: {
+                    Text("ACP Version")
+                }
+
                 // Session Information Section
                 Section("Session Information") {
                     if let sessionId = agent.activeSessionId {
