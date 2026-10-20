@@ -196,9 +196,9 @@ private struct TransportEndpointRow: View {
     private func transportDisplayName(_ transport: String) -> String {
         switch transport {
         case "local":           return "Local"
-        case "cloudflare":      return "Cloudflare"
         case "tailscale-serve": return "Tailscale"
-        default:                return transport.capitalized
+        default:
+            return FeatureRegistry.shared.provider(forTransport: transport)?.displayName ?? transport.capitalized
         }
     }
 }

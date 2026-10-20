@@ -30,9 +30,7 @@ class QRScannerViewModel: ObservableObject {
                 // Legacy JSON format (for backwards compatibility)
                 print("📷 QRScannerViewModel.handleQRCode(): Detected legacy JSON format")
                 let config = try handleLegacyJSON(qrString)
-                // Infer transport from config fields (clientId present → Cloudflare)
-                let transport: String? = config.clientId != nil ? "cloudflare" : nil
-                try await connectWithConfig(config, bridgeAgentId: config.agentId, transport: transport)
+                try await connectWithConfig(config, bridgeAgentId: config.agentId, transport: nil)
             }
             
         } catch let error as PairingError {
@@ -65,9 +63,10 @@ class QRScannerViewModel: ObservableObject {
         print("📷 QRScannerViewModel: Pairing type: \(pairingURL.pairingType.description)")
         switch pairingURL.pairingType {
         case .local:      pairingStatus = "Connecting to local bridge...\nValidating certificate..."
-        case .cloudflare: pairingStatus = "Connecting to Cloudflare tunnel..."
         case .tailscale:  pairingStatus = "Connecting via Tailscale..."
-        case .unknown(let path): throw PairingError.unsupportedPairingType(path)
+        case .plugin(let name):
+            let label = FeatureRegistry.shared.provider(forTransport: name)?.displayName ?? name
+            pairingStatus = "Connecting via \(label)..."
         }
 
         let result = try await pairingService.pair(with: pairingURL)
@@ -109,9 +108,10 @@ class QRScannerViewModel: ObservableObject {
         let pairingURL = try PairingURL.parse(urlString)
         switch pairingURL.pairingType {
         case .local:      pairingStatus = "Connecting to local bridge...\nValidating certificate..."
-        case .cloudflare: pairingStatus = "Connecting to Cloudflare tunnel..."
         case .tailscale:  pairingStatus = "Connecting via Tailscale..."
-        case .unknown(let path): throw PairingError.unsupportedPairingType(path)
+        case .plugin(let name):
+            let label = FeatureRegistry.shared.provider(forTransport: name)?.displayName ?? name
+            pairingStatus = "Connecting via \(label)..."
         }
         let result = try await pairingService.pair(with: pairingURL)
         return result.config
@@ -162,7 +162,7 @@ class QRScannerViewModel: ObservableObject {
             pairingStatus = "Adding transport to existing agent..."
             let message = try manager.addOrUpdateTransportEndpoint(
                 agentId: existingAgent.id,
-                transport: transport ?? "cloudflare",
+                transport: transport ?? "local",
                 config: config
             )
             if let transport = transport {

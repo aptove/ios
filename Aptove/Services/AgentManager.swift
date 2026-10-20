@@ -184,13 +184,14 @@ class AgentManager: ObservableObject {
             .endpoints as? Set<TransportEndpointEntity> ?? []
         let isUpdate = existingEndpoints.contains { $0.transport == transport }
 
-        // Priority: tailscale-serve(0) > tailscale-ip(1) > cloudflare(2) > local(3)
+        // Priority: tailscale-serve(0) > tailscale-ip(1) > enterprise plugins(2) > local(3)
         let priority: Int16
         switch transport {
         case "tailscale-serve": priority = 0
         case "tailscale-ip":    priority = 1
-        case "cloudflare":      priority = 2
-        default:                priority = 3  // local
+        default:
+            // Enterprise transports registered in FeatureRegistry get higher priority than local
+            priority = FeatureRegistry.shared.provider(forTransport: transport) != nil ? 2 : 3
         }
 
         guard let endpoint = repository.upsertTransportEndpoint(

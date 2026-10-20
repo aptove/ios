@@ -53,16 +53,15 @@ struct ConnectionConfig: Codable {
             throw ValidationError.invalidProtocol("Protocol version must be 'acp'")
         }
         
-        // Only require client credentials for Cloudflare Zero Trust connections (https://)
+        // Require client credentials for enterprise transport connections (https://)
         // Local TLS connections (wss://) use auth token instead
-        let isCloudflare = url.hasPrefix("https://")
-        if isCloudflare {
+        let requiresClientCredentials = url.hasPrefix("https://")
+        if requiresClientCredentials {
             guard let clientId = clientId, !clientId.isEmpty else {
-                throw ValidationError.missingField("Client ID is required for Cloudflare connections")
+                throw ValidationError.missingField("Client ID is required for this connection type")
             }
-            
             guard let clientSecret = clientSecret, !clientSecret.isEmpty else {
-                throw ValidationError.missingField("Client secret is required for Cloudflare connections")
+                throw ValidationError.missingField("Client secret is required for this connection type")
             }
         }
     }

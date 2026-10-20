@@ -4,29 +4,28 @@ import CommonCrypto
 /// Represents different pairing endpoint types based on URL path
 enum PairingType {
     case local      // /pair/local - Self-signed TLS, returns WebSocket URL + authToken
-    case cloudflare // /pair/cloudflare - Cloudflare Access, returns clientId + clientSecret
     case tailscale  // /pair/tailscale - Tailscale transport; standard TLS (serve) or cert pinning (ip)
-    case unknown(String)
+    case plugin(String) // enterprise transports registered via FeatureRegistry
 
     init(from path: String) {
         switch path {
         case "/pair/local":
             self = .local
-        case "/pair/cloudflare":
-            self = .cloudflare
         case "/pair/tailscale":
             self = .tailscale
         default:
-            self = .unknown(path)
+            // Strip /pair/ prefix to get transport name for plugin lookup
+            let name = path.hasPrefix("/pair/") ? String(path.dropFirst(6)) : path
+            self = .plugin(name)
         }
     }
 
     var description: String {
         switch self {
         case .local: return "Local Bridge"
-        case .cloudflare: return "Cloudflare Tunnel"
         case .tailscale: return "Tailscale"
-        case .unknown(let path): return "Unknown (\(path))"
+        case .plugin(let name):
+            return FeatureRegistry.shared.provider(forTransport: name)?.displayName ?? name
         }
     }
 }
@@ -114,33 +113,16 @@ struct LocalPairingResponse: Codable {
     let pushRelayUrl: String?
 }
 
-/// Response from /pair/cloudflare endpoint (future)
-struct CloudflarePairingResponse: Codable {
-    let url: String
-    let `protocol`: String
-    let version: String
-    let authToken: String
-    let clientId: String
-    let clientSecret: String
-    let agentId: String?
-    let cwd: String
-    let pushRelayUrl: String?
-}
-
-/// Generic pairing response that can hold either type
+/// Generic pairing response (local and Tailscale share the same response shape)
 enum PairingResponse {
     case local(LocalPairingResponse)
-    case cloudflare(CloudflarePairingResponse)
 
-    /// The bridge agent ID returned by the server, used for multi-transport deduplication.
     var agentId: String? {
         switch self {
         case .local(let r): return r.agentId
-        case .cloudflare(let r): return r.agentId
         }
     }
 
-    /// Convert to ConnectionConfig for use with ACPClientWrapper
     func toConnectionConfig() -> ConnectionConfig {
         switch self {
         case .local(let response):
@@ -150,18 +132,6 @@ enum PairingResponse {
                 clientSecret: nil,
                 authToken: response.authToken,
                 certFingerprint: response.certFingerprint,
-                protocolVersion: response.protocol,
-                version: response.version,
-                cwd: response.cwd,
-                pushRelayUrl: response.pushRelayUrl
-            )
-        case .cloudflare(let response):
-            return ConnectionConfig(
-                url: response.url,
-                clientId: response.clientId,
-                clientSecret: response.clientSecret,
-                authToken: response.authToken,
-                certFingerprint: nil,
                 protocolVersion: response.protocol,
                 version: response.version,
                 cwd: response.cwd,
@@ -226,12 +196,13 @@ actor PairingService {
         switch pairingURL.pairingType {
         case .local:
             return try await pairLocal(pairingURL: pairingURL)
-        case .cloudflare:
-            return try await pairCloudflare(pairingURL: pairingURL)
         case .tailscale:
             return try await pairTailscale(pairingURL: pairingURL)
-        case .unknown(let path):
-            throw PairingError.unsupportedPairingType(path)
+        case .plugin(let name):
+            guard let provider = FeatureRegistry.shared.provider(forTransport: name) else {
+                throw PairingError.unsupportedPairingType(name)
+            }
+            return try await provider.pair(pairingURL: pairingURL)
         }
     }
     
@@ -380,59 +351,6 @@ actor PairingService {
         }
     }
 
-    // MARK: - Cloudflare Pairing (Future)
-
-    /// Pair with a Cloudflare-tunneled bridge
-    private func pairCloudflare(pairingURL: PairingURL) async throws -> PairingResult {
-        print("🔐 PairingService: Starting Cloudflare pairing")
-        print("🔐 PairingService: URL: \(pairingURL.fullURL)")
-        
-        // Cloudflare uses trusted CA certificates, no pinning needed
-        let session = URLSession.shared
-        
-        var request = URLRequest(url: pairingURL.fullURL)
-        request.httpMethod = "GET"
-        request.timeoutInterval = 30
-        
-        let (data, response): (Data, URLResponse)
-        do {
-            (data, response) = try await session.data(for: request)
-        } catch {
-            throw PairingError.networkError(error)
-        }
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw PairingError.invalidResponse("Not an HTTP response")
-        }
-        
-        print("🔐 PairingService: HTTP status: \(httpResponse.statusCode)")
-        
-        switch httpResponse.statusCode {
-        case 200:
-            let decoder = JSONDecoder()
-            do {
-                let pairingResponse = try decoder.decode(CloudflarePairingResponse.self, from: data)
-                print("✅ PairingService: Cloudflare pairing successful!")
-                let pr = PairingResponse.cloudflare(pairingResponse)
-                return PairingResult(config: pr.toConnectionConfig(), bridgeAgentId: pr.agentId, transport: "cloudflare")
-            } catch {
-                throw PairingError.invalidResponse("Could not parse response: \(error)")
-            }
-            
-        case 401:
-            throw PairingError.invalidCode
-            
-        case 429:
-            throw PairingError.rateLimited
-            
-        default:
-            if let errorJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let message = errorJson["message"] as? String {
-                throw PairingError.invalidResponse("Server error: \(message)")
-            }
-            throw PairingError.invalidResponse("HTTP \(httpResponse.statusCode)")
-        }
-    }
 }
 
 /// URLSession delegate for certificate pinning during pairing

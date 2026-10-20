@@ -23,13 +23,11 @@ struct ManualPairingView: View {
     
     enum PairingTypeOption: String, CaseIterable {
         case local = "Local Bridge"
-        case cloudflare = "Cloudflare Tunnel"
         case tailscale = "Tailscale"
 
         var path: String {
             switch self {
             case .local: return "/pair/local"
-            case .cloudflare: return "/pair/cloudflare"
             case .tailscale: return "/pair/tailscale"
             }
         }
@@ -37,9 +35,14 @@ struct ManualPairingView: View {
         var requiresFingerprint: Bool {
             switch self {
             case .local: return true
-            case .cloudflare: return false
             case .tailscale: return false
             }
+        }
+
+        static var allCasesWithEnterprise: [PairingTypeOption] {
+            var cases = PairingTypeOption.allCases
+            // Enterprise transport providers appear after built-in options
+            return cases
         }
     }
     
@@ -59,8 +62,6 @@ struct ManualPairingView: View {
                         switch pairingType {
                         case .local:
                             Text("For bridges running on your local network")
-                        case .cloudflare:
-                            Text("For bridges exposed via Cloudflare Tunnel")
                         case .tailscale:
                             Text("For bridges using Tailscale. Your iPhone must be on the same tailnet. Enter the MagicDNS hostname shown in the bridge terminal (e.g. my-laptop.tail1234.ts.net).")
                         }
@@ -226,7 +227,7 @@ struct ManualPairingView: View {
         isPairing = true
         
         // Build the pairing URL
-        let scheme = (pairingType == .local && useHTTPS) || pairingType == .cloudflare || pairingType == .tailscale ? "https" : "http"
+        let scheme = (pairingType == .local && useHTTPS) || pairingType == .tailscale ? "https" : "http"
         let address = bridgeAddress.trimmingCharacters(in: .whitespaces)
         let code = pairingCode.trimmingCharacters(in: .whitespaces)
         
