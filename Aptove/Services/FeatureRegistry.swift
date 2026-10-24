@@ -9,21 +9,21 @@ import Foundation
 /// Enterprise entry points register additional providers (e.g.
 /// `CFZeroTrustTransportProvider`) before the app's first render, making
 /// them available throughout the app.
-public class FeatureRegistry {
-    public static let shared = FeatureRegistry()
+class FeatureRegistry {
+    static let shared = FeatureRegistry()
     private init() {}
 
     /// Additional transport providers registered by enterprise builds.
     /// Built-in transports (local, tailscale) are NOT in this list.
-    public var transportProviders: [TransportProvider] = []
+    var transportProviders: [TransportProvider] = []
 
     /// Find a registered provider for the given transport name.
-    public func provider(forTransport name: String) -> TransportProvider? {
+    func provider(forTransport name: String) -> TransportProvider? {
         transportProviders.first { $0.transportName == name }
     }
 
     /// All registered transport names (enterprise transports only).
-    public var registeredTransportNames: [String] {
+    var registeredTransportNames: [String] {
         transportProviders.map { $0.transportName }
     }
 }

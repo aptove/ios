@@ -45,20 +45,18 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 @main
 struct AptoveApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @StateObject private var agentManager: AgentManager
-    @StateObject private var pushManager = PushNotificationManager.shared
     @AppStorage("isDarkMode") private var isDarkMode: Bool = true
     @AppStorage("appLanguage") private var appLanguage: String = ""
     @State private var showSplash = true
-    @Environment(\.scenePhase) private var scenePhase
+
+    // Plain let — not @StateObject — so publishes from agentManager don't re-evaluate App.body.
+    private let agentManager: AgentManager
 
     init() {
         print("🚀 AptoveApp: Application starting...")
 
-        // Set up CoreData repository
         let repository = AgentRepository()
 
-        // Run one-time migration from UserDefaults to CoreData
         let migrator = UserDefaultsMigrator(repository: repository)
         if migrator.needsMigration() {
             do {
@@ -68,53 +66,21 @@ struct AptoveApp: App {
             }
         }
 
-        _agentManager = StateObject(wrappedValue: AgentManager(repository: repository))
+        agentManager = AgentManager(repository: repository)
         print("🚀 AptoveApp: Main app initialized")
     }
-    
+
     var body: some Scene {
         WindowGroup {
             ZStack {
                 ContentView()
                     .environmentObject(agentManager)
-                    .environmentObject(pushManager)
+                    .environmentObject(PushNotificationManager.shared)
                     .preferredColorScheme(isDarkMode ? .dark : .light)
                     .environment(\.locale, appLanguage.isEmpty ? .autoupdatingCurrent : Locale(identifier: appLanguage))
                     .onAppear {
                         print("🚀 AptoveApp: ContentView appeared - app fully launched")
-                        // Request push notification permissions on launch
-                        pushManager.requestAuthorization()
-                    }
-                    .onChange(of: scenePhase) { _, newPhase in
-                        switch newPhase {
-                        case .active:
-                            print("🌅 [push-dbg] App became ACTIVE — reconnecting agents (0.5s delay for in-flight disconnect)")
-                            // Small delay so any in-flight background disconnect completes before
-                            // we reconnect, preventing two simultaneous connections on the bridge.
-                            Task {
-                                try? await Task.sleep(nanoseconds: 500_000_000)
-                                agentManager.autoConnectAllAgents()
-                            }
-                        case .inactive:
-                            print("🌄 [push-dbg] App became INACTIVE (transitioning)")
-                        case .background:
-                            print("🌙 [push-dbg] App entered BACKGROUND — closing WebSocket so bridge detects disconnect and pushes")
-                            // Request background execution time so iOS doesn't suspend the process
-                            // before the WebSocket close frame is delivered to the bridge.
-                            // Box the task ID so both closures read the value at call time,
-                            // not a copy captured before beginBackgroundTask returns.
-                            final class BGTaskBox: @unchecked Sendable { var id = UIBackgroundTaskIdentifier.invalid }
-                            let bgTask = BGTaskBox()
-                            bgTask.id = UIApplication.shared.beginBackgroundTask(withName: "ws-background-disconnect") {
-                                UIApplication.shared.endBackgroundTask(bgTask.id)
-                            }
-                            Task {
-                                await agentManager.disconnectAll()
-                                UIApplication.shared.endBackgroundTask(bgTask.id)
-                            }
-                        @unknown default:
-                            break
-                        }
+                        PushNotificationManager.shared.requestAuthorization()
                     }
 
                 if showSplash {

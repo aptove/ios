@@ -37,6 +37,8 @@
 		C8000000000000C8 /* AgentConfigurationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000052 /* AgentConfigurationView.swift */; };
 		C8000000000000CA /* AgentConfigurationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000053 /* AgentConfigurationViewModel.swift */; };
 		C8000000000000CC /* PushNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000054 /* PushNotificationManager.swift */; };
+		C800000000000501 /* FeatureRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000500 /* FeatureRegistry.swift */; };
+		C800000000000503 /* TransportProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000502 /* TransportProvider.swift */; };
 		C800000000000100 /* ACPClientWrapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000101 /* ACPClientWrapperTests.swift */; };
 		C800000000000200 /* CoreDataStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000201 /* CoreDataStack.swift */; };
 		C800000000000202 /* Agent+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000203 /* Agent+CoreDataClass.swift */; };
@@ -92,6 +94,8 @@
 		C800000000000052 /* AgentConfigurationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentConfigurationView.swift; sourceTree = "<group>"; };
 		C800000000000053 /* AgentConfigurationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentConfigurationViewModel.swift; sourceTree = "<group>"; };
 		C800000000000054 /* PushNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushNotificationManager.swift; sourceTree = "<group>"; };
+		C800000000000500 /* FeatureRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureRegistry.swift; sourceTree = "<group>"; };
+		C800000000000502 /* TransportProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransportProvider.swift; sourceTree = "<group>"; };
 		C800000000000055 /* Aptove.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Aptove.entitlements; sourceTree = "<group>"; };
 		C800000000000060 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		C800000000000305 /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
@@ -227,6 +231,8 @@
 				C800000000000017 /* ACPClientWrapper.swift */,
 				C800000000000050 /* PairingService.swift */,
 				C800000000000054 /* PushNotificationManager.swift */,
+				C800000000000500 /* FeatureRegistry.swift */,
+				C800000000000502 /* TransportProvider.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -427,6 +433,8 @@
 				C8000000000000B4 /* AgentManager.swift in Sources */,
 				C8000000000000B6 /* ACPClientWrapper.swift in Sources */,
 				C8000000000000C4 /* PairingService.swift in Sources */,
+				C800000000000501 /* FeatureRegistry.swift in Sources */,
+				C800000000000503 /* TransportProvider.swift in Sources */,
 				C8000000000000B8 /* QRScannerView.swift in Sources */,
 				C8000000000000C6 /* ManualPairingView.swift in Sources */,
 				C8000000000000BC /* AgentListView.swift in Sources */,

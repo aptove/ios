@@ -4,7 +4,7 @@ import Foundation
 ///
 /// OSS builds register `LocalTransportProvider` and `TailscaleTransportProvider`.
 /// Enterprise builds additionally register `CFZeroTrustTransportProvider`.
-public protocol TransportProvider {
+protocol TransportProvider {
     /// Internal name matching the bridge transport key (e.g. "cloudflare").
     var transportName: String { get }
     /// Human-readable label shown in UI.

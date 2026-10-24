@@ -40,7 +40,7 @@ struct ManualPairingView: View {
         }
 
         static var allCasesWithEnterprise: [PairingTypeOption] {
-            var cases = PairingTypeOption.allCases
+            let cases = PairingTypeOption.allCases
             // Enterprise transport providers appear after built-in options
             return cases
         }

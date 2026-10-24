@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 enum BottomTab { case chat, settings }
 
@@ -17,6 +18,7 @@ struct ContentView: View {
     @EnvironmentObject private var agentManager: AgentManager
     @EnvironmentObject private var pushManager: PushNotificationManager
     @AppStorage("appLanguage") private var appLanguage: String = ""
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab: BottomTab = .chat
     @State private var isInChat = false
     @State private var showingQRScanner = false
@@ -70,6 +72,31 @@ struct ContentView: View {
         }
         .onAppear {
             print("🖥️  ContentView: View appeared and rendered")
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            switch newPhase {
+            case .active:
+                print("🌅 [push-dbg] App became ACTIVE — reconnecting agents (0.5s delay for in-flight disconnect)")
+                Task {
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    agentManager.autoConnectAllAgents()
+                }
+            case .inactive:
+                print("🌄 [push-dbg] App became INACTIVE (transitioning)")
+            case .background:
+                print("🌙 [push-dbg] App entered BACKGROUND — closing WebSocket so bridge detects disconnect and pushes")
+                final class BGTaskBox: @unchecked Sendable { var id = UIBackgroundTaskIdentifier.invalid }
+                let bgTask = BGTaskBox()
+                bgTask.id = UIApplication.shared.beginBackgroundTask(withName: "ws-background-disconnect") {
+                    UIApplication.shared.endBackgroundTask(bgTask.id)
+                }
+                Task {
+                    await agentManager.disconnectAll()
+                    UIApplication.shared.endBackgroundTask(bgTask.id)
+                }
+            @unknown default:
+                break
+            }
         }
         .onChange(of: pushManager.tappedAgentName) { _, agentName in
             guard let agentName else { return }
