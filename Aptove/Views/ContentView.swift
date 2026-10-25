@@ -23,6 +23,7 @@ struct ContentView: View {
     @State private var isInChat = false
     @State private var showingQRScanner = false
     @State private var navigationPath = NavigationPath()
+    @State private var hasGoneToBackground = false
 
     init() {
         print("🖥️  ContentView: Initializing...")
@@ -76,6 +77,10 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
             case .active:
+                guard hasGoneToBackground else {
+                    print("🌅 [push-dbg] App became ACTIVE (initial launch — skipping reconnect)")
+                    break
+                }
                 print("🌅 [push-dbg] App became ACTIVE — reconnecting agents (0.5s delay for in-flight disconnect)")
                 Task {
                     try? await Task.sleep(nanoseconds: 500_000_000)
@@ -84,6 +89,7 @@ struct ContentView: View {
             case .inactive:
                 print("🌄 [push-dbg] App became INACTIVE (transitioning)")
             case .background:
+                hasGoneToBackground = true
                 print("🌙 [push-dbg] App entered BACKGROUND — closing WebSocket so bridge detects disconnect and pushes")
                 final class BGTaskBox: @unchecked Sendable { var id = UIBackgroundTaskIdentifier.invalid }
                 let bgTask = BGTaskBox()
