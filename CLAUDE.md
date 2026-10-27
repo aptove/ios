@@ -2,7 +2,7 @@
 
 ## OSS / Enterprise Split
 
-The repo is the OSS Aptove iOS app. It is also consumed as an SPM library by `ios-ent` (separate private repo), which adds enterprise transports (e.g. Cloudflare Zero Trust) without forking.
+The repo is the OSS Aptove iOS app. It is also consumed as an SPM library by `ios-ent` (separate private repo), which adds enterprise transports (e.g. Cloudflare Zero Trust, custom SSO, VPN-gated bridges) without forking.
 
 ### How it works
 
@@ -19,8 +19,8 @@ The repo is the OSS Aptove iOS app. It is also consumed as an SPM library by `io
 
 ```swift
 FeatureRegistry.shared.transportProviders = [
-    CFZeroTrustTransportProvider(),
-    // other enterprise providers...
+    MyEnterpriseTransportProvider(),   // e.g. CFZeroTrustTransportProvider, VPNTransportProvider
+    // additional providers as needed
 ]
 ```
 
@@ -32,11 +32,11 @@ The OSS `AptoveApp.swift` leaves `transportProviders` empty — built-in Local a
 
 ### 1. No hardcoded enterprise transport names in OSS
 
-Never branch on `"cloudflare"` or any other enterprise transport name in `PairingService`, `AgentManager`, `QRScannerViewModel`, or any view. Use `FeatureRegistry` lookups instead.
+Never branch on any enterprise transport name (e.g. `"cloudflare"`, `"vpn"`) in `PairingService`, `AgentManager`, `QRScannerViewModel`, or any view. Use `FeatureRegistry` lookups instead.
 
 **Wrong:**
 ```swift
-case "cloudflare": priority = 2
+case "some-enterprise-transport": priority = 2
 ```
 
 **Right:**
@@ -66,7 +66,7 @@ case .plugin(let name):
     return try await provider.pair(pairingURL: pairingURL)
 ```
 
-Never add a named `pairCloudflare()` or similar private method in `PairingService` — that logic belongs in the enterprise `TransportProvider` implementation.
+Never add transport-specific private methods (e.g. `pairCloudflare()`, `pairVPN()`) in `PairingService` — that logic belongs in the enterprise `TransportProvider` implementation in `ios-ent`.
 
 ### 4. ManualPairingView enterprise options
 
@@ -76,9 +76,9 @@ Never add a named `pairCloudflare()` or similar private method in `PairingServic
 
 `Package.swift` excludes app-level files that are not part of the reusable library (`AptoveApp.swift`, assets, entitlements, localization). When adding new files that are app-entry-point-only (e.g. a new `@main` struct), add them to the `exclude` list. All `Services/`, `ViewModels/`, `Models/`, and `Views/` files are included in `AptoveCore` by default.
 
-### 6. No direct CF SDK imports in OSS targets
+### 6. No enterprise SDK imports in OSS targets
 
-The OSS app and `AptoveCore` must build with zero Cloudflare dependencies. Any CF SDK import belongs exclusively in `ios-ent`.
+The OSS app and `AptoveCore` must build with zero enterprise-specific dependencies. Any third-party enterprise SDK (e.g. Cloudflare, VPN libraries) belongs exclusively in `ios-ent`.
 
 ---
 
@@ -86,9 +86,9 @@ The OSS app and `AptoveCore` must build with zero Cloudflare dependencies. Any C
 
 ```swift
 public protocol TransportProvider {
-    var transportName: String { get }    // matches bridge transport key, e.g. "cloudflare"
-    var displayName: String { get }      // shown in UI, e.g. "Cloudflare Tunnel"
-    var pairingPath: String { get }      // e.g. "/pair/cloudflare"
+    var transportName: String { get }    // matches bridge transport key, e.g. "cloudflare", "vpn"
+    var displayName: String { get }      // shown in UI, e.g. "Cloudflare Tunnel", "Corporate VPN"
+    var pairingPath: String { get }      // e.g. "/pair/cloudflare", "/pair/vpn"
     var usesExternalTLS: Bool { get }    // true = no cert pinning
     func pair(pairingURL: PairingURL) async throws -> PairingResult
 }
