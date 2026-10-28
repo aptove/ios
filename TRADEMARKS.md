@@ -6,7 +6,7 @@ This project, **Aptove**, is released under the Apache License 2.0. While the li
 The following are trademarks of **Aptove**:
 * The name **"Aptove"**
 * The **Aptove** logo and app icon
-* The slogan: **"Chat with your AI Agents anywhere and aptove what they do :)"**
+* The slogan: **"AI Agents In Your Pocket"**
 
 ### 2. What You CAN Do
 * **Personal Use:** Use the name and logo for your personal, non-commercial copies of the app.
