@@ -187,7 +187,7 @@ class AgentManager: ObservableObject {
         }
         guard let entity = repository.findAgentEntityByBridgeId(bridgeAgentId) else { return nil }
         // If both sides have a non-empty cwd and they differ, this is a different project.
-        if let entityCwd = entity.cwd, !entityCwd.isEmpty, entityCwd != cwd {
+        if !entity.cwd.isEmpty, entity.cwd != cwd {
             return nil
         }
         return entity.toModel()
