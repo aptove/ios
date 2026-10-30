@@ -1012,6 +1012,16 @@ class ACPClientWrapper: ObservableObject {
             return
         }
 
+        if notif.method == "bridge/memoryLimitReached" {
+            if case .object(let p) = notif.params,
+               case .string(let msg) = p["message"] {
+                DispatchQueue.main.async {
+                    self.connectionMessage = "⚠️ \(msg)"
+                }
+            }
+            return
+        }
+
         guard notif.method == "bridge/remoteUserMessage",
               case .object(let paramsObj) = notif.params,
               case .string(let senderId) = paramsObj["senderId"],
