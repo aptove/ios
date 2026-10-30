@@ -153,7 +153,13 @@ class ACPClientWrapper: ObservableObject {
 
     /// The working directory to send when creating sessions (from bridge pairing).
     let cwd: String
-    
+
+    /// The bridgeAgentId this client expects to see from the bridge.
+    /// If set, every `bridge/*` notification is validated against this value.
+    /// A mismatch means the iOS app auto-connected to a different bridge at the
+    /// same address — the client disconnects and shows an actionable warning.
+    let expectedBridgeAgentId: String?
+
     /// The agent's self-reported name (from InitializeResponse)
     private(set) var connectedAgentName: String?
     
@@ -178,12 +184,13 @@ class ACPClientWrapper: ObservableObject {
     // Store for collecting agent responses
     private var currentResponse: String = ""
     
-    nonisolated init(config: ConnectionConfig, agentId: String, versionMode: ACPVersionMode = .auto, connectionTimeout: TimeInterval = 300, maxRetries: Int = 3, maxReconnectAttempts: Int = 1) {
+    nonisolated init(config: ConnectionConfig, agentId: String, expectedBridgeAgentId: String? = nil, versionMode: ACPVersionMode = .auto, connectionTimeout: TimeInterval = 300, maxRetries: Int = 3, maxReconnectAttempts: Int = 1) {
         print("🔌 ACPClientWrapper: Initializing for agent \(agentId)")
         print("🔌 ACPClientWrapper: URL: \(config.websocketURL)")
         print("🔌 ACPClientWrapper: Timeout: \(connectionTimeout)s, Max retries: \(maxRetries), Max reconnect: \(maxReconnectAttempts)")
         self.config = config
         self.agentId = agentId
+        self.expectedBridgeAgentId = expectedBridgeAgentId
         self.versionMode = versionMode
         self.connectionTimeout = connectionTimeout
         self.maxRetries = maxRetries
@@ -970,7 +977,46 @@ class ACPClientWrapper: ObservableObject {
         return nil
     }
 
+    /// Validate `bridgeAgentId` on every `bridge/*` notification.
+    /// Returns true if the notification should be discarded (mismatch detected).
+    private func checkBridgeIdentity(_ notif: JsonRpcNotification) -> Bool {
+        guard let expected = expectedBridgeAgentId,
+              case .object(let p) = notif.params,
+              case .string(let received) = p["bridgeAgentId"],
+              !received.isEmpty else { return false }
+        if received != expected {
+            let cwd = p["cwd"].flatMap { if case .string(let s) = $0 { return s } else { return nil } }
+            handleBridgeMismatch(receivedCwd: cwd)
+            return true
+        }
+        return false
+    }
+
+    private func handleBridgeMismatch(receivedCwd: String?) {
+        let cwdInfo = receivedCwd ?? "unknown"
+        print("⚠️ ACPClientWrapper: bridge identity mismatch — received cwd: \(cwdInfo), expected bridgeAgentId: \(expectedBridgeAgentId ?? "nil")")
+        DispatchQueue.main.async {
+            self.connectionMessage = "⚠️ A different bridge is now at this address (project: \(cwdInfo)). Scan its QR code to add it as a new agent."
+            self.connectionState = .error("wrongBridge:\(cwdInfo)")
+        }
+        Task { await self.disconnect() }
+    }
+
     private func handleBridgeNotification(_ notif: JsonRpcNotification) {
+        // Identity handshake — first message from the bridge after connection.
+        if notif.method == "bridge/identify" {
+            if checkBridgeIdentity(notif) { return }
+            // Matched — log the confirmed identity.
+            if case .object(let p) = notif.params,
+               case .string(let id) = p["bridgeAgentId"] {
+                print("✅ ACPClientWrapper: bridge identity confirmed (bridgeAgentId=\(id))")
+            }
+            return
+        }
+
+        // Validate bridgeAgentId on all subsequent bridge/* notifications.
+        if checkBridgeIdentity(notif) { return }
+
         // Bridge requests the client's push token (sent when push relay is configured).
         if notif.method == "bridge/requestPushToken" {
             Task {

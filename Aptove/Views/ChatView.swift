@@ -30,6 +30,16 @@ struct ChatView: View {
     
     var body: some View {
         VStack(spacing: 0) {
+            if let warning = agentManager.bridgeMismatchWarnings[agentId], !warning.isEmpty {
+                Text(warning)
+                    .font(.caption)
+                    .foregroundStyle(.yellow)
+                    .padding(.horizontal)
+                    .padding(.vertical, 6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.yellow.opacity(0.12))
+            }
+
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 12) {

@@ -23,6 +23,9 @@ actor ClientCache {
 class AgentManager: ObservableObject {
     @Published var agents: [Agent] = []
     @Published var conversations: [String: Conversation] = [:]
+    /// Per-agent bridge mismatch warning messages. Populated when a wrong-bridge
+    /// identity error is detected; cleared when the agent reconnects successfully.
+    @Published var bridgeMismatchWarnings: [String: String] = [:]
 
     private let clientCache = ClientCache()
     let repository: AgentRepository
@@ -436,7 +439,7 @@ class AgentManager: ObservableObject {
             _ = await clientCache.removeClient(for: agentId)
             let existingSessionId = agents.first { $0.id == agentId }?.activeSessionId
             let versionMode = agents.first(where: { $0.id == agentId })?.acpVersionMode ?? .auto
-            let client = ACPClientWrapper(config: config, agentId: agentId, versionMode: versionMode)
+            let client = ACPClientWrapper(config: config, agentId: agentId, expectedBridgeAgentId: entity.bridgeAgentId, versionMode: versionMode)
 
             // Trigger multi-transport reconnect when the WebSocket closes unexpectedly.
             client.onUnexpectedDisconnect = { [weak self] in
@@ -449,6 +452,15 @@ class AgentManager: ObservableObject {
 
             await clientCache.setClient(client, for: agentId)
             await client.connect(existingSessionId: existingSessionId)
+
+            // If the bridge rejected us due to identity mismatch, back off for 5 minutes
+            // so the retry loop doesn't repeatedly reconnect and immediately disconnect.
+            if case .error(let msg) = client.connectionState, msg.hasPrefix("wrongBridge:") {
+                repository.updateConnectionStatus(agentId: agentId, status: .disconnected)
+                retryNotBefore[agentId] = Date().addingTimeInterval(300)
+                bridgeMismatchWarnings[agentId] = client.connectionMessage
+                return false
+            }
 
             if case .connected = client.connectionState {
                 repository.updateEndpointStatus(endpointId: endpointId, isActive: true)
@@ -463,6 +475,7 @@ class AgentManager: ObservableObject {
                 // Clear backoff state so the retry loop picks this agent up immediately if it disconnects again
                 retryFailureCounts[agentId] = 0
                 retryNotBefore.removeValue(forKey: agentId)
+                bridgeMismatchWarnings.removeValue(forKey: agentId)
                 return true
             } else {
                 repository.updateEndpointStatus(endpointId: endpointId, isActive: false)
