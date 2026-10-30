@@ -73,9 +73,11 @@ class QRScannerViewModel: ObservableObject {
         print("✅ QRScannerViewModel: Pairing successful!")
         print("📷 QRScannerViewModel: Bridge agent ID: \(result.bridgeAgentId ?? "none")")
 
-        // Multi-transport dedup: if bridgeAgentId matches an existing agent, add transport
+        // Multi-transport dedup: if bridgeAgentId + cwd match an existing agent, add transport.
+        // cwd is used as a secondary key so two bridges with the same agent_id but different
+        // working directories are correctly treated as separate agents.
         if let bridgeAgentId = result.bridgeAgentId, let manager = agentManager,
-           let existingAgent = manager.findAgent(byBridgeAgentId: bridgeAgentId) {
+           let existingAgent = manager.findAgent(byBridgeAgentId: bridgeAgentId, cwd: result.config.cwd) {
             pairingStatus = "Adding transport to existing agent..."
             let message = try manager.addOrUpdateTransportEndpoint(
                 agentId: existingAgent.id,
@@ -153,11 +155,11 @@ class QRScannerViewModel: ObservableObject {
             throw ScanError.noAgentManager
         }
 
-        // Multi-transport dedup: bridgeAgentId takes priority over URL matching.
+        // Multi-transport dedup: bridgeAgentId + cwd take priority over URL matching.
         // This handles the case where the same bridge is scanned with a different transport
         // (e.g., first local, then Cloudflare — different URLs, same agent).
         if let bridgeAgentId = bridgeAgentId,
-           let existingAgent = manager.findAgent(byBridgeAgentId: bridgeAgentId) {
+           let existingAgent = manager.findAgent(byBridgeAgentId: bridgeAgentId, cwd: config.cwd) {
             print("📷 QRScannerViewModel.connectWithConfig(): Found existing agent by bridgeAgentId \(bridgeAgentId), adding transport")
             pairingStatus = "Adding transport to existing agent..."
             let message = try manager.addOrUpdateTransportEndpoint(

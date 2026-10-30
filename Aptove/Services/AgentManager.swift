@@ -172,6 +172,27 @@ class AgentManager: ObservableObject {
         return agents.first { $0.bridgeAgentId == bridgeAgentId }
     }
 
+    /// Find an agent by bridge agent ID AND working directory.
+    ///
+    /// Two bridge instances can accidentally end up with the same agent_id (e.g. when the
+    /// user copies a config or runs a second bridge in a directory that already has a
+    /// .aptove-bridge/ folder). Using cwd as a secondary discriminator ensures they are
+    /// treated as separate agents rather than being merged via the multi-transport path.
+    ///
+    /// Falls back to ID-only matching when either cwd is empty (old bridge versions that
+    /// did not include cwd in the QR code).
+    func findAgent(byBridgeAgentId bridgeAgentId: String, cwd: String) -> Agent? {
+        guard !cwd.isEmpty else {
+            return findAgent(byBridgeAgentId: bridgeAgentId)
+        }
+        guard let entity = repository.findAgentEntityByBridgeId(bridgeAgentId) else { return nil }
+        // If both sides have a non-empty cwd and they differ, this is a different project.
+        if let entityCwd = entity.cwd, !entityCwd.isEmpty, entityCwd != cwd {
+            return nil
+        }
+        return entity.toModel()
+    }
+
     /// Add or update a transport endpoint for an agent, and persist its credentials.
     /// Returns a user-facing confirmation message.
     @discardableResult
