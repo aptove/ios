@@ -180,24 +180,40 @@ class QRScannerViewModel: ObservableObject {
             return
         }
 
-        // Check if agent already exists - if so, update credentials instead of rejecting
+        // Check if the same bridge is being re-scanned (e.g. to refresh credentials).
+        // Only treat it as the same agent when both sides agree on bridgeAgentId.
+        // A different bridge that happens to land on the same IP/port must NOT hijack the
+        // existing agent — it should be registered as a new agent instead.
         if let existingAgent = manager.findAgent(withURL: config.url, clientId: config.clientId) {
-            print("📷 QRScannerViewModel.connectWithConfig(): Agent exists, updating credentials for \(existingAgent.id)")
-            pairingStatus = "Updating existing agent credentials..."
-            
-            try await manager.updateAgentCredentials(agentId: existingAgent.id, config: config)
-            
-            pairingStatus = "Testing connection..."
-            let (success, _) = await testConnectionWithName(config: config)
-            
-            if success {
-                print("✅ QRScannerViewModel.connectWithConfig(): Credentials updated and connection verified")
-                showingSuccess = true
+            let isSameBridge: Bool
+            if let newId = bridgeAgentId, let existingId = existingAgent.bridgeAgentId,
+               !newId.isEmpty, !existingId.isEmpty {
+                isSameBridge = newId == existingId
             } else {
-                print("❌ QRScannerViewModel.connectWithConfig(): Connection test failed after update")
-                throw ScanError.connectionFailed
+                isSameBridge = true // no bridgeAgentId on either side — assume same (legacy)
             }
-            return
+
+            if isSameBridge {
+                print("📷 QRScannerViewModel.connectWithConfig(): Agent exists, updating credentials for \(existingAgent.id)")
+                pairingStatus = "Updating existing agent credentials..."
+
+                try await manager.updateAgentCredentials(agentId: existingAgent.id, config: config)
+
+                pairingStatus = "Testing connection..."
+                let (success, _) = await testConnectionWithName(config: config)
+
+                if success {
+                    print("✅ QRScannerViewModel.connectWithConfig(): Credentials updated and connection verified")
+                    await manager.disconnectAgent(agentId: existingAgent.id)
+                    Task { await manager.connectAgent(agentId: existingAgent.id) }
+                    showingSuccess = true
+                } else {
+                    print("❌ QRScannerViewModel.connectWithConfig(): Connection test failed after update")
+                    throw ScanError.connectionFailed
+                }
+                return
+            }
+            print("📷 QRScannerViewModel.connectWithConfig(): URL matches existing agent but bridgeAgentId differs — creating new agent")
         }
         
         pairingStatus = "Testing connection to agent..."
