@@ -131,12 +131,38 @@ struct SettingsView: View {
                         }
                     }
 
+                    Link(destination: URL(string: "https://aptove.com/privacy")!) {
+                        HStack {
+                            Text("Privacy Policy")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Image(systemName: "arrow.up.right.square")
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
                     HStack {
                         Text("Version")
                         Spacer()
                         Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—")
                             .foregroundColor(.secondary)
                     }
+                }
+
+                // Logo
+                Section {
+                    HStack {
+                        Spacer()
+                        Image("AptoveLockup")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(height: 36)
+                            .opacity(0.7)
+                        Spacer()
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 16, leading: 0, bottom: 8, trailing: 0))
+                    .listRowSeparator(.hidden)
                 }
 
                 // Spacer row so content scrolls above the floating tab bar.
