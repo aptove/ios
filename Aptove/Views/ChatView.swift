@@ -21,6 +21,7 @@ struct ChatView: View {
     @State private var commandQuery: String? = nil // nil = picker hidden
     @State private var showAttachmentPanel = false
     @State private var showMemoryEntry = false
+    @State private var showingAgentConfig = false
 
     init(agentId: String, isInChat: Binding<Bool>) {
         self.agentId = agentId
@@ -269,16 +270,35 @@ struct ChatView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                VStack(spacing: 2) {
-                    Text(agentName)
-                        .font(.headline)
-                    if viewModel.showSessionIndicator {
-                        Text(viewModel.sessionWasResumed == true ? String(localized: "chat_session_resumed") : String(localized: "chat_new_session"))
-                            .font(.caption)
-                            .foregroundColor(viewModel.sessionWasResumed == true ? .blue : .secondary)
+                Button {
+                    showingAgentConfig = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(agentStatusColor)
+                            .frame(width: 28, height: 28)
+                            .overlay {
+                                Text(agentName.prefix(1).uppercased())
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(.white)
+                            }
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(agentName)
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            if viewModel.showSessionIndicator {
+                                Text(viewModel.sessionWasResumed == true ? String(localized: "chat_session_resumed") : String(localized: "chat_new_session"))
+                                    .font(.caption)
+                                    .foregroundColor(viewModel.sessionWasResumed == true ? .blue : .secondary)
+                            }
+                        }
                     }
                 }
+                .buttonStyle(.plain)
             }
+        }
+        .navigationDestination(isPresented: $showingAgentConfig) {
+            AgentConfigurationView(agentId: agentId)
         }
         .onAppear {
             isInChat = true
@@ -317,6 +337,14 @@ struct ChatView: View {
 
     private var agentName: String {
         agentManager.agents.first { $0.id == agentId }?.name ?? String(localized: "chat_default_title")
+    }
+
+    private var agentStatusColor: Color {
+        switch agentManager.agents.first(where: { $0.id == agentId })?.status {
+        case .connected:    return .green
+        case .reconnecting: return .orange
+        default:            return .gray
+        }
     }
     
     private func applyCommand(_ command: AvailableCommand) {
