@@ -25,38 +25,7 @@ struct AgentConfigurationView: View {
             if let agent = viewModel.agent {
                 // Avatar Section
                 Section {
-                    HStack {
-                        Spacer()
-                        Button { showAvatarPicker = true } label: {
-                            ZStack(alignment: .bottomTrailing) {
-                                ZStack {
-                                    Circle()
-                                        .fill(statusColor(for: agent.status))
-                                        .frame(width: 72, height: 72)
-                                    if let img = avatarImage {
-                                        Image(uiImage: img)
-                                            .resizable()
-                                            .scaledToFill()
-                                            .frame(width: 72, height: 72)
-                                            .clipShape(Circle())
-                                    } else {
-                                        Text(agent.name.prefix(1).uppercased())
-                                            .font(.system(size: 30, weight: .semibold))
-                                            .foregroundColor(.white)
-                                    }
-                                }
-                                Image(systemName: "pencil.circle.fill")
-                                    .font(.title2)
-                                    .foregroundColor(.accentColor)
-                                    .background(Circle().fill(Color(.systemBackground)).padding(2))
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        Spacer()
-                    }
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 20, leading: 0, bottom: 12, trailing: 0))
-                    .listRowSeparator(.hidden)
+                    avatarRow(agent: agent)
                 }
 
                 // Agent Information Section
@@ -232,6 +201,52 @@ struct AgentConfigurationView: View {
         } message: {
             if let error = viewModel.error { Text(error) }
         }
+    }
+
+    @ViewBuilder
+    private func avatarRow(agent: Agent) -> some View {
+        let color = statusColor(for: agent.status)
+        let initial = String(agent.name.prefix(1).uppercased())
+        HStack {
+            Spacer()
+            Button { showAvatarPicker = true } label: {
+                avatarBadge(color: color, initial: initial)
+            }
+            .buttonStyle(.plain)
+            Spacer()
+        }
+        .listRowBackground(Color.clear)
+        .listRowInsets(EdgeInsets(top: 20, leading: 0, bottom: 12, trailing: 0))
+        .listRowSeparator(.hidden)
+    }
+
+    @ViewBuilder
+    private func avatarBadge(color: Color, initial: String) -> some View {
+        ZStack(alignment: .bottomTrailing) {
+            avatarCircle(color: color, initial: initial, size: 72)
+            Image(systemName: "pencil.circle.fill")
+                .font(.title2)
+                .foregroundColor(.accentColor)
+                .background(Circle().fill(Color(.systemBackground)).padding(2))
+        }
+    }
+
+    @ViewBuilder
+    private func avatarCircle(color: Color, initial: String, size: CGFloat) -> some View {
+        ZStack {
+            Circle().fill(color)
+            if let img = avatarImage {
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+                    .clipShape(Circle())
+            } else {
+                Text(initial)
+                    .font(.system(size: size * 0.42, weight: .semibold))
+                    .foregroundColor(.white)
+            }
+        }
+        .frame(width: size, height: size)
     }
 
     private func statusColor(for status: ConnectionStatus) -> Color {
