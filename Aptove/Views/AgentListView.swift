@@ -5,6 +5,7 @@ struct AgentListView: View {
     @Binding var isInChat: Bool
     @State private var agentToDelete: Agent?
     @State private var showingDeleteConfirmation = false
+    @State private var agentToConfigureId: String? = nil
 
     var body: some View {
         List {
@@ -13,12 +14,12 @@ struct AgentListView: View {
                     AgentRow(agent: agent)
                 }
                 .contextMenu {
-                    NavigationLink {
-                        AgentConfigurationView(agentId: agent.id)
+                    Button {
+                        agentToConfigureId = agent.id
                     } label: {
                         Label("Configure", systemImage: "gear")
                     }
-                    
+
                     Button(role: .destructive) {
                         agentToDelete = agent
                         showingDeleteConfirmation = true
@@ -33,14 +34,22 @@ struct AgentListView: View {
                     } label: {
                         Label("Delete", systemImage: "trash")
                     }
-                    
-                    NavigationLink {
-                        AgentConfigurationView(agentId: agent.id)
+
+                    Button {
+                        agentToConfigureId = agent.id
                     } label: {
                         Label("Configure", systemImage: "gear")
                     }
                     .tint(.blue)
                 }
+            }
+        }
+        .navigationDestination(isPresented: Binding(
+            get: { agentToConfigureId != nil },
+            set: { if !$0 { agentToConfigureId = nil } }
+        )) {
+            if let id = agentToConfigureId {
+                AgentConfigurationView(agentId: id)
             }
         }
         .alert("Delete Agent?", isPresented: $showingDeleteConfirmation, presenting: agentToDelete) { agent in
