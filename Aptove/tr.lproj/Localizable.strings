@@ -59,6 +59,9 @@
 "Enter the 6-digit code shown in your terminal. Codes expire after 60 seconds." = "Terminalinizde gösterilen 6 basamaklı kodu girin. Kodlar 60 saniye sonra geçersiz olur.";
 "Certificate Fingerprint" = "Sertifika Parmak İzi";
 "Required for security. Copy the TLS fingerprint shown in your terminal." = "Güvenlik için gereklidir. Terminalinizde gösterilen TLS parmak izini kopyalayın.";
+"pairing_fingerprint_hint" = "Güvenlik için gereklidir. Terminalinizde gösterilen TLS parmak izini kopyalayın.";
+"pairing_mitm_warning" = "⚠️ Bu, ortadaki adam saldırılarına karşı koruma sağlar.";
+"pairing_fingerprint_mismatch_format" = "Güvenlik uyarısı: Sertifika uyuşmazlığı!\nBeklenen: %@\nAlınan: %@\nBu, ortadaki adam saldırısına işaret edebilir.";
 "Connect" = "Bağlan";
 "Connecting to bridge..." = "Köprüye bağlanılıyor...";
 "Validating certificate fingerprint..." = "Sertifika parmak izi doğrulanıyor...";

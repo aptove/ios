@@ -119,8 +119,8 @@ struct ManualPairingView: View {
                             Text("Certificate Fingerprint")
                         } footer: {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Required for security. Copy the TLS fingerprint shown in your terminal.")
-                                Text("⚠️ This protects against man-in-the-middle attacks.")
+                                Text("pairing_fingerprint_hint")
+                                Text("pairing_mitm_warning")
                                     .foregroundColor(.orange)
                             }
                         }

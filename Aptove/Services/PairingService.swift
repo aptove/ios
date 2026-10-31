@@ -175,7 +175,7 @@ enum PairingError: LocalizedError {
         case .rateLimited:
             return "Too many attempts. Please restart the bridge for a new code."
         case .fingerprintMismatch(let expected, let actual):
-            return "Security warning: Certificate mismatch!\nExpected: \(expected)\nReceived: \(actual)\nThis may indicate a man-in-the-middle attack."
+            return String(format: NSLocalizedString("pairing_fingerprint_mismatch_format", comment: ""), expected, actual)
         case .networkError(let error):
             return "Network error: \(error.localizedDescription)"
         case .invalidResponse(let reason):

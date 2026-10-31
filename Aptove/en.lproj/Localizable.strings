@@ -59,6 +59,9 @@
 "Enter the 6-digit code shown in your terminal. Codes expire after 60 seconds." = "Enter the 6-digit code shown in your terminal. Codes expire after 60 seconds.";
 "Certificate Fingerprint" = "Certificate Fingerprint";
 "Required for security. Copy the TLS fingerprint shown in your terminal." = "Required for security. Copy the TLS fingerprint shown in your terminal.";
+"pairing_fingerprint_hint" = "Required for security. Copy the TLS fingerprint shown in your terminal.";
+"pairing_mitm_warning" = "⚠️ This protects against man-in-the-middle attacks.";
+"pairing_fingerprint_mismatch_format" = "Security warning: Certificate mismatch!\nExpected: %@\nReceived: %@\nThis may indicate a man-in-the-middle attack.";
 "Connect" = "Connect";
 "Connecting to bridge..." = "Connecting to bridge...";
 "Validating certificate fingerprint..." = "Validating certificate fingerprint...";
