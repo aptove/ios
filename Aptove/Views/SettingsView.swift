@@ -1,4 +1,5 @@
 import SwiftUI
+import Speech
 
 struct SettingsView: View {
     @AppStorage("isDarkMode") private var isDarkMode: Bool = true
@@ -22,7 +23,7 @@ struct SettingsView: View {
     }
 
     private var currentVoiceLanguageName: String {
-        voiceLanguage.hasPrefix("tr") ? "Türkçe" : "English"
+        Locale.current.localizedString(forIdentifier: voiceLanguage) ?? voiceLanguage
     }
 
     var body: some View {
@@ -181,14 +182,19 @@ struct VoiceLanguagePickerView: View {
     @AppStorage("appLanguage") private var appLanguage: String = ""
     @Environment(\.dismiss) private var dismiss
 
-    private let languages: [(code: String, name: String)] = [
-        ("en-US", "English"),
-        ("tr-TR", "Türkçe")
-    ]
+    private static let languages: [(code: String, name: String)] = {
+        SFSpeechRecognizer.supportedLocales()
+            .compactMap { locale -> (code: String, name: String)? in
+                let code = locale.identifier
+                guard let name = Locale.current.localizedString(forIdentifier: code) else { return nil }
+                return (code: code, name: name)
+            }
+            .sorted { $0.name < $1.name }
+    }()
 
     var body: some View {
         List {
-            ForEach(languages, id: \.code) { lang in
+            ForEach(Self.languages, id: \.code) { lang in
                 HStack {
                     Text(lang.name)
                     Spacer()

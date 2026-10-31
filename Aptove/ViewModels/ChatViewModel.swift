@@ -560,9 +560,8 @@ class ChatViewModel: ObservableObject {
 
         print("🎤 [VoiceCorrection] Raw speech-to-text: \"\(rawTranscript)\"")
 
-        let instructions = voiceLanguage.hasPrefix("tr")
-            ? "Transkripsiyon hatalarını, noktalama işaretlerini ve dil bilgisini düzelt. Yalnızca tek bir alanlı geçerli JSON döndür: {\"corrected_text\": \"...\"}"
-            : "Fix transcription errors, punctuation, and grammar. Return ONLY valid JSON with a single field: {\"corrected_text\": \"...\"}"
+        let langDisplay = Locale(identifier: voiceLanguage).localizedString(forIdentifier: voiceLanguage) ?? voiceLanguage
+        let instructions = "Fix transcription errors, punctuation, and grammar for \(langDisplay). Return ONLY valid JSON with a single field: {\"corrected_text\": \"...\"}"
 
         let correctionJson = """
         {
