@@ -322,6 +322,19 @@ The app supports **English (`en`) and Turkish (`tr`)**. All user-visible strings
 
 6. **Use named keys (not raw text) when the display string contains special characters or punctuation that may vary by locale** — e.g. use `"memory_correcting"` not `"Correcting…"` directly, so the key and display value are decoupled.
 
+### Exception: LLM bridge messages for speech correction
+
+Instruction strings sent in `sendVoiceCorrectionRequest()` (`ChatViewModel.swift`) are **exempt** from the i18n rule. These are machine-readable prompts sent to the LLM via the ACP bridge — not user-visible UI text. Translate them per-language directly in Swift using a conditional; do **not** add them to `Localizable.strings`:
+
+```swift
+// ✅ Correct — hardcoded per-language, intentionally not in Localizable.strings
+let instructions = voiceLanguage.hasPrefix("tr")
+    ? "Transkripsiyon hatalarını, noktalama işaretlerini ve dil bilgisini düzelt. Yalnızca tek bir alanlı geçerli JSON döndür: {\"corrected_text\": \"...\"}"
+    : "Fix transcription errors, punctuation, and grammar. Return ONLY valid JSON with a single field: {\"corrected_text\": \"...\"}"
+```
+
+To support additional languages add a new `hasPrefix` branch.
+
 ### Patterns
 
 ```swift

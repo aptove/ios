@@ -24,7 +24,8 @@ struct SettingsView: View {
     }
 
     private var currentVoiceLanguageName: String {
-        Locale.current.localizedString(forIdentifier: voiceLanguage) ?? voiceLanguage
+        let langCode = Locale(identifier: voiceLanguage).language.languageCode?.identifier ?? voiceLanguage
+        return Locale.current.localizedString(forLanguageCode: langCode) ?? voiceLanguage
     }
 
     var body: some View {
@@ -226,11 +227,23 @@ struct VoiceLanguagePickerView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.tabBarHeight) private var tabBarHeight
 
+    // Preferred canonical locale per language when multiple country variants exist
+    private static let preferredLocale: [String: String] = [
+        "en": "en-US", "zh": "zh-Hans", "pt": "pt-BR"
+    ]
+
     private static let languages: [(code: String, name: String)] = {
-        SFSpeechRecognizer.supportedLocales()
+        let allIds = Set(SFSpeechRecognizer.supportedLocales().map { $0.identifier })
+        var seen = Set<String>()
+        return SFSpeechRecognizer.supportedLocales()
+            .sorted { $0.identifier < $1.identifier }
             .compactMap { locale -> (code: String, name: String)? in
-                let code = locale.identifier
-                guard let name = Locale.current.localizedString(forIdentifier: code) else { return nil }
+                guard let langCode = locale.language.languageCode?.identifier,
+                      seen.insert(langCode).inserted,
+                      let name = Locale.current.localizedString(forLanguageCode: langCode)
+                else { return nil }
+                let code = preferredLocale[langCode].flatMap { allIds.contains($0) ? $0 : nil }
+                    ?? locale.identifier
                 return (code: code, name: name)
             }
             .sorted { $0.name < $1.name }
