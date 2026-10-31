@@ -27,7 +27,12 @@ struct ChatView: View {
         self._isInChat = isInChat
         self._viewModel = StateObject(wrappedValue: ChatViewModel(agentId: agentId))
     }
-    
+
+    private var displayedMessages: [Message] {
+        guard !isVerboseMode else { return viewModel.messages }
+        return viewModel.messages.filter { $0.type != .thought && $0.type != .toolStatus }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             if let warning = agentManager.bridgeMismatchWarnings[agentId], !warning.isEmpty {
@@ -43,10 +48,7 @@ struct ChatView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 12) {
-                        ForEach(viewModel.messages.filter { message in
-                            if isVerboseMode { return true }
-                            return message.type != .thought && message.type != .toolStatus
-                        }) { message in
+                        ForEach(displayedMessages) { message in
                             MessageBubble(message: message, viewModel: viewModel)
                                 .id(message.id)
                         }
@@ -729,10 +731,14 @@ struct MessageBubble: View {
         message.sender == .user ? .white : .primary
     }
     
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.timeStyle = .short
+        return f
+    }()
+
     private var timeString: String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter.string(from: message.timestamp)
+        Self.timeFormatter.string(from: message.timestamp)
     }
     
     @ViewBuilder

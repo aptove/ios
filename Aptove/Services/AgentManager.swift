@@ -118,39 +118,41 @@ class AgentManager: ObservableObject {
     }
 
     /// Check if an agent with the same URL (and clientId for Cloudflare) already exists
-    func hasAgent(withURL url: String, clientId: String?) -> Bool {
-        return findAgent(withURL: url, clientId: clientId) != nil
+    func hasAgent(withURL url: String, clientId: String?) async -> Bool {
+        return await findAgent(withURL: url, clientId: clientId) != nil
     }
 
-    /// Find an existing agent by URL (and clientId for Cloudflare)
-    func findAgent(withURL url: String, clientId: String?) -> Agent? {
+    /// Find an existing agent by URL (and clientId for Cloudflare).
+    /// Keychain reads run off the main thread via async variants.
+    func findAgent(withURL url: String, clientId: String?) async -> Agent? {
         let normalizedURL = url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
 
-        return agents.first { agent in
+        for agent in agents {
             let agentURL = agent.url.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
 
             if clientId == nil || clientId?.isEmpty == true {
-                return agentURL == normalizedURL
+                if agentURL == normalizedURL { return agent }
+                continue
             }
 
             if agentURL == normalizedURL {
-                if let storedConfig = try? KeychainManager.retrieve(for: agent.id) {
-                    return storedConfig.clientId == clientId
+                if let storedConfig = try? await KeychainManager.retrieveAsync(for: agent.id) {
+                    if storedConfig.clientId == clientId { return agent }
                 }
             }
-            return false
         }
+        return nil
     }
 
-    func addAgent(config: ConnectionConfig, agentId: String, name: String) throws {
-        try addAgent(config: config, agentId: agentId, name: name, bridgeAgentId: nil)
+    func addAgent(config: ConnectionConfig, agentId: String, name: String) async throws {
+        try await addAgent(config: config, agentId: agentId, name: name, bridgeAgentId: nil)
     }
 
-    func addAgent(config: ConnectionConfig, agentId: String, name: String, bridgeAgentId: String?) throws {
+    func addAgent(config: ConnectionConfig, agentId: String, name: String, bridgeAgentId: String?) async throws {
         try config.validate()
 
-        // Save credentials to Keychain
-        try KeychainManager.save(config: config, for: agentId)
+        // Save credentials to Keychain off the main thread
+        try await KeychainManager.saveAsync(config: config, for: agentId)
 
         // Add agent to CoreData
         repository.addAgent(agentId: agentId, name: name, url: config.url, protocolVersion: config.protocolVersion)
@@ -203,7 +205,7 @@ class AgentManager: ObservableObject {
         agentId: String,
         transport: String,
         config: ConnectionConfig
-    ) throws -> String {
+    ) async throws -> String {
         let existingEndpoints = repository.getAgentEntity(agentId: agentId)?
             .endpoints as? Set<TransportEndpointEntity> ?? []
         let isUpdate = existingEndpoints.contains { $0.transport == transport }
@@ -235,7 +237,7 @@ class AgentManager: ObservableObject {
             clientSecret: config.clientSecret,
             pushRelayUrl: config.pushRelayUrl
         )
-        try TransportCredentialManager.save(credentials, for: endpoint.endpointId ?? UUID().uuidString)
+        try await TransportCredentialManager.saveAsync(credentials, for: endpoint.endpointId ?? UUID().uuidString)
 
         // Update cwd from the pairing response
         if let entity = repository.getAgentEntity(agentId: agentId) {
@@ -261,7 +263,7 @@ class AgentManager: ObservableObject {
             await client.disconnect()
         }
 
-        try KeychainManager.save(config: config, for: agentId)
+        try await KeychainManager.saveAsync(config: config, for: agentId)
 
         // Update cwd from the new config
         if let entity = repository.getAgentEntity(agentId: agentId) {
@@ -287,7 +289,7 @@ class AgentManager: ObservableObject {
 
         repository.deleteAgent(agentId: agentId)
         conversations.removeValue(forKey: agentId)
-        try? KeychainManager.delete(for: agentId)
+        try? await KeychainManager.deleteAsync(for: agentId)
 
         print("🗑️ AgentManager: Removed agent \(agentId)")
     }
@@ -304,7 +306,7 @@ class AgentManager: ObservableObject {
         print("📱 AgentManager.getClient: Cache MISS, creating new client...")
 
         let keychainStart = CFAbsoluteTimeGetCurrent()
-        guard let config = try? KeychainManager.retrieve(for: agentId) else {
+        guard let config = try? await KeychainManager.retrieveAsync(for: agentId) else {
             print("❌ AgentManager.getClient: Keychain FAILED (\(Int((CFAbsoluteTimeGetCurrent() - keychainStart) * 1000))ms)")
             return nil
         }
@@ -437,8 +439,8 @@ class AgentManager: ObservableObject {
             guard let endpointId = endpoint.endpointId, let url = endpoint.url else { continue }
             print("📱 AgentManager.connectAgent: Trying endpoint \(endpoint.transport ?? "?") @ \(url)")
 
-            // Build ConnectionConfig from Keychain credentials for this endpoint
-            let credentials = try? TransportCredentialManager.retrieve(for: endpointId)
+            // Build ConnectionConfig from Keychain credentials for this endpoint (off main thread)
+            let credentials = try? await TransportCredentialManager.retrieveAsync(for: endpointId)
             let config = ConnectionConfig(
                 url: url,
                 clientId: credentials?.clientId,

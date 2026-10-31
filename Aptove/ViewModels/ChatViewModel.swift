@@ -27,6 +27,14 @@ class ChatViewModel: ObservableObject {
     /// Track active tasks for cleanup
     private var prewarmTask: Task<Void, Never>?
     private var sendMessageTask: Task<Void, Never>?
+
+    /// Throttle updateConversation() during streaming to avoid main-thread thrash.
+    private var lastConversationUpdateTime: Date = .distantPast
+    private static let streamingUpdateInterval: TimeInterval = 0.3
+
+    private static let codeFenceRegex = try? NSRegularExpression(
+        pattern: #"```(?:json)?\s*(\{[\s\S]*?\})\s*```"#
+    )
     
     init(agentId: String) {
         self.agentId = agentId
@@ -376,7 +384,14 @@ class ChatViewModel: ObservableObject {
                                 status: .sending,
                                 type: .text
                             )
-                            self.updateConversation()
+                            // Throttle: @Published messages already drives SwiftUI re-render.
+                            // updateConversation() copies the array + sorts agents — expensive at
+                            // streaming rate. Only call it periodically during active streaming.
+                            let now = Date()
+                            if now.timeIntervalSince(self.lastConversationUpdateTime) >= Self.streamingUpdateInterval {
+                                self.updateConversation()
+                                self.lastConversationUpdateTime = now
+                            }
                         }
                     }
                 },
@@ -625,9 +640,7 @@ class ChatViewModel: ObservableObject {
     }
 
     private func extractJsonFromCodeFence(_ text: String) -> String? {
-        // Match ```json ... ``` or ``` ... ```
-        let pattern = #"```(?:json)?\s*(\{[\s\S]*?\})\s*```"#
-        guard let regex = try? NSRegularExpression(pattern: pattern),
+        guard let regex = Self.codeFenceRegex,
               let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
               let range = Range(match.range(at: 1), in: text) else { return nil }
         return String(text[range])

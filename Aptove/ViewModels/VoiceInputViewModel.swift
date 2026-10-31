@@ -57,7 +57,7 @@ class VoiceInputViewModel: ObservableObject {
             Task { @MainActor in
                 guard let self = self else { return }
                 if granted {
-                    self.beginRecording()
+                    await self.beginRecording()
                 } else {
                     self.recordingState = .error("Microphone permission denied")
                 }
@@ -65,17 +65,23 @@ class VoiceInputViewModel: ObservableObject {
         }
     }
 
-    private func beginRecording() {
+    // Runs AVAudioSession setup off the main actor to avoid UI stalls.
+    nonisolated private static func activateAudioSession() async throws {
+        let audioSession = AVAudioSession.sharedInstance()
+        try audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)
+        try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+    }
+
+    private func beginRecording() async {
         elapsedSeconds = 0
         waveformSamples = Array(repeating: 0, count: 40)
         recordingTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             DispatchQueue.main.async { self?.elapsedSeconds += 1 }
         }
         do {
-            let audioSession = AVAudioSession.sharedInstance()
-            try audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)
-            try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+            try await Self.activateAudioSession()
 
+            let audioSession = AVAudioSession.sharedInstance()
             NotificationCenter.default.addObserver(
                 self,
                 selector: #selector(handleAudioSessionInterruption),
@@ -192,7 +198,9 @@ class VoiceInputViewModel: ObservableObject {
         recognitionTask?.cancel()
         recognitionTask = nil
         NotificationCenter.default.removeObserver(self, name: AVAudioSession.interruptionNotification, object: nil)
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        Task.detached {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
     }
 
     @objc private func handleAudioSessionInterruption(notification: Notification) {

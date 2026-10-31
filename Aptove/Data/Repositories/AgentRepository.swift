@@ -44,6 +44,7 @@ class AgentRepository {
     /// Fetch all AgentEntity objects (synchronous)
     func fetchAgentEntities() -> [AgentEntity] {
         let request = AgentEntity.fetchRequest()
+        request.fetchBatchSize = 20
         request.sortDescriptors = [
             NSSortDescriptor(keyPath: \AgentEntity.lastConnectedAt, ascending: false),
             NSSortDescriptor(keyPath: \AgentEntity.createdAt, ascending: false)
@@ -67,13 +68,13 @@ class AgentRepository {
                          protocolVersion: protocolVersion)
 
         saveContext(context)
-        refreshAgents()
+        // refreshAgents() not needed: NSManagedObjectContextObjectsDidChange observer handles it
     }
 
     /// Update an existing agent entity
     func updateAgent(_ entity: AgentEntity) {
         saveContext(coreDataStack.viewContext)
-        refreshAgents()
+        // refreshAgents() not needed: observer handles it
     }
 
     /// Rename an agent
@@ -81,7 +82,7 @@ class AgentRepository {
         guard let entity = getAgentEntity(agentId: agentId) else { return }
         entity.name = newName
         saveContext(coreDataStack.viewContext)
-        refreshAgents()
+        // refreshAgents() not needed: observer handles it
     }
 
     /// Delete agent by ID
@@ -93,7 +94,7 @@ class AgentRepository {
             let results = try coreDataStack.viewContext.fetch(request)
             results.forEach { coreDataStack.viewContext.delete($0) }
             saveContext(coreDataStack.viewContext)
-            refreshAgents()
+            // refreshAgents() not needed: observer handles it
         } catch {
             print("❌ AgentRepository: Failed to delete agent: \(error)")
         }
@@ -149,7 +150,6 @@ class AgentRepository {
         entity.supportsLoadSession = supportsLoad
 
         saveContext(coreDataStack.viewContext)
-        refreshAgents()
 
         print("📝 AgentRepository: Updated session info for \(agentId): sessionId=\(sessionId ?? "nil"), supportsLoad=\(supportsLoad)")
     }
@@ -165,7 +165,6 @@ class AgentRepository {
         entity.sessionStartedAt = nil
 
         saveContext(coreDataStack.viewContext)
-        refreshAgents()
 
         print("🗑️ AgentRepository: Cleared session info for \(agentId)")
     }
@@ -185,7 +184,6 @@ class AgentRepository {
         }
 
         saveContext(coreDataStack.viewContext)
-        refreshAgents()
     }
 
     // MARK: - Transport Endpoint Operations
@@ -223,7 +221,6 @@ class AgentRepository {
             existing.url = url
             existing.priority = priority
             saveContext(context)
-            refreshAgents()
             return existing
         }
 
@@ -238,7 +235,6 @@ class AgentRepository {
         endpoint.agent = agentEntity
         agentEntity.addToEndpoints(endpoint)
         saveContext(context)
-        refreshAgents()
         return endpoint
     }
 
@@ -250,7 +246,6 @@ class AgentRepository {
             let results = try coreDataStack.viewContext.fetch(request)
             results.forEach { coreDataStack.viewContext.delete($0) }
             saveContext(coreDataStack.viewContext)
-            refreshAgents()
         } catch {
             print("❌ AgentRepository: Failed to delete endpoint: \(error)")
         }
@@ -266,7 +261,6 @@ class AgentRepository {
                 endpoint.isActive = isActive
                 if isActive { endpoint.lastConnectedAt = Date() }
                 saveContext(coreDataStack.viewContext)
-                refreshAgents()
             }
         } catch {
             print("❌ AgentRepository: Failed to update endpoint status: \(error)")

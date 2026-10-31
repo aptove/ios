@@ -15,6 +15,8 @@ struct TransportCredentials: Codable {
 
 enum TransportCredentialManager {
     private static let service = "com.aptove.transportcredentials"
+    private static let encoder = JSONEncoder()
+    private static let decoder = JSONDecoder()
 
     enum Error: LocalizedError {
         case saveFailed(OSStatus)
@@ -27,8 +29,20 @@ enum TransportCredentialManager {
         }
     }
 
+    // MARK: - Async variants (run on cooperative thread pool, not main thread)
+
+    nonisolated static func saveAsync(_ credentials: TransportCredentials, for endpointId: String) async throws {
+        try save(credentials, for: endpointId)
+    }
+
+    nonisolated static func retrieveAsync(for endpointId: String) async throws -> TransportCredentials {
+        try retrieve(for: endpointId)
+    }
+
+    // MARK: - Synchronous variants
+
     static func save(_ credentials: TransportCredentials, for endpointId: String) throws {
-        let data = try JSONEncoder().encode(credentials)
+        let data = try encoder.encode(credentials)
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -56,7 +70,7 @@ enum TransportCredentialManager {
         guard status == errSecSuccess, let data = result as? Data else {
             throw Error.retrieveFailed(status)
         }
-        return try JSONDecoder().decode(TransportCredentials.self, from: data)
+        return try decoder.decode(TransportCredentials.self, from: data)
     }
 
     static func delete(for endpointId: String) {

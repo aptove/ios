@@ -79,7 +79,7 @@ class QRScannerViewModel: ObservableObject {
         if let bridgeAgentId = result.bridgeAgentId, let manager = agentManager,
            let existingAgent = manager.findAgent(byBridgeAgentId: bridgeAgentId, cwd: result.config.cwd) {
             pairingStatus = "Adding transport to existing agent..."
-            let message = try manager.addOrUpdateTransportEndpoint(
+            let message = try await manager.addOrUpdateTransportEndpoint(
                 agentId: existingAgent.id,
                 transport: result.transport,
                 config: result.config
@@ -162,7 +162,7 @@ class QRScannerViewModel: ObservableObject {
            let existingAgent = manager.findAgent(byBridgeAgentId: bridgeAgentId, cwd: config.cwd) {
             print("📷 QRScannerViewModel.connectWithConfig(): Found existing agent by bridgeAgentId \(bridgeAgentId), adding transport")
             pairingStatus = "Adding transport to existing agent..."
-            let message = try manager.addOrUpdateTransportEndpoint(
+            let message = try await manager.addOrUpdateTransportEndpoint(
                 agentId: existingAgent.id,
                 transport: transport ?? "local",
                 config: config
@@ -184,7 +184,7 @@ class QRScannerViewModel: ObservableObject {
         // Only treat it as the same agent when both sides agree on bridgeAgentId.
         // A different bridge that happens to land on the same IP/port must NOT hijack the
         // existing agent — it should be registered as a new agent instead.
-        if let existingAgent = manager.findAgent(withURL: config.url, clientId: config.clientId) {
+        if let existingAgent = await manager.findAgent(withURL: config.url, clientId: config.clientId) {
             let isSameBridge: Bool
             if let newId = bridgeAgentId, let existingId = existingAgent.bridgeAgentId,
                !newId.isEmpty, !existingId.isEmpty {
@@ -230,7 +230,7 @@ class QRScannerViewModel: ObservableObject {
             print("📷 QRScannerViewModel.connectWithConfig(): Agent ID: \(agentId), Name: \(finalName)")
             
             print("📷 QRScannerViewModel.connectWithConfig(): Calling manager.addAgent()...")
-            try manager.addAgent(
+            try await manager.addAgent(
                 config: config,
                 agentId: agentId,
                 name: finalName,
@@ -239,7 +239,7 @@ class QRScannerViewModel: ObservableObject {
 
             // Register the first transport endpoint and set it as preferred
             if let transport = transport {
-                _ = try? manager.addOrUpdateTransportEndpoint(agentId: agentId, transport: transport, config: config)
+                _ = try? await manager.addOrUpdateTransportEndpoint(agentId: agentId, transport: transport, config: config)
                 manager.setPreferredTransport(agentId: agentId, transport: transport)
             }
             print("✅ QRScannerViewModel.connectWithConfig(): Agent added successfully")

@@ -3,11 +3,31 @@ import Security
 
 enum KeychainManager {
     private static let service = "com.aptove.agentcredentials"
-    
+    private static let encoder = JSONEncoder()
+    private static let decoder = JSONDecoder()
+
+    // MARK: - Async variants (run on cooperative thread pool, not main thread)
+
+    /// Save credentials off the main actor. Use from @MainActor contexts.
+    nonisolated static func saveAsync(config: ConnectionConfig, for agentId: String) async throws {
+        try save(config: config, for: agentId)
+    }
+
+    /// Retrieve credentials off the main actor. Use from @MainActor contexts.
+    nonisolated static func retrieveAsync(for agentId: String) async throws -> ConnectionConfig {
+        try retrieve(for: agentId)
+    }
+
+    /// Delete credentials off the main actor. Use from @MainActor contexts.
+    nonisolated static func deleteAsync(for agentId: String) async throws {
+        try delete(for: agentId)
+    }
+
+    // MARK: - Synchronous variants (kept for non-actor or already-background contexts)
+
     static func save(config: ConnectionConfig, for agentId: String) throws {
-        let encoder = JSONEncoder()
         let data = try encoder.encode(config)
-        
+
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -15,15 +35,15 @@ enum KeychainManager {
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         ]
-        
+
         SecItemDelete(query as CFDictionary)
-        
+
         let status = SecItemAdd(query as CFDictionary, nil)
         guard status == errSecSuccess else {
             throw KeychainError.saveFailed(status)
         }
     }
-    
+
     static func retrieve(for agentId: String) throws -> ConnectionConfig {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -32,26 +52,25 @@ enum KeychainManager {
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
-        
+
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
-        
+
         guard status == errSecSuccess,
               let data = result as? Data else {
             throw KeychainError.retrieveFailed(status)
         }
-        
-        let decoder = JSONDecoder()
+
         return try decoder.decode(ConnectionConfig.self, from: data)
     }
-    
+
     static func delete(for agentId: String) throws {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: agentId
         ]
-        
+
         let status = SecItemDelete(query as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw KeychainError.deleteFailed(status)

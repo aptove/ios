@@ -121,6 +121,162 @@ Only app-entry-point files belong in `exclude` (`AptoveApp.swift`, assets, entit
 
 ---
 
+## UI Performance Rules
+
+### Never call blocking APIs on the main actor
+
+`@MainActor` classes/functions run on the main thread. Any synchronous blocking call stalls the UI. Common offenders in this codebase:
+
+| API | Risk | Fix |
+|-----|------|-----|
+| `AVAudioSession.setCategory/setActive` | Blocks 5–50ms | `nonisolated async` helper |
+| `SecItemCopyMatching/SecItemAdd/SecItemDelete` (Keychain) | Blocks 50–500ms | `nonisolated async` helper |
+| `NSManagedObjectContext.fetch()` in per-chunk/per-frame paths | Blocks 10–100ms | `fetchBatchSize`; move out of hot paths |
+| `NSRegularExpression(pattern:)` per call | Allocs regex engine each time | `private static let` constant |
+| `DateFormatter()` / `JSONEncoder()` / `JSONDecoder()` per call | Allocs + configures each time | `private static let` constant |
+
+**Pattern: `nonisolated static async` helper for off-thread work**
+
+A `nonisolated async` function awaited from `@MainActor` runs on the Swift cooperative thread pool, not the main thread. Use this to move blocking I/O (Keychain, AVAudioSession) off the main actor:
+
+```swift
+// ✅ Correct — runs off main thread
+nonisolated static func retrieveAsync(for id: String) async throws -> Config {
+    try retrieve(for: id)           // calls SecItemCopyMatching here, off main thread
+}
+
+// In @MainActor code:
+let config = try await KeychainManager.retrieveAsync(for: agentId)
+```
+
+**Pattern: `Task.detached` for fire-and-forget blocking cleanup**
+
+```swift
+private func stopEngine() {
+    // ... synchronous cleanup on main actor ...
+    Task.detached {
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+}
+```
+
+### Never call Keychain (`SecItem*`) synchronously on `@MainActor`
+
+Both `KeychainManager` and `TransportCredentialManager` expose `*Async` variants. Always use them from `@MainActor` contexts (ViewModels, AgentManager):
+
+```swift
+// ❌ Wrong — blocks main thread for 50-500ms
+try KeychainManager.save(config: config, for: agentId)
+
+// ✅ Correct — Keychain write runs off main thread
+try await KeychainManager.saveAsync(config: config, for: agentId)
+```
+
+### Throttle high-frequency `@Published` side-effects during streaming
+
+Callbacks that fire on every streamed chunk must not trigger expensive side effects on each call. Pattern: throttle with a timestamp check.
+
+```swift
+// ❌ Wrong — called 50× per second during streaming
+onChunk: { chunk in
+    Task { @MainActor in
+        self.messages[i].text += chunk   // fine — just a property set
+        self.updateConversation()        // BAD: copies array + sorts agents every chunk
+    }
+}
+
+// ✅ Correct — throttled; SwiftUI re-renders from @Published without the expensive call
+onChunk: { chunk in
+    Task { @MainActor in
+        self.messages[i].text += chunk
+        let now = Date()
+        if now.timeIntervalSince(self.lastUpdateTime) >= 0.3 {
+            self.updateConversation()
+            self.lastUpdateTime = now
+        }
+    }
+}
+```
+
+Always call the un-throttled version once at end-of-stream to flush final state.
+
+### Use `static let` for expensive-to-construct objects
+
+```swift
+// ❌ Wrong — allocated on every call / view render
+private var timeString: String {
+    let formatter = DateFormatter()       // expensive!
+    return formatter.string(from: timestamp)
+}
+private func extractJson(_ text: String) -> String? {
+    let regex = try? NSRegularExpression(pattern: ...)  // expensive!
+}
+
+// ✅ Correct — allocated once
+private static let timeFormatter: DateFormatter = {
+    let f = DateFormatter(); f.timeStyle = .short; return f
+}()
+private static let codeFenceRegex = try? NSRegularExpression(pattern: ...)
+private static let encoder = JSONEncoder()
+private static let decoder = JSONDecoder()
+```
+
+### Avoid redundant CoreData refreshes after mutations
+
+`AgentRepository` uses a `NSManagedObjectContextObjectsDidChange` observer that automatically calls `refreshAgents()` whenever context objects change. Do **not** call `refreshAgents()` explicitly after `saveContext()` — the observer fires before save and handles it. Duplicate calls cause two full fetches per mutation.
+
+```swift
+// ❌ Wrong — triggers two fetches per mutation
+entity.name = newName
+saveContext(context)
+refreshAgents()   // redundant; observer already fired on entity.name = ...
+
+// ✅ Correct — observer handles refresh automatically
+entity.name = newName
+saveContext(context)
+```
+
+### Set `fetchBatchSize` on NSFetchRequest for list queries
+
+Avoid loading the full result set into memory at once:
+
+```swift
+let request = AgentEntity.fetchRequest()
+request.fetchBatchSize = 20   // load in pages of 20
+```
+
+### Waveform / audio buffer updates must use `DispatchQueue.main.async`
+
+Audio tap callbacks (`installTap`) run on a background audio thread. Always dispatch UI state mutations back to main:
+
+```swift
+inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
+    // compute off audio thread ...
+    DispatchQueue.main.async { self?.waveformSamples.append(level) }
+}
+```
+
+### Move message filtering out of SwiftUI `body`
+
+Inline `.filter { }` in `ForEach` re-allocates on every SwiftUI render pass. Use a computed property with an early-exit for the common (no-filter) case:
+
+```swift
+// ❌ Wrong — allocates filtered array on every render
+ForEach(viewModel.messages.filter { $0.type != .thought }) { ... }
+
+// ✅ Correct
+private var displayedMessages: [Message] {
+    guard !isVerboseMode else { return viewModel.messages }
+    return viewModel.messages.filter { $0.type != .thought && $0.type != .toolStatus }
+}
+```
+
+### Prefer `async`/`await` over `DispatchQueue.main.async` in new code
+
+New ViewModels should use `Task { @MainActor in ... }` rather than `DispatchQueue.main.async` for clarity about actor isolation. The `DispatchQueue.main.async` pattern in existing audio tap callbacks is acceptable since those closures run on the audio thread outside Swift concurrency.
+
+---
+
 ## Transport Priority (AgentManager)
 
 Priority determines which endpoint is preferred for auto-connect. Computed dynamically — never add hardcoded transport names:
