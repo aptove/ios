@@ -266,10 +266,10 @@ struct ChatView: View {
                 commandQuery = nil
             }
         }
-        .navigationTitle(agentName)
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .principal) {
+            ToolbarItem(placement: .topBarLeading) {
                 Button {
                     showingAgentConfig = true
                 } label: {
