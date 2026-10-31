@@ -1,5 +1,6 @@
 import SwiftUI
 import CodeScanner
+import AVFoundation
 
 struct QRScannerView: View {
     @Binding var isPresented: Bool
@@ -10,6 +11,7 @@ struct QRScannerView: View {
     @State private var isConnecting = false
     @State private var isScannerActive = true
     @State private var scannerID = UUID() // Force recreation of scanner
+    @State private var showingPermissionDenied = false
     
     @ViewBuilder
     private var scannerLayer: some View {
@@ -160,8 +162,26 @@ struct QRScannerView: View {
             }
             .onAppear {
                 viewModel.setAgentManager(agentManager)
-                isScannerActive = true
-                scannerID = UUID() // Force new scanner instance
+                let status = AVCaptureDevice.authorizationStatus(for: .video)
+                if status == .denied || status == .restricted {
+                    showingPermissionDenied = true
+                    isScannerActive = false
+                } else {
+                    isScannerActive = true
+                    scannerID = UUID() // Force new scanner instance
+                }
+            }
+            .alert("camera_permission_denied_title", isPresented: $showingPermissionDenied) {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                Button("Cancel", role: .cancel) {
+                    isPresented = false
+                }
+            } message: {
+                Text("camera_permission_denied_message")
             }
             .onDisappear {
                 // Stop the scanner when view disappears to release camera resources
@@ -188,8 +208,13 @@ struct QRScannerView: View {
                 }
             }
         case .failure(let error):
-            viewModel.errorMessage = error.localizedDescription
-            viewModel.showingError = true
+            if case .permissionDenied = error {
+                showingPermissionDenied = true
+                isScannerActive = false
+            } else {
+                viewModel.errorMessage = error.localizedDescription
+                viewModel.showingError = true
+            }
             // Scanner will be reactivated by onChange handler
         }
     }

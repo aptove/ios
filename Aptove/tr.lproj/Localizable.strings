@@ -31,6 +31,9 @@
 
 /* QRScannerView */
 "Scan QR Code" = "QR Kodu Tara";
+"camera_permission_denied_title" = "Kamera Erişimi Gerekli";
+"camera_permission_denied_message" = "Aptove'nin QR kod taraması yapabilmesi için kamera erişimine ihtiyacı var. Lütfen Ayarlar'a gidip kamera erişimini etkinleştirin.";
+"Open Settings" = "Ayarları Aç";
 "Point camera at QR code" = "Kamerayı QR koduna tutun";
 "Connecting..." = "Bağlanılıyor...";
 "Please wait..." = "Lütfen bekleyin...";

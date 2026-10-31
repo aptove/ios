@@ -31,6 +31,9 @@
 
 /* QRScannerView */
 "Scan QR Code" = "Scan QR Code";
+"camera_permission_denied_title" = "Camera Access Required";
+"camera_permission_denied_message" = "Aptove needs camera access to scan QR codes. Please go to Settings and enable camera access.";
+"Open Settings" = "Open Settings";
 "Point camera at QR code" = "Point camera at QR code";
 "Connecting..." = "Connecting...";
 "Please wait..." = "Please wait...";
