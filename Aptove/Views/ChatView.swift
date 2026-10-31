@@ -298,7 +298,7 @@ struct ChatView: View {
             if let text = correctedText {
                 messageText = text
                 isInputFocused = true
-                viewModel.voiceCorrectedText = nil
+                Task { @MainActor in viewModel.voiceCorrectedText = nil }
                 // Always reset recording state when text is ready — handles both
                 // successful AI correction and immediate fallback (no/lost connection).
                 voiceViewModel.recordingState = .idle

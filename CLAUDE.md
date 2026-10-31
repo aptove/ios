@@ -275,6 +275,26 @@ private var displayedMessages: [Message] {
 
 New ViewModels should use `Task { @MainActor in ... }` rather than `DispatchQueue.main.async` for clarity about actor isolation. The `DispatchQueue.main.async` pattern in existing audio tap callbacks is acceptable since those closures run on the audio thread outside Swift concurrency.
 
+### Never mutate an observed property synchronously inside its own `onChange`
+
+Setting the same property you're observing inside `.onChange(of:)` causes SwiftUI attribute graph cycles (`Cycle detected through attribute: XXXXXX` in logs). The change handler fires, mutates the attribute, and SwiftUI tries to re-evaluate it within the same rendering pass.
+
+```swift
+// ❌ Wrong — mutates the observed property synchronously, causing an attribute cycle
+.onChange(of: viewModel.someValue) { _, value in
+    // process value...
+    viewModel.someValue = nil
+}
+
+// ✅ Correct — defer the clear to the next runloop turn
+.onChange(of: viewModel.someValue) { _, value in
+    // process value...
+    Task { @MainActor in viewModel.someValue = nil }
+}
+```
+
+This applies to any `@Published`, `@State`, or `@Binding` property observed by `onChange`.
+
 ---
 
 ## Transport Priority (AgentManager)

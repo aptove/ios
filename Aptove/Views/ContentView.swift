@@ -106,7 +106,7 @@ struct ContentView: View {
         }
         .onChange(of: pushManager.tappedAgentName) { _, agentName in
             guard let agentName else { return }
-            pushManager.tappedAgentName = nil
+            Task { @MainActor in pushManager.tappedAgentName = nil }
             print("🔔 [push-dbg] Navigating to agent: \(agentName)")
 
             // Match by name (push payload carries agent name, not internal ID)
