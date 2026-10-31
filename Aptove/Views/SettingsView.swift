@@ -6,6 +6,7 @@ struct SettingsView: View {
     @AppStorage("appLanguage") private var appLanguage: String = ""
     @AppStorage("voiceLanguage") private var voiceLanguage: String = "en-US"
     @AppStorage("isVerboseMode") private var isVerboseMode: Bool = true
+    @Environment(\.tabBarHeight) private var tabBarHeight
 
     private var themeSubtitle: LocalizedStringKey {
         isDarkMode ? "settings_dark_theme_active" : "settings_light_theme_active"
@@ -137,6 +138,15 @@ struct SettingsView: View {
                             .foregroundColor(.secondary)
                     }
                 }
+
+                // Spacer row so content scrolls above the floating tab bar.
+                // safeAreaInset on the parent ZStack does not propagate through
+                // this view's nested NavigationStack (UIKit limitation).
+                Color.clear
+                    .frame(height: tabBarHeight)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
             }
             .navigationTitle(Bundle.localized("Settings", language: appLanguage))
         }
@@ -146,6 +156,7 @@ struct SettingsView: View {
 struct LanguagePickerView: View {
     @Binding var appLanguage: String
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.tabBarHeight) private var tabBarHeight
 
     private let languages: [(code: String, name: String)] = [
         ("en", "English"),
@@ -175,6 +186,11 @@ struct LanguagePickerView: View {
                     dismiss()
                 }
             }
+            Color.clear
+                .frame(height: tabBarHeight)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
+                .listRowSeparator(.hidden)
         }
         .navigationTitle(Bundle.localized("Language", language: appLanguage))
         .navigationBarTitleDisplayMode(.inline)
@@ -185,6 +201,7 @@ struct VoiceLanguagePickerView: View {
     @Binding var voiceLanguage: String
     @AppStorage("appLanguage") private var appLanguage: String = ""
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.tabBarHeight) private var tabBarHeight
 
     private static let languages: [(code: String, name: String)] = {
         SFSpeechRecognizer.supportedLocales()
@@ -213,6 +230,11 @@ struct VoiceLanguagePickerView: View {
                     dismiss()
                 }
             }
+            Color.clear
+                .frame(height: tabBarHeight)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
+                .listRowSeparator(.hidden)
         }
         .navigationTitle(Bundle.localized("Voice Language", language: appLanguage))
         .navigationBarTitleDisplayMode(.inline)

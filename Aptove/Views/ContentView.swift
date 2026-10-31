@@ -3,6 +3,28 @@ import UIKit
 
 enum BottomTab { case chat, settings }
 
+// MARK: - Tab bar height propagation
+
+private struct TabBarHeightPreference: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+private struct TabBarHeightKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
+}
+
+extension EnvironmentValues {
+    var tabBarHeight: CGFloat {
+        get { self[TabBarHeightKey.self] }
+        set { self[TabBarHeightKey.self] = newValue }
+    }
+}
+
+// MARK: -
+
 extension Bundle {
     /// Loads a localized string from the `.lproj` bundle for `language`, bypassing the
     /// UIKit navigation bar's inability to respect SwiftUI's `\.locale` environment.
@@ -24,6 +46,7 @@ struct ContentView: View {
     @State private var showingQRScanner = false
     @State private var navigationPath = NavigationPath()
     @State private var hasGoneToBackground = false
+    @State private var tabBarHeight: CGFloat = 0
 
     init() {
         print("🖥️  ContentView: Initializing...")
@@ -69,8 +92,16 @@ struct ContentView: View {
             if !isInChat {
                 BottomTabBar(selectedTab: $selectedTab)
                     .padding(.bottom, 8)
+                    .background(GeometryReader { geo in
+                        Color.clear.preference(
+                            key: TabBarHeightPreference.self,
+                            value: geo.size.height
+                        )
+                    })
             }
         }
+        .onPreferenceChange(TabBarHeightPreference.self) { tabBarHeight = $0 }
+        .environment(\.tabBarHeight, tabBarHeight)
         .onAppear {
             print("🖥️  ContentView: View appeared and rendered")
         }

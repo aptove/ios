@@ -470,10 +470,15 @@ struct MessageTextField: UIViewRepresentable {
         }
 
         func textViewDidBeginEditing(_ textView: UITextView) {
-            parent.isFocused = true
             if textView.textColor == .placeholderText {
                 textView.text = ""
                 textView.textColor = .label
+            }
+            // Defer the binding write — UIKit can call this synchronously during its own
+            // layout pass; mutating a @Binding mid-render triggers "Modifying state during
+            // view update". Same pattern as textViewDidEndEditing.
+            DispatchQueue.main.async { [weak self] in
+                self?.parent.isFocused = true
             }
         }
 
