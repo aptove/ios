@@ -297,6 +297,60 @@ This applies to any `@Published`, `@State`, or `@Binding` property observed by `
 
 ---
 
+## Localization
+
+The app supports **English (`en`) and Turkish (`tr`)**. All user-visible strings must be localized. Never hardcode English text directly in views.
+
+### Supported languages and catalog files
+
+| Language | File |
+|----------|------|
+| English | `Aptove/en.lproj/Localizable.strings` |
+| Turkish | `Aptove/tr.lproj/Localizable.strings` |
+
+### Rules
+
+1. **Every user-visible string needs a key in both catalog files.** When you add a new string, add it to `en.lproj/Localizable.strings` AND `tr.lproj/Localizable.strings` in the same commit.
+
+2. **When a key's English text changes, update the Turkish translation too.** Do not leave the Turkish entry pointing at outdated text. If you don't know the correct Turkish translation, add a `// TODO: translate` comment in the `.strings` file and flag it.
+
+3. **When a key is removed, remove it from both files.**
+
+4. **Use `Text("key")` / `Button("key")` for in-body text.** SwiftUI treats string literals as `LocalizedStringKey` and resolves them via the `\.locale` environment set in `AptoveApp`. No extra wrapper needed.
+
+5. **Use `Bundle.localized(key, language: appLanguage)` for `.navigationTitle()` only.** UIKit's navigation bar ignores SwiftUI's `\.locale` environment. Every view with a `.navigationTitle()` must read `@AppStorage("appLanguage") private var appLanguage: String = ""` and call `Bundle.localized`.
+
+6. **Use named keys (not raw text) when the display string contains special characters or punctuation that may vary by locale** — e.g. use `"memory_correcting"` not `"Correcting…"` directly, so the key and display value are decoupled.
+
+### Patterns
+
+```swift
+// ✅ In-body text — LocalizedStringKey resolved via \.locale
+Text("Cancel")                        // looks up "Cancel" in strings file
+Button("Delete") { ... }              // same
+Section("Agent Information") { ... }  // same
+.alert("Connection Error", ...)       // same
+
+// ✅ Navigation title — must use Bundle.localized
+@AppStorage("appLanguage") private var appLanguage: String = ""
+...
+.navigationTitle(Bundle.localized("Configuration", language: appLanguage))
+
+// ❌ Wrong — hardcoded English, not translated
+Text("Tap mic to dictate")            // missing from catalog → never translates
+.navigationTitle("Configuration")     // UIKit ignores \.locale → always English
+```
+
+### Adding a new screen checklist
+
+- [ ] Add all user-visible string keys to `en.lproj/Localizable.strings`
+- [ ] Add Turkish translations to `tr.lproj/Localizable.strings`
+- [ ] Add `@AppStorage("appLanguage") private var appLanguage: String = ""` to the view
+- [ ] Use `Bundle.localized(key, language: appLanguage)` for `.navigationTitle()`
+- [ ] Use plain `Text("key")` / `Button("key")` for everything else
+
+---
+
 ## Transport Priority (AgentManager)
 
 Priority determines which endpoint is preferred for auto-connect. Computed dynamically — never add hardcoded transport names:
