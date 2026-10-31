@@ -364,6 +364,20 @@ class AgentManager: ObservableObject {
         print("📱 AgentManager: Updated session info for \(agentId): sessionId=\(sessionId ?? "nil"), supportsLoad=\(supportsLoadSession)")
     }
 
+    /// Persist a newly-learned bridge identity for an agent that had no stored bridgeAgentId.
+    /// Called once per agent lifetime on first connect after the identity feature was deployed.
+    private func persistBridgeIdentity(agentId: String, bridgeAgentId: String, cwd: String) {
+        guard let entity = repository.getAgentEntity(agentId: agentId) else { return }
+        entity.bridgeAgentId = bridgeAgentId
+        entity.cwd = cwd
+        repository.updateAgent(entity)
+        // Update in-memory model so UI and retry logic reflect the new bridgeAgentId.
+        if let idx = agents.firstIndex(where: { $0.id == agentId }) {
+            agents[idx].bridgeAgentId = bridgeAgentId
+        }
+        print("📚 AgentManager: Learned bridge identity for \(agentId): bridgeAgentId=\(bridgeAgentId), cwd=\(cwd)")
+    }
+
     /// Clear the session for an agent (for "Clear Session" button)
     func clearSession(for agentId: String) async {
         repository.clearSessionInfo(agentId: agentId)
@@ -448,6 +462,13 @@ class AgentManager: ObservableObject {
                     print("📱 AgentManager: Transport closed unexpectedly for \(agentId) — retrying all transports")
                     _ = await self.connectAgent(agentId: agentId)
                 }
+            }
+
+            // Learn bridge identity for agents paired before the bridgeAgentId feature.
+            // Persists bridgeAgentId and cwd so future connections can validate identity.
+            client.onLearnBridgeIdentity = { [weak self] bridgeAgentId, bridgeCwd in
+                guard let self else { return }
+                self.persistBridgeIdentity(agentId: agentId, bridgeAgentId: bridgeAgentId, cwd: bridgeCwd)
             }
 
             await clientCache.setClient(client, for: agentId)

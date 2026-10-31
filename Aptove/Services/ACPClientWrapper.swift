@@ -151,8 +151,13 @@ class ACPClientWrapper: ObservableObject {
     /// is detected during `sendMessage()`. Set to 0 to disable auto-reconnect.
     let maxReconnectAttempts: Int
 
-    /// The working directory to send when creating sessions (from bridge pairing).
-    let cwd: String
+    /// The working directory to send when creating sessions.
+    /// Updated from `bridge/identify` when the bridge reports its actual cwd.
+    var cwd: String
+
+    /// Called when a `bridge/identify` is received for an agent that had no stored
+    /// `bridgeAgentId` (paired before the identity feature). Args: (bridgeAgentId, cwd).
+    var onLearnBridgeIdentity: ((String, String) -> Void)?
 
     /// The bridgeAgentId this client expects to see from the bridge.
     /// If set, every `bridge/*` notification is validated against this value.
@@ -1006,10 +1011,19 @@ class ACPClientWrapper: ObservableObject {
         // Identity handshake — first message from the bridge after connection.
         if notif.method == "bridge/identify" {
             if checkBridgeIdentity(notif) { return }
-            // Matched — log the confirmed identity.
-            if case .object(let p) = notif.params,
-               case .string(let id) = p["bridgeAgentId"] {
-                print("✅ ACPClientWrapper: bridge identity confirmed (bridgeAgentId=\(id))")
+            guard case .object(let p) = notif.params,
+                  case .string(let receivedId) = p["bridgeAgentId"] else { return }
+            let receivedCwd = p["cwd"].flatMap {
+                if case .string(let s) = $0 { return s } else { return nil }
+            } ?? self.cwd
+            // Always sync cwd to what the bridge reports as its actual working directory.
+            self.cwd = receivedCwd
+            if expectedBridgeAgentId == nil {
+                // Old agent — learn the bridge identity so future connections validate correctly.
+                print("📚 ACPClientWrapper: learning bridge identity (bridgeAgentId=\(receivedId), cwd=\(receivedCwd))")
+                onLearnBridgeIdentity?(receivedId, receivedCwd)
+            } else {
+                print("✅ ACPClientWrapper: bridge identity confirmed (bridgeAgentId=\(receivedId), cwd=\(receivedCwd))")
             }
             return
         }
