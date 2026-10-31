@@ -9,6 +9,7 @@ struct AgentConfigurationView: View {
 
     let agentId: String
 
+    @Environment(\.tabBarHeight) private var tabBarHeight
     @State private var showClearSessionAlert = false
     @State private var showDeleteAgentAlert = false
     @State private var avatarImage: UIImage?
@@ -148,6 +149,12 @@ struct AgentConfigurationView: View {
                         .font(.footnote)
                         .foregroundColor(.secondary)
                 }
+
+                Color.clear
+                    .frame(height: tabBarHeight)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
             } else {
                 Section {
                     Text("Agent not found")
