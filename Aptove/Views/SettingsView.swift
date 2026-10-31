@@ -27,7 +27,7 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             List {
                 Section(header: Text("Appearance")) {
                     HStack(spacing: 14) {
@@ -40,6 +40,8 @@ struct SettingsView: View {
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Dark Mode")
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
                             Text(themeSubtitle)
                                 .font(.caption)
                                 .foregroundColor(.secondary)
@@ -62,6 +64,8 @@ struct SettingsView: View {
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Verbose Messages")
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
                             Text(verboseModeSubtitle)
                                 .font(.caption)
                                 .foregroundColor(.secondary)
