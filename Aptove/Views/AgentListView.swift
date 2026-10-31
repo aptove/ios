@@ -6,12 +6,13 @@ struct AgentListView: View {
     @State private var agentToDelete: Agent?
     @State private var showingDeleteConfirmation = false
     @State private var agentToConfigureId: String? = nil
+    @State private var avatarImages: [String: UIImage] = [:]
 
     var body: some View {
         List {
             ForEach(agentManager.agents) { agent in
                 NavigationLink(value: agent.id) {
-                    AgentRow(agent: agent)
+                    AgentRow(agent: agent, avatarImage: avatarImages[agent.id])
                 }
                 .contextMenu {
                     Button {
@@ -44,6 +45,7 @@ struct AgentListView: View {
                 }
             }
         }
+        .onAppear { loadAvatars() }
         .navigationDestination(isPresented: Binding(
             get: { agentToConfigureId != nil },
             set: { if !$0 { agentToConfigureId = nil } }
@@ -66,11 +68,20 @@ struct AgentListView: View {
             Text("Are you sure you want to delete \"\(agent.name)\"? This will remove all conversation history.")
         }
     }
+
+    private func loadAvatars() {
+        var images: [String: UIImage] = [:]
+        for agent in agentManager.agents {
+            images[agent.id] = AvatarStore.load(for: agent.id)
+        }
+        avatarImages = images
+    }
 }
 
 struct AgentRow: View {
     @EnvironmentObject var agentManager: AgentManager
     let agent: Agent
+    var avatarImage: UIImage? = nil
 
     private var conversation: Conversation? {
         agentManager.conversations[agent.id]
@@ -86,15 +97,21 @@ struct AgentRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Circle()
-                .fill(statusColor)
-                .frame(width: 48, height: 48)
-                .overlay {
+            ZStack {
+                Circle().fill(statusColor)
+                if let img = avatarImage {
+                    Image(uiImage: img)
+                        .resizable()
+                        .scaledToFill()
+                        .clipShape(Circle())
+                } else {
                     Text(agent.name.prefix(1).uppercased())
                         .font(.title3)
                         .fontWeight(.semibold)
                         .foregroundColor(.white)
                 }
+            }
+            .frame(width: 48, height: 48)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(agent.name)
