@@ -22,6 +22,9 @@ struct ChatView: View {
     @State private var showAttachmentPanel = false
     @State private var showMemoryEntry = false
     @State private var showingAgentConfig = false
+    @State private var loadedAvatarImage: UIImage?
+
+    @Environment(\.dismiss) private var dismiss
 
     init(agentId: String, isInChat: Binding<Bool>) {
         self.agentId = agentId
@@ -36,6 +39,11 @@ struct ChatView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // Custom navigation header — replaces system nav bar so we have
+            // full control over the avatar + name layout.
+            chatHeaderView
+            Divider()
+
             if let warning = agentManager.bridgeMismatchWarnings[agentId], !warning.isEmpty {
                 Text(warning)
                     .font(.caption)
@@ -266,37 +274,7 @@ struct ChatView: View {
                 commandQuery = nil
             }
         }
-        .navigationTitle("")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    showingAgentConfig = true
-                } label: {
-                    HStack(spacing: 8) {
-                        Circle()
-                            .fill(agentStatusColor)
-                            .frame(width: 28, height: 28)
-                            .overlay {
-                                Text(agentName.prefix(1).uppercased())
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundColor(.white)
-                            }
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(agentName)
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            if viewModel.showSessionIndicator {
-                                Text(viewModel.sessionWasResumed == true ? String(localized: "chat_session_resumed") : String(localized: "chat_new_session"))
-                                    .font(.caption)
-                                    .foregroundColor(viewModel.sessionWasResumed == true ? .blue : .secondary)
-                            }
-                        }
-                    }
-                }
-                .buttonStyle(.plain)
-            }
-        }
+        .toolbar(.hidden, for: .navigationBar)
         .navigationDestination(isPresented: $showingAgentConfig) {
             AgentConfigurationView(agentId: agentId)
         }
@@ -306,6 +284,7 @@ struct ChatView: View {
             viewModel.loadMessages()
             voiceViewModel.updateLocale(voiceLanguage)
             viewModel.voiceLanguage = voiceLanguage
+            loadedAvatarImage = AvatarStore.load(for: agentId)
         }
         .onChange(of: voiceLanguage) { _, newLang in
             voiceViewModel.updateLocale(newLang)
@@ -345,6 +324,61 @@ struct ChatView: View {
         case .reconnecting: return .orange
         default:            return .gray
         }
+    }
+
+    // MARK: - Custom header
+
+    private var chatHeaderView: some View {
+        HStack(spacing: 4) {
+            Button { dismiss() } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(.accentColor)
+                    .frame(width: 44, height: 44)
+            }
+
+            Button { showingAgentConfig = true } label: {
+                HStack(spacing: 10) {
+                    agentAvatarCircle(size: 36)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(agentName)
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        if viewModel.showSessionIndicator {
+                            Text(viewModel.sessionWasResumed == true
+                                 ? String(localized: "chat_session_resumed")
+                                 : String(localized: "chat_new_session"))
+                                .font(.caption)
+                                .foregroundColor(viewModel.sessionWasResumed == true ? .blue : .secondary)
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 4)
+        .frame(height: 52)
+        .frame(maxWidth: .infinity)
+        .background(Color(.systemBackground))
+    }
+
+    @ViewBuilder
+    private func agentAvatarCircle(size: CGFloat) -> some View {
+        ZStack {
+            Circle().fill(agentStatusColor)
+            if let img = loadedAvatarImage {
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+                    .clipShape(Circle())
+            } else {
+                Text(agentName.prefix(1).uppercased())
+                    .font(.system(size: size * 0.42, weight: .semibold))
+                    .foregroundColor(.white)
+            }
+        }
+        .frame(width: size, height: size)
     }
     
     private func applyCommand(_ command: AvailableCommand) {

@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 struct AgentConfigurationView: View {
     @EnvironmentObject var agentManager: AgentManager
@@ -6,16 +7,58 @@ struct AgentConfigurationView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("appLanguage") private var appLanguage: String = ""
 
+    let agentId: String
+
     @State private var showClearSessionAlert = false
     @State private var showDeleteAgentAlert = false
+    @State private var avatarImage: UIImage?
+    @State private var showAvatarPicker = false
+    @State private var avatarPickerItem: PhotosPickerItem?
 
     init(agentId: String) {
+        self.agentId = agentId
         _viewModel = StateObject(wrappedValue: AgentConfigurationViewModel(agentId: agentId))
     }
 
     var body: some View {
         List {
             if let agent = viewModel.agent {
+                // Avatar Section
+                Section {
+                    HStack {
+                        Spacer()
+                        Button { showAvatarPicker = true } label: {
+                            ZStack(alignment: .bottomTrailing) {
+                                ZStack {
+                                    Circle()
+                                        .fill(statusColor(for: agent.status))
+                                        .frame(width: 72, height: 72)
+                                    if let img = avatarImage {
+                                        Image(uiImage: img)
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: 72, height: 72)
+                                            .clipShape(Circle())
+                                    } else {
+                                        Text(agent.name.prefix(1).uppercased())
+                                            .font(.system(size: 30, weight: .semibold))
+                                            .foregroundColor(.white)
+                                    }
+                                }
+                                Image(systemName: "pencil.circle.fill")
+                                    .font(.title2)
+                                    .foregroundColor(.accentColor)
+                                    .background(Circle().fill(Color(.systemBackground)).padding(2))
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        Spacer()
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 20, leading: 0, bottom: 12, trailing: 0))
+                    .listRowSeparator(.hidden)
+                }
+
                 // Agent Information Section
                 Section("Agent Information") {
                     HStack {
@@ -148,6 +191,19 @@ struct AgentConfigurationView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             viewModel.setAgentManager(agentManager)
+            avatarImage = AvatarStore.load(for: agentId)
+        }
+        .photosPicker(isPresented: $showAvatarPicker, selection: $avatarPickerItem, matching: .images)
+        .onChange(of: avatarPickerItem) { _, item in
+            guard let item else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self),
+                   let image = UIImage(data: data) {
+                    AvatarStore.save(image, for: agentId)
+                    avatarImage = image
+                }
+                avatarPickerItem = nil
+            }
         }
         .onChange(of: viewModel.shouldDismiss) { _, shouldDismiss in
             if shouldDismiss { dismiss() }
