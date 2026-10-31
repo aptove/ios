@@ -7,6 +7,7 @@ struct MemoryEntryView: View {
     let agentId: String
     @EnvironmentObject private var agentManager: AgentManager
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("appLanguage") private var appLanguage: String = ""
     @AppStorage("voiceLanguage") private var voiceLanguage: String = "en-US"
 
     @State private var text = ""
@@ -44,7 +45,7 @@ struct MemoryEntryView: View {
                 .padding(.vertical, 14)
                 .background(Color(.systemGroupedBackground))
             }
-            .navigationTitle("Add Memory")
+            .navigationTitle(Bundle.localized("Add Memory", language: appLanguage))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -67,7 +68,7 @@ struct MemoryEntryView: View {
         if isCorrectingTranscript {
             HStack(spacing: 6) {
                 ProgressView().scaleEffect(0.8)
-                Text("Correcting…")
+                Text("memory_correcting")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -78,14 +79,14 @@ struct MemoryEntryView: View {
                     Image(systemName: "waveform")
                         .foregroundStyle(.red)
                         .symbolEffect(.variableColor.iterative)
-                    Text("Recording…")
+                    Text("memory_recording")
                         .font(.subheadline)
                         .foregroundStyle(.red)
                 }
             case .processing:
                 HStack(spacing: 6) {
                     ProgressView().scaleEffect(0.8)
-                    Text("Transcribing…")
+                    Text("memory_transcribing")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -94,7 +95,7 @@ struct MemoryEntryView: View {
                     .font(.caption)
                     .foregroundStyle(.red)
             default:
-                Text("Tap mic to dictate")
+                Text("memory_tap_to_dictate")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

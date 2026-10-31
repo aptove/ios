@@ -110,3 +110,11 @@
 "Local" = "Local";
 "Cloudflare" = "Cloudflare";
 "Tailscale" = "Tailscale";
+
+/* MemoryEntryView */
+"Add Memory" = "Add Memory";
+"What do you want the AI to remember?" = "What do you want the AI to remember?";
+"memory_correcting" = "Correcting\u2026";
+"memory_recording" = "Recording\u2026";
+"memory_transcribing" = "Transcribing\u2026";
+"memory_tap_to_dictate" = "Tap mic to dictate";

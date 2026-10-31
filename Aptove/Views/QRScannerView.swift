@@ -5,6 +5,7 @@ struct QRScannerView: View {
     @Binding var isPresented: Bool
     @StateObject private var viewModel = QRScannerViewModel()
     @EnvironmentObject private var agentManager: AgentManager
+    @AppStorage("appLanguage") private var appLanguage: String = ""
     @State private var showingPairingEntry = false
     @State private var isConnecting = false
     @State private var isScannerActive = true
@@ -84,7 +85,7 @@ struct QRScannerView: View {
                     .cornerRadius(20)
                 }
             }
-            .navigationTitle("Scan QR Code")
+            .navigationTitle(Bundle.localized("Scan QR Code", language: appLanguage))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

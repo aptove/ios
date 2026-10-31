@@ -4,6 +4,7 @@ struct AgentConfigurationView: View {
     @EnvironmentObject var agentManager: AgentManager
     @StateObject private var viewModel: AgentConfigurationViewModel
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("appLanguage") private var appLanguage: String = ""
 
     @State private var showClearSessionAlert = false
     @State private var showDeleteAgentAlert = false
@@ -143,7 +144,7 @@ struct AgentConfigurationView: View {
             }
         }
         .onDisappear { viewModel.saveNameIfChanged() }
-        .navigationTitle("Configuration")
+        .navigationTitle(Bundle.localized("Configuration", language: appLanguage))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             viewModel.setAgentManager(agentManager)

@@ -110,3 +110,11 @@
 "Local" = "Yerel";
 "Cloudflare" = "Cloudflare";
 "Tailscale" = "Tailscale";
+
+/* MemoryEntryView */
+"Add Memory" = "An\u0131 Ekle";
+"What do you want the AI to remember?" = "Yapay zekan\u0131n ne hat\u0131rlamas\u0131n\u0131 istiyorsunuz?";
+"memory_correcting" = "D\u00fczeltiliyor\u2026";
+"memory_recording" = "Kaydediliyor\u2026";
+"memory_transcribing" = "Yaz\u0131ya d\u00f6k\u00fcl\u00fcyor\u2026";
+"memory_tap_to_dictate" = "Dikte i\u00e7in mikrofona dokunun";

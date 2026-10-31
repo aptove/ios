@@ -115,7 +115,7 @@ struct SettingsView: View {
                 }
 
                 Section(header: Text("About")) {
-                    Link(destination: URL(string: "https://aptove.com/terms-of-service")!) {
+                    Link(destination: URL(string: "https://aptove.com/terms")!) {
                         HStack {
                             Text("Terms of Service")
                                 .foregroundColor(.primary)
@@ -171,13 +171,14 @@ struct LanguagePickerView: View {
                 }
             }
         }
-        .navigationTitle("Language")
+        .navigationTitle(Bundle.localized("Language", language: appLanguage))
         .navigationBarTitleDisplayMode(.inline)
     }
 }
 
 struct VoiceLanguagePickerView: View {
     @Binding var voiceLanguage: String
+    @AppStorage("appLanguage") private var appLanguage: String = ""
     @Environment(\.dismiss) private var dismiss
 
     private let languages: [(code: String, name: String)] = [
@@ -203,7 +204,7 @@ struct VoiceLanguagePickerView: View {
                 }
             }
         }
-        .navigationTitle("Voice Language")
+        .navigationTitle(Bundle.localized("Voice Language", language: appLanguage))
         .navigationBarTitleDisplayMode(.inline)
     }
 }

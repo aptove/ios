@@ -4,13 +4,14 @@ import SwiftUI
 struct ManualPairingView: View {
     @Binding var isPresented: Bool
     let onPair: (String) -> Void
-    
+    @AppStorage("appLanguage") private var appLanguage: String = ""
+
     @State private var bridgeAddress = ""
     @State private var pairingCode = ""
     @State private var fingerprint = ""
     @State private var useHTTPS = true
     @State private var pairingType: PairingTypeOption = .local
-    
+
     @State private var showingError = false
     @State private var errorMessage = ""
     @State private var isPairing = false
@@ -183,7 +184,7 @@ struct ManualPairingView: View {
                     .cornerRadius(20)
                 }
             }
-            .navigationTitle("Enter Pairing Code")
+            .navigationTitle(Bundle.localized("Enter Pairing Code", language: appLanguage))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
