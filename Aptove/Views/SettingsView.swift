@@ -121,18 +121,18 @@ struct SettingsView: View {
                 }
 
                 Section(header: Text("About")) {
-                    HStack {
-                        Spacer()
-                        Image("AptoveLockup")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(height: 36)
-                            .opacity(0.7)
-                        Spacer()
+                    Link(destination: URL(string: "https://aptove.com")!) {
+                        HStack {
+                            Spacer()
+                            Image("AptoveLockup")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(height: 36)
+                                .opacity(0.7)
+                            Spacer()
+                        }
+                        .padding(.vertical, 8)
                     }
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 16, leading: 0, bottom: 8, trailing: 0))
-                    .listRowSeparator(.hidden)
 
                     Link(destination: URL(string: "https://aptove.com/terms")!) {
                         HStack {
