@@ -1272,8 +1272,17 @@ class ACPClientWrapper: ObservableObject {
     /// Forwards permission requests to the AptoveClient's approval UI.
     private func handlePermissionRequest(_ request: RequestPermissionRequest) async throws -> RequestPermissionResponse {
         guard let client else { throw ClientError.noActiveSession }
+        // v2 format carries a top-level title; use it if toolCall.title is absent
+        var toolCall = request.toolCall
+        if toolCall.title == nil, let title = request.title {
+            toolCall = ToolCallUpdateData(
+                toolCallId: toolCall.toolCallId, title: title, kind: toolCall.kind,
+                status: toolCall.status, content: toolCall.content,
+                locations: toolCall.locations, rawInput: toolCall.rawInput, rawOutput: toolCall.rawOutput
+            )
+        }
         return try await client.requestPermissions(
-            toolCall: request.toolCall,
+            toolCall: toolCall,
             permissions: request.options,
             meta: nil
         )
