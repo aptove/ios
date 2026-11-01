@@ -173,20 +173,20 @@ enum PairingError: LocalizedError {
         case .invalidCode:
             return "Invalid or expired pairing code"
         case .rateLimited:
-            return "Too many attempts. Please restart the bridge for a new code."
+            return "Too many attempts. Please restart Aptove CLI for a new code."
         case .fingerprintMismatch(let expected, let actual):
             return String(format: NSLocalizedString("pairing_fingerprint_mismatch_format", comment: ""), expected, actual)
         case .networkError(let error):
             return "Network error: \(error.localizedDescription)"
         case .invalidResponse(let reason):
-            return "Invalid response from bridge: \(reason)"
+            return "Invalid response from Aptove CLI: \(reason)"
         case .unsupportedPairingType(let type):
             return "Unsupported pairing type: \(type)"
         }
     }
 }
 
-/// Service for handling pairing with the bridge
+/// Service for handling pairing with Aptove CLI
 actor PairingService {
     
     /// Complete the pairing flow by calling the pairing endpoint

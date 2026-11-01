@@ -62,14 +62,14 @@ struct ManualPairingView: View {
                     } footer: {
                         switch pairingType {
                         case .local:
-                            Text("For bridges running on your local network")
+                            Text("For Aptove CLI instances running on your local network")
                         case .tailscale:
-                            Text("For bridges using Tailscale. Your iPhone must be on the same tailnet. Enter the MagicDNS hostname shown in the bridge terminal (e.g. my-laptop.tail1234.ts.net).")
+                            Text("For Aptove CLI instances using Tailscale. Your iPhone must be on the same tailnet. Enter the MagicDNS hostname shown in the Aptove CLI terminal (e.g. my-laptop.tail1234.ts.net).")
                         }
                     }
                     
                     Section {
-                        TextField("Bridge Address (e.g., 192.168.1.100:8080)", text: $bridgeAddress)
+                        TextField("Aptove CLI Address (e.g., 192.168.1.100:8080)", text: $bridgeAddress)
                             .textContentType(.URL)
                             .keyboardType(.URL)
                             .autocapitalization(.none)
@@ -80,10 +80,10 @@ struct ManualPairingView: View {
                             Toggle("Use HTTPS", isOn: $useHTTPS)
                         }
                     } header: {
-                        Text("Bridge Address")
+                        Text("Aptove CLI Address")
                     } footer: {
                         if pairingType == .tailscale {
-                            Text("Enter the MagicDNS hostname shown in the bridge terminal")
+                            Text("Enter the MagicDNS hostname shown in the Aptove CLI terminal")
                         } else {
                             Text("Enter the IP address and port shown in your terminal")
                         }
@@ -152,7 +152,7 @@ struct ManualPairingView: View {
                             .progressViewStyle(CircularProgressViewStyle(tint: .white))
                             .scaleEffect(1.5)
                         
-                        Text("Connecting to bridge...")
+                        Text("Connecting to Aptove CLI...")
                             .font(.headline)
                             .foregroundColor(.white)
                         
@@ -247,7 +247,7 @@ struct ManualPairingView: View {
         
         // Validate URL
         guard URL(string: urlString) != nil else {
-            errorMessage = String(localized: "Invalid URL format. Please check the bridge address.")
+            errorMessage = String(localized: "Invalid URL format. Please check the Aptove CLI address.")
             showingError = true
             isPairing = false
             return

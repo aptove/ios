@@ -183,7 +183,7 @@ class AgentManager: ObservableObject {
     ///
     /// Two bridge instances can accidentally end up with the same agent_id (e.g. when the
     /// user copies a config or runs a second bridge in a directory that already has a
-    /// .aptove-bridge/ folder). Using cwd as a secondary discriminator ensures they are
+    /// .aptove/ folder). Using cwd as a secondary discriminator ensures they are
     /// treated as separate agents rather than being merged via the multi-transport path.
     ///
     /// Falls back to ID-only matching when either cwd is empty (old bridge versions that
