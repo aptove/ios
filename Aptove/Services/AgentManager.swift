@@ -41,6 +41,8 @@ class AgentManager: ObservableObject {
     private var retryFailureCounts: [String: Int] = [:]
     /// Earliest time the retry loop is allowed to attempt each agent again.
     private var retryNotBefore: [String: Date] = [:]
+    /// Endpoint IDs that responded with 401 Unauthorized — skipped until re-paired.
+    private var invalidCredentialEndpoints: Set<String> = []
 
     init(repository: AgentRepository = AgentRepository()) {
         self.repository = repository
@@ -253,6 +255,35 @@ class AgentManager: ObservableObject {
         }
     }
 
+    /// After pairing one transport, propagate the new auth token and push relay URL to ALL
+    /// other endpoints for this agent. Since auth_token is bridge-wide (not per-transport),
+    /// all endpoints must use the same token. Also clears any invalid-credential flags so
+    /// the retry loop resumes attempting previously-failing endpoints.
+    func updateAuthTokenForOtherEndpoints(
+        agentId: String,
+        excludingTransport: String,
+        newAuthToken: String,
+        pushRelayUrl: String?
+    ) async {
+        let endpoints = repository.getAgentEntity(agentId: agentId)?
+            .endpoints as? Set<TransportEndpointEntity> ?? []
+        for endpoint in endpoints {
+            guard let endpointId = endpoint.endpointId,
+                  endpoint.transport != excludingTransport else { continue }
+            guard var credentials = try? await TransportCredentialManager.retrieveAsync(for: endpointId) else { continue }
+            credentials = TransportCredentials(
+                authToken: newAuthToken,
+                certFingerprint: credentials.certFingerprint,
+                clientId: credentials.clientId,
+                clientSecret: credentials.clientSecret,
+                pushRelayUrl: pushRelayUrl ?? credentials.pushRelayUrl
+            )
+            try? await TransportCredentialManager.saveAsync(credentials, for: endpointId)
+            invalidCredentialEndpoints.remove(endpointId)
+            print("📱 AgentManager: Updated auth token for endpoint \(endpoint.transport ?? "?") of agent \(agentId)")
+        }
+    }
+
     /// Update credentials for an existing agent (when re-scanning QR after bridge restart)
     func updateAgentCredentials(agentId: String, config: ConnectionConfig) async throws {
         try config.validate()
@@ -437,6 +468,10 @@ class AgentManager: ObservableObject {
 
         for endpoint in endpoints {
             guard let endpointId = endpoint.endpointId, let url = endpoint.url else { continue }
+            if invalidCredentialEndpoints.contains(endpointId) {
+                print("🔒 AgentManager.connectAgent: Skipping \(endpoint.transport ?? "?") — credentials invalid, re-pair required")
+                continue
+            }
             print("📱 AgentManager.connectAgent: Trying endpoint \(endpoint.transport ?? "?") @ \(url)")
 
             // Build ConnectionConfig from Keychain credentials for this endpoint (off main thread)
@@ -483,6 +518,16 @@ class AgentManager: ObservableObject {
                 retryNotBefore[agentId] = Date().addingTimeInterval(300)
                 bridgeMismatchWarnings[agentId] = client.connectionMessage
                 return false
+            }
+
+            // If the bridge rejected us with 401 (stale token), stop retrying this endpoint
+            // for 24 hours. The only recovery is a fresh QR scan to re-pair.
+            if case .error(let msg) = client.connectionState, msg.hasPrefix("unauthorized:") {
+                print("🔒 AgentManager.connectAgent: 401 on endpoint \(endpoint.transport ?? "?") — backing off 24h")
+                repository.updateConnectionStatus(agentId: agentId, status: .disconnected)
+                invalidCredentialEndpoints.insert(endpointId)
+                // Skip remaining endpoints — they all share the same token for this bridge
+                break
             }
 
             if case .connected = client.connectionState {

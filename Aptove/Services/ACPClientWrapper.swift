@@ -417,6 +417,15 @@ class ACPClientWrapper: ObservableObject {
                     print("❌ Connection attempt \(attempt) failed: \(error)")
                     print("❌ Error type: \(type(of: error))")
                     print("❌ Error localized: \(error.localizedDescription)")
+
+                    // 401 Unauthorized means the stored auth token is stale — no point retrying.
+                    // Signal this specifically so AgentManager can mark the endpoint invalid.
+                    let errStr = "\(error)"
+                    if errStr.contains("401") || errStr.lowercased().contains("unauthorized") {
+                        print("🔒 ACPClientWrapper.connect(): 401 Unauthorized — stopping retries, credentials invalid")
+                        connectionState = .error("unauthorized: \(error.localizedDescription)")
+                        return
+                    }
             }
         }
         

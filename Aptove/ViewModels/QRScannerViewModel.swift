@@ -84,6 +84,15 @@ class QRScannerViewModel: ObservableObject {
                 transport: result.transport,
                 config: result.config
             )
+            // Propagate the new auth token to all other endpoints for this bridge.
+            // auth_token is bridge-wide, so every stored transport must use the same value.
+            // This also clears any invalid-credential flags set by previous 401 rejections.
+            await manager.updateAuthTokenForOtherEndpoints(
+                agentId: existingAgent.id,
+                excludingTransport: result.transport,
+                newAuthToken: result.config.authToken ?? "",
+                pushRelayUrl: result.config.pushRelayUrl
+            )
             // Set the newly scanned transport as preferred, then force a fresh reconnect
             // so the app switches to it immediately rather than keeping a stale connection.
             manager.setPreferredTransport(agentId: existingAgent.id, transport: result.transport)
