@@ -328,12 +328,16 @@ Instruction strings sent in `sendVoiceCorrectionRequest()` (`ChatViewModel.swift
 
 ```swift
 // ✅ Correct — hardcoded per-language, intentionally not in Localizable.strings
-let instructions = voiceLanguage.hasPrefix("tr")
-    ? "Transkripsiyon hatalarını, noktalama işaretlerini ve dil bilgisini düzelt. Yalnızca tek bir alanlı geçerli JSON döndür: {\"corrected_text\": \"...\"}"
-    : "Fix transcription errors, punctuation, and grammar. Return ONLY valid JSON with a single field: {\"corrected_text\": \"...\"}"
+let instructions: String
+switch String(voiceLanguage.prefix(2)) {
+case "tr": instructions = "Transkripsiyon hatalarını... {\"corrected_text\": \"...\"}"
+case "es": instructions = "Corrige los errores... {\"corrected_text\": \"...\"}"
+// … one case per language …
+default:   instructions = "Fix transcription errors… {\"corrected_text\": \"...\"}"
+}
 ```
 
-To support additional languages add a new `hasPrefix` branch.
+To support an additional language add a new `case` matching the 2-char language code prefix. See `ChatViewModel.swift` → `sendVoiceCorrectionRequest()` for the full list.
 
 ### Patterns
 
