@@ -767,8 +767,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/aptove/swift-sdk";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.1.16;
+				kind = upToNextMinorVersion;
+				minimumVersion = 0.2.3;
 			};
 		};
 		C80000000000003C /* XCRemoteSwiftPackageReference "CodeScanner" */ = {
