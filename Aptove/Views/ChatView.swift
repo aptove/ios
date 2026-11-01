@@ -2,6 +2,7 @@ import SwiftUI
 import MarkdownUI
 import PhotosUI
 import ACPModel
+import UniformTypeIdentifiers
 
 struct ChatView: View {
     @EnvironmentObject var agentManager: AgentManager
@@ -18,6 +19,10 @@ struct ChatView: View {
     @State private var selectedImages: [UIImage] = []
     @State private var showPhotoPicker = false
     @State private var pickerItems: [PhotosPickerItem] = []
+    @State private var selectedFiles: [FileAttachment] = []
+    @State private var showFilePicker = false
+    @State private var fileErrorMessage: String? = nil
+    @State private var showingFileError = false
     @State private var commandQuery: String? = nil // nil = picker hidden
     @State private var showAttachmentPanel = false
     @State private var showMemoryEntry = false
@@ -174,6 +179,21 @@ struct ChatView: View {
                         .background(Color(.systemGroupedBackground))
                     }
 
+                    if !selectedFiles.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(selectedFiles.indices, id: \.self) { i in
+                                    fileChip(for: selectedFiles[i]) {
+                                        selectedFiles.remove(at: i)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                        .padding(.vertical, 6)
+                        .background(Color(.systemGroupedBackground))
+                    }
+
                     commandPickerView
 
                     if showAttachmentPanel {
@@ -181,6 +201,10 @@ struct ChatView: View {
                             attachmentItem(icon: "photo", label: "Photos", color: .blue) {
                                 showAttachmentPanel = false
                                 showPhotoPicker = true
+                            }
+                            attachmentItem(icon: "paperclip", label: "files_label", color: .green) {
+                                showAttachmentPanel = false
+                                showFilePicker = true
                             }
                             attachmentItem(icon: nil, slashLabel: "/", label: "Commands", color: .purple) {
                                 showAttachmentPanel = false
@@ -216,7 +240,7 @@ struct ChatView: View {
                             Task { await viewModel.sendVoiceCorrectionRequest(transcript) }
                         }
 
-                        if messageText.isEmpty {
+                        if messageText.isEmpty && selectedImages.isEmpty && selectedFiles.isEmpty {
                             Button {
                                 voiceViewModel.onTranscriptReady = { transcript in
                                     Task { await viewModel.sendVoiceCorrectionRequest(transcript) }
@@ -246,6 +270,20 @@ struct ChatView: View {
                           selection: $pickerItems,
                           maxSelectionCount: 10,
                           matching: .images)
+            .fileImporter(
+                isPresented: $showFilePicker,
+                allowedContentTypes: [.pdf, .plainText, .commaSeparatedText, .json, .rtf],
+                allowsMultipleSelection: true
+            ) { result in
+                Task {
+                    await handleFileImporterResult(result)
+                }
+            }
+            .alert("file_error_title", isPresented: $showingFileError) {
+                Button("OK", role: .cancel) { fileErrorMessage = nil }
+            } message: {
+                Text(fileErrorMessage ?? "")
+            }
             .sheet(isPresented: $showMemoryEntry) {
                 MemoryEntryView(agentId: agentId)
                     .environmentObject(agentManager)
@@ -448,15 +486,75 @@ struct ChatView: View {
 
     private func sendMessage() {
         let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty || !selectedImages.isEmpty else { return }
+        guard !text.isEmpty || !selectedImages.isEmpty || !selectedFiles.isEmpty else { return }
         let images = selectedImages
+        let files = selectedFiles
         messageText = ""
         selectedImages = []
+        selectedFiles = []
         isInputFocused = false
         Task {
-            await viewModel.sendMessage(text, images: images)
+            await viewModel.sendMessage(text, images: images, files: files)
         }
     }
+
+    private func handleFileImporterResult(_ result: Result<[URL], Error>) async {
+        switch result {
+        case .failure(let error):
+            fileErrorMessage = error.localizedDescription
+            showingFileError = true
+        case .success(let urls):
+            var newFiles: [FileAttachment] = []
+            var errorMessages: [String] = []
+            for url in urls {
+                let gotAccess = url.startAccessingSecurityScopedResource()
+                defer { if gotAccess { url.stopAccessingSecurityScopedResource() } }
+                do {
+                    let data = try Data(contentsOf: url)
+                    guard data.count <= 10 * 1024 * 1024 else {
+                        errorMessages.append(String(format: String(localized: "file_too_large_error"), url.lastPathComponent))
+                        continue
+                    }
+                    let mimeType = UTType(filenameExtension: url.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
+                    newFiles.append(FileAttachment(name: url.lastPathComponent, data: data, mimeType: mimeType))
+                } catch {
+                    errorMessages.append(String(format: String(localized: "file_load_error"), url.lastPathComponent))
+                }
+            }
+            selectedFiles.append(contentsOf: newFiles)
+            if !errorMessages.isEmpty {
+                fileErrorMessage = errorMessages.joined(separator: "\n")
+                showingFileError = true
+            }
+        }
+    }
+
+    private func fileChip(for file: FileAttachment, onRemove: @escaping () -> Void) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: fileIconName(mimeType: file.mimeType))
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Text(file.name)
+                .font(.caption)
+                .lineLimit(1)
+                .frame(maxWidth: 120)
+            Button(action: onRemove) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(Color(.systemGray5))
+        .cornerRadius(8)
+    }
+}
+
+private func fileIconName(mimeType: String) -> String {
+    if mimeType.contains("pdf") { return "doc.fill" }
+    if mimeType.hasPrefix("text/") { return "doc.text.fill" }
+    return "doc.fill"
 }
 
 // MARK: - MessageTextField
@@ -633,6 +731,23 @@ struct MessageBubble: View {
                                     .cornerRadius(8)
                             }
                         }
+                    }
+                }
+            }
+            if let files = message.files, !files.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(files.indices, id: \.self) { i in
+                        HStack(spacing: 6) {
+                            Image(systemName: fileIconName(mimeType: files[i].mimeType))
+                                .font(.caption)
+                            Text(files[i].name)
+                                .font(.caption)
+                                .lineLimit(1)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(Color.white.opacity(0.15))
+                        .cornerRadius(6)
                     }
                 }
             }

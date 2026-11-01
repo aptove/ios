@@ -49,6 +49,12 @@ struct ToolApprovalInfo: Codable {
     }
 }
 
+struct FileAttachment: Codable {
+    let name: String
+    let data: Data
+    let mimeType: String
+}
+
 struct Message: Identifiable, Codable {
     let id: String
     let text: String
@@ -58,13 +64,14 @@ struct Message: Identifiable, Codable {
     let type: MessageType
     let toolApproval: ToolApprovalInfo?
     var isThinking: Bool // For thought/tool status messages
-    var images: [Data]? // In-memory only — not persisted (excluded from CodingKeys)
+    var images: [Data]?       // In-memory only — not persisted (excluded from CodingKeys)
+    var files: [FileAttachment]? // In-memory only — not persisted (excluded from CodingKeys)
 
     private enum CodingKeys: String, CodingKey {
         case id, text, sender, timestamp, status, type, toolApproval, isThinking
     }
 
-    init(id: String = UUID().uuidString, text: String, sender: MessageSender, timestamp: Date = Date(), status: MessageStatus = .sent, type: MessageType = .text, toolApproval: ToolApprovalInfo? = nil, isThinking: Bool = false, images: [Data]? = nil) {
+    init(id: String = UUID().uuidString, text: String, sender: MessageSender, timestamp: Date = Date(), status: MessageStatus = .sent, type: MessageType = .text, toolApproval: ToolApprovalInfo? = nil, isThinking: Bool = false, images: [Data]? = nil, files: [FileAttachment]? = nil) {
         self.id = id
         self.text = text
         self.sender = sender
@@ -74,5 +81,6 @@ struct Message: Identifiable, Codable {
         self.toolApproval = toolApproval
         self.isThinking = isThinking
         self.images = images
+        self.files = files
     }
 }

@@ -103,6 +103,12 @@
 "Clear Session will delete all conversation history and start a fresh session." = "Oturumu Temizle, tüm sohbet geçmişini silecek ve yeni bir oturum başlatacak.";
 "Delete Agent will permanently remove this agent and all associated data." = "Ajanı Sil, bu ajanı ve tüm ilişkili verileri kalıcı olarak kaldıracak.";
 
+/* ChatView — file attachment */
+"files_label" = "Dosyalar";
+"file_error_title" = "Dosya Açılamadı";
+"file_too_large_error" = "\"%@\" dosyası çok büyük (max 10 MB).";
+"file_load_error" = "\"%@\" okunamadı. İndirildiğinden emin olun.";
+
 /* ChatView */
 "Converting speech to text..." = "Konuşma metne dönüştürülüyor...";
 "Copy" = "Kopyala";

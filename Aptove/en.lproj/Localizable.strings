@@ -103,6 +103,12 @@
 "Clear Session will delete all conversation history and start a fresh session." = "Clear Session will delete all conversation history and start a fresh session.";
 "Delete Agent will permanently remove this agent and all associated data." = "Delete Agent will permanently remove this agent and all associated data.";
 
+/* ChatView — file attachment */
+"files_label" = "Files";
+"file_error_title" = "Couldn't Open File";
+"file_too_large_error" = "File \"%@\" is too large (max 10 MB).";
+"file_load_error" = "Couldn't read \"%@\". Make sure it's downloaded.";
+
 /* ChatView */
 "Converting speech to text..." = "Converting speech to text...";
 "Copy" = "Copy";

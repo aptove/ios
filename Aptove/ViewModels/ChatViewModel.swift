@@ -232,7 +232,7 @@ class ChatViewModel: ObservableObject {
         }
     }
     
-    func sendMessage(_ text: String, images: [UIImage] = []) async {
+    func sendMessage(_ text: String, images: [UIImage] = [], files: [FileAttachment] = []) async {
         print("📤 ChatViewModel.sendMessage: Starting...")
         isSending = true
 
@@ -249,7 +249,8 @@ class ChatViewModel: ObservableObject {
             sender: .user,
             status: .sending,
             type: messageType,
-            images: imageDataList.isEmpty ? nil : imageDataList
+            images: imageDataList.isEmpty ? nil : imageDataList,
+            files: files.isEmpty ? nil : files
         )
         
         messages.append(userMessage)
@@ -341,10 +342,25 @@ class ChatViewModel: ObservableObject {
             var toolOutputMessages: [String: String] = [:] // Track tool output messages by toolCallId
             updateConversation()
             
-            // Build content blocks: images first, then text
+            // Build content blocks: images → files → text
             var contentBlocks: [ContentBlock] = images.compactMap { img in
                 guard let data = img.jpegData(compressionQuality: 0.8) else { return nil }
                 return .image(ImageContent(data: data.base64EncodedString(), mimeType: "image/jpeg"))
+            }
+            for file in files {
+                if file.mimeType.hasPrefix("text/"), let text = String(data: file.data, encoding: .utf8) {
+                    contentBlocks.append(.resource(ResourceContent(resource: .text(TextResourceContents(
+                        text: text,
+                        uri: "file://\(file.name)",
+                        mimeType: file.mimeType
+                    )))))
+                } else {
+                    contentBlocks.append(.resource(ResourceContent(resource: .blob(BlobResourceContents(
+                        blob: file.data.base64EncodedString(),
+                        uri: "file://\(file.name)",
+                        mimeType: file.mimeType
+                    )))))
+                }
             }
             if !text.isEmpty {
                 contentBlocks.append(.text(TextContent(text: text)))
@@ -699,7 +715,8 @@ class ChatViewModel: ObservableObject {
                 status: status,
                 type: msg.type,
                 toolApproval: msg.toolApproval,
-                images: msg.images
+                images: msg.images,
+                files: msg.files
             )
             updateConversation()
         }
