@@ -188,14 +188,14 @@ xcodebuild -project Aptove.xcodeproj -scheme Aptove \
 
 ## Configuration
 
-The app connects to ACP agents by scanning a pairing QR code from Aptove CLI:
+The app connects to ACP agents by scanning a pairing QR code from Aptove Router:
 
 ```
 https://192.168.1.100:3001/pair/local?code=123456&fp=SHA256:XXXX...
 ```
 
 The QR code contains:
-- **Pairing URL** - Aptove CLI's HTTPS endpoint
+- **Pairing URL** - Aptove Router's HTTPS endpoint
 - **Pairing Code** - 6-digit one-time code (expires in 60 seconds)
 - **Certificate Fingerprint** - For TLS certificate pinning
 
@@ -240,7 +240,7 @@ If you scan a QR code for an agent that already exists:
 - The cached session is cleared
 - A connection test is performed with the new credentials
 
-This is useful when Aptove CLI restarts and generates new credentials.
+This is useful when Aptove Router restarts and generates new credentials.
 
 ## Known Limitations
 

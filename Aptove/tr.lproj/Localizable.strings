@@ -49,14 +49,14 @@
 "Tailscale" = "Tailscale";
 "Connection Type" = "Bağlantı Türü";
 "Pairing Type" = "Eşleştirme Türü";
-"For Aptove CLI instances running on your local network" = "Yerel ağınızdaki Aptove CLI örnekleri için";
-"For Aptove CLI instances exposed via Cloudflare Tunnel" = "Cloudflare Tüneli üzerinden erişilen Aptove CLI örnekleri için";
-"For Aptove CLI instances using Tailscale. Your iPhone must be on the same tailnet. Enter the MagicDNS hostname shown in the Aptove CLI terminal (e.g. my-laptop.tail1234.ts.net)." = "Tailscale kullanan Aptove CLI örnekleri için. iPhone'unuz aynı tailnet'te olmalıdır. Aptove CLI terminalinde gösterilen MagicDNS ana makine adını girin (ör. bilgisayarim.tail1234.ts.net).";
-"Aptove CLI Address (e.g., 192.168.1.100:8080)" = "Aptove CLI Adresi (ör. 192.168.1.100:8080)";
+"For Aptove Router instances running on your local network" = "Yerel ağınızdaki Aptove Router örnekleri için";
+"For Aptove Router instances exposed via Cloudflare Tunnel" = "Cloudflare Tüneli üzerinden erişilen Aptove Router örnekleri için";
+"For Aptove Router instances using Tailscale. Your iPhone must be on the same tailnet. Enter the MagicDNS hostname shown in the Aptove Router terminal (e.g. my-laptop.tail1234.ts.net)." = "Tailscale kullanan Aptove Router örnekleri için. iPhone'unuz aynı tailnet'te olmalıdır. Aptove Router terminalinde gösterilen MagicDNS ana makine adını girin (ör. bilgisayarim.tail1234.ts.net).";
+"Aptove Router Address (e.g., 192.168.1.100:8080)" = "Aptove Router Adresi (ör. 192.168.1.100:8080)";
 "Use HTTPS" = "HTTPS Kullan";
-"Aptove CLI Address" = "Aptove CLI Adresi";
+"Aptove Router Address" = "Aptove Router Adresi";
 "Enter the IP address and port shown in your terminal" = "Terminalinizde gösterilen IP adresi ve portu girin";
-"Enter the MagicDNS hostname shown in the Aptove CLI terminal" = "Aptove CLI terminalinde gösterilen MagicDNS ana makine adını girin";
+"Enter the MagicDNS hostname shown in the Aptove Router terminal" = "Aptove Router terminalinde gösterilen MagicDNS ana makine adını girin";
 "Pairing Code (6 digits)" = "Eşleştirme Kodu (6 basamak)";
 "Pairing Code" = "Eşleştirme Kodu";
 "Enter the 6-digit code shown in your terminal. Codes expire after 60 seconds." = "Terminalinizde gösterilen 6 basamaklı kodu girin. Kodlar 60 saniye sonra geçersiz olur.";
@@ -66,12 +66,12 @@
 "pairing_mitm_warning" = "⚠️ Bu, ortadaki adam saldırılarına karşı koruma sağlar.";
 "pairing_fingerprint_mismatch_format" = "Güvenlik uyarısı: Sertifika uyuşmazlığı!\nBeklenen: %@\nAlınan: %@\nBu, ortadaki adam saldırısına işaret edebilir.";
 "Connect" = "Bağlan";
-"Connecting to Aptove CLI..." = "Aptove CLI'ya bağlanılıyor...";
+"Connecting to Aptove Router..." = "Aptove Router'ya bağlanılıyor...";
 "Validating certificate fingerprint..." = "Sertifika parmak izi doğrulanıyor...";
 "Connecting via Tailscale..." = "Tailscale üzerinden bağlanılıyor...";
 "Done" = "Bitti";
 "Pairing Error" = "Eşleştirme Hatası";
-"Invalid URL format. Please check the Aptove CLI address." = "Geçersiz URL formatı. Lütfen Aptove CLI adresini kontrol edin.";
+"Invalid URL format. Please check the Aptove Router address." = "Geçersiz URL formatı. Lütfen Aptove Router adresini kontrol edin.";
 
 /* AgentConfigurationView */
 "Configuration" = "Yapılandırma";

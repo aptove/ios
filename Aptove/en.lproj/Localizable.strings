@@ -49,14 +49,14 @@
 "Tailscale" = "Tailscale";
 "Connection Type" = "Connection Type";
 "Pairing Type" = "Pairing Type";
-"For Aptove CLI instances running on your local network" = "For Aptove CLI instances running on your local network";
-"For Aptove CLI instances exposed via Cloudflare Tunnel" = "For Aptove CLI instances exposed via Cloudflare Tunnel";
-"For Aptove CLI instances using Tailscale. Your iPhone must be on the same tailnet. Enter the MagicDNS hostname shown in the Aptove CLI terminal (e.g. my-laptop.tail1234.ts.net)." = "For Aptove CLI instances using Tailscale. Your iPhone must be on the same tailnet. Enter the MagicDNS hostname shown in the Aptove CLI terminal (e.g. my-laptop.tail1234.ts.net).";
-"Aptove CLI Address (e.g., 192.168.1.100:8080)" = "Aptove CLI Address (e.g., 192.168.1.100:8080)";
+"For Aptove Router instances running on your local network" = "For Aptove Router instances running on your local network";
+"For Aptove Router instances exposed via Cloudflare Tunnel" = "For Aptove Router instances exposed via Cloudflare Tunnel";
+"For Aptove Router instances using Tailscale. Your iPhone must be on the same tailnet. Enter the MagicDNS hostname shown in the Aptove Router terminal (e.g. my-laptop.tail1234.ts.net)." = "For Aptove Router instances using Tailscale. Your iPhone must be on the same tailnet. Enter the MagicDNS hostname shown in the Aptove Router terminal (e.g. my-laptop.tail1234.ts.net).";
+"Aptove Router Address (e.g., 192.168.1.100:8080)" = "Aptove Router Address (e.g., 192.168.1.100:8080)";
 "Use HTTPS" = "Use HTTPS";
-"Aptove CLI Address" = "Aptove CLI Address";
+"Aptove Router Address" = "Aptove Router Address";
 "Enter the IP address and port shown in your terminal" = "Enter the IP address and port shown in your terminal";
-"Enter the MagicDNS hostname shown in the Aptove CLI terminal" = "Enter the MagicDNS hostname shown in the Aptove CLI terminal";
+"Enter the MagicDNS hostname shown in the Aptove Router terminal" = "Enter the MagicDNS hostname shown in the Aptove Router terminal";
 "Pairing Code (6 digits)" = "Pairing Code (6 digits)";
 "Pairing Code" = "Pairing Code";
 "Enter the 6-digit code shown in your terminal. Codes expire after 60 seconds." = "Enter the 6-digit code shown in your terminal. Codes expire after 60 seconds.";
@@ -66,12 +66,12 @@
 "pairing_mitm_warning" = "⚠️ This protects against man-in-the-middle attacks.";
 "pairing_fingerprint_mismatch_format" = "Security warning: Certificate mismatch!\nExpected: %@\nReceived: %@\nThis may indicate a man-in-the-middle attack.";
 "Connect" = "Connect";
-"Connecting to Aptove CLI..." = "Connecting to Aptove CLI...";
+"Connecting to Aptove Router..." = "Connecting to Aptove Router...";
 "Validating certificate fingerprint..." = "Validating certificate fingerprint...";
 "Connecting via Tailscale..." = "Connecting via Tailscale...";
 "Done" = "Done";
 "Pairing Error" = "Pairing Error";
-"Invalid URL format. Please check the Aptove CLI address." = "Invalid URL format. Please check the Aptove CLI address.";
+"Invalid URL format. Please check the Aptove Router address." = "Invalid URL format. Please check the Aptove Router address.";
 
 /* AgentConfigurationView */
 "Configuration" = "Configuration";

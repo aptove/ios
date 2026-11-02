@@ -1010,7 +1010,7 @@ class ACPClientWrapper: ObservableObject {
         let cwdInfo = receivedCwd ?? "unknown"
         print("⚠️ ACPClientWrapper: bridge identity mismatch — received cwd: \(cwdInfo), expected bridgeAgentId: \(expectedBridgeAgentId ?? "nil")")
         DispatchQueue.main.async {
-            self.connectionMessage = "⚠️ A different Aptove CLI instance is now at this address (project: \(cwdInfo)). Scan its QR code to add it as a new agent."
+            self.connectionMessage = "⚠️ A different Aptove Router instance is now at this address (project: \(cwdInfo)). Scan its QR code to add it as a new agent."
             self.connectionState = .error("wrongBridge:\(cwdInfo)")
         }
         Task { await self.disconnect() }
