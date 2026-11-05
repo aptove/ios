@@ -325,6 +325,17 @@ class ACPClientWrapper: ObservableObject {
                             self.pendingBufferedResponse?.append(textContent.text)
                             print("🔄 [push-dbg] Buffered agent chunk (cold-start): \(textContent.text)")
                         }
+                        // Debounce: after every update, reset the timer. When no more updates
+                        // arrive for 150ms, all replayed messages have been processed.
+                        self.coldStartDebounceTask?.cancel()
+                        self.coldStartDebounceTask = Task { [weak self] @MainActor in
+                            try? await Task.sleep(nanoseconds: 150_000_000)
+                            guard let self, !Task.isCancelled else { return }
+                            guard let buffered = self.pendingBufferedResponse, !buffered.isEmpty else { return }
+                            print("🔄 [push-dbg] Cold-start debounce fired: \(buffered.count) chars — calling onColdStartReplayComplete")
+                            self.onColdStartReplayComplete?(buffered)
+                            self.coldStartDebounceTask = nil
+                        }
                     }
                 }
 
@@ -437,6 +448,8 @@ class ACPClientWrapper: ObservableObject {
     }
     
     func disconnect() async {
+        coldStartDebounceTask?.cancel()
+        coldStartDebounceTask = nil
         // Signal in-flight sendMessage() Tasks to skip their reconnect loop.
         isIntentionallyDisconnecting = true
         // Cancel the transport observer first so an intentional disconnect
@@ -613,6 +626,9 @@ class ACPClientWrapper: ObservableObject {
     /// conversation preview and unread badge without ChatView being open.
     var onColdStartReplayComplete: ((String) -> Void)?
 
+    /// Task for debouncing cold-start replay completion.
+    private var coldStartDebounceTask: Task<Void, Never>?
+
     /// Called when another device sends a user message to the same session.
     /// The string is the plain text of the remote message.
     var onRemoteUserMessage: ((String) -> Void)?
@@ -643,6 +659,8 @@ class ACPClientWrapper: ObservableObject {
     }
 
     func sendMessage(_ content: [ContentBlock], onChunk: @escaping (String) -> Void, onThought: ((String) -> Void)? = nil, onToolCall: ((String) -> Void)? = nil, onToolUpdate: ((String, String) -> Void)? = nil, onComplete: @escaping (StopReason?, String?) -> Void = { _, _ in }) async throws {
+        coldStartDebounceTask?.cancel()
+        coldStartDebounceTask = nil
         guard let proto = rawProto, let sessionId = currentSessionId, let client = client else {
             throw ClientError.noActiveSession
         }
@@ -1081,14 +1099,10 @@ class ACPClientWrapper: ObservableObject {
                 // chunks will arrive via notify(). The sendMessage() Task will handle completion.
                 print("🔄 [push-dbg] bridge/bufferReplayComplete count=0 — agent still responding via live connection")
             } else {
-                print("🔄 [push-dbg] bridge/bufferReplayComplete: no pending callback — cold-start buffer: \(pendingBufferedResponse?.count ?? 0) chars")
-                if let buffered = pendingBufferedResponse, !buffered.isEmpty {
-                    let callback = onColdStartReplayComplete
-                    Task { @MainActor in
-                        try? await Task.sleep(nanoseconds: 300_000_000) // let final chunks arrive
-                        callback?(buffered)
-                    }
-                }
+                // Cold-start replay — onUpdate debounce handles the callback.
+                // bufferReplayComplete races with the protocol's AsyncStream processing,
+                // so we don't check pendingBufferedResponse here.
+                print("🔄 [push-dbg] bridge/bufferReplayComplete: cold-start — onUpdate debounce will handle callback")
             }
             return
         }
