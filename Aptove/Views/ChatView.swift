@@ -318,6 +318,8 @@ struct ChatView: View {
         }
         .onAppear {
             isInChat = true
+            agentManager.activeChatAgentId = agentId
+            agentManager.clearUnreadCount(agentId: agentId)
             viewModel.setAgentManager(agentManager)
             viewModel.loadMessages()
             voiceViewModel.updateLocale(voiceLanguage)
@@ -330,6 +332,9 @@ struct ChatView: View {
         }
         .onDisappear {
             isInChat = false
+            if agentManager.activeChatAgentId == agentId {
+                agentManager.activeChatAgentId = nil
+            }
         }
         .onChange(of: viewModel.voiceCorrectedText) { _, correctedText in
             if let text = correctedText {

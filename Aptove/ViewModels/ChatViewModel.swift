@@ -806,12 +806,21 @@ class ChatViewModel: ObservableObject {
     private func updateConversation() {
         guard let manager = agentManager else { return }
 
+        let previousAgentCount = manager.conversations[agentId]?.messages
+            .filter { $0.sender == .agent }.count ?? 0
+
         var conversation = manager.conversations[agentId] ?? Conversation(agentId: agentId)
         conversation.messages = messages
         conversation.lastActivity = Date()
 
         manager.conversations[agentId] = conversation
         manager.sortAgents()
+
+        let newAgentCount = messages.filter { $0.sender == .agent }.count
+        let delta = newAgentCount - previousAgentCount
+        if delta > 0 {
+            manager.incrementUnreadCount(agentId: agentId, by: delta)
+        }
     }
 
     private func saveMessagesToDisk() {

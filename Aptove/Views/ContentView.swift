@@ -135,6 +135,12 @@ struct ContentView: View {
                 break
             }
         }
+        .onChange(of: pushManager.backgroundPushAgentName) { _, agentName in
+            guard let agentName else { return }
+            Task { @MainActor in pushManager.backgroundPushAgentName = nil }
+            guard let agent = agentManager.agents.first(where: { $0.name == agentName }) else { return }
+            agentManager.incrementUnreadCount(agentId: agent.id)
+        }
         .onChange(of: pushManager.tappedAgentName) { _, agentName in
             guard let agentName else { return }
             Task { @MainActor in pushManager.tappedAgentName = nil }

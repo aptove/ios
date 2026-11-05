@@ -23,6 +23,9 @@ actor ClientCache {
 class AgentManager: ObservableObject {
     @Published var agents: [Agent] = []
     @Published var conversations: [String: Conversation] = [:]
+    /// ID of the agent whose ChatView is currently visible. Used to suppress unread
+    /// count increments for the conversation the user is actively reading.
+    @Published var activeChatAgentId: String? = nil
     /// Per-agent bridge mismatch warning messages. Populated when a wrong-bridge
     /// identity error is detected; cleared when the agent reconnects successfully.
     @Published var bridgeMismatchWarnings: [String: String] = [:]
@@ -58,10 +61,11 @@ class AgentManager: ObservableObject {
                 guard let self else { return }
                 let wasEmpty = self.agents.isEmpty
                 self.agents = updatedAgents
-                // Create conversations for any new agents, loading persisted messages
+                // Create conversations for any new agents, loading persisted messages and unread count
                 for agent in updatedAgents where self.conversations[agent.id] == nil {
                     let persisted = self.messageRepository.fetchMessages(agentId: agent.id)
-                    self.conversations[agent.id] = Conversation(agentId: agent.id, messages: persisted)
+                    let storedUnread = UserDefaults.standard.integer(forKey: "unreadCount_\(agent.id)")
+                    self.conversations[agent.id] = Conversation(agentId: agent.id, messages: persisted, unreadCount: storedUnread)
                 }
                 if wasEmpty && !updatedAgents.isEmpty {
                     print("📱 AgentManager: Loaded \(updatedAgents.count) agents from CoreData")
@@ -633,6 +637,21 @@ class AgentManager: ObservableObject {
             let lastActivity2 = conversations[agent2.id]?.lastActivity ?? .distantPast
             return lastActivity1 > lastActivity2
         }
+    }
+
+    /// Increment the unread badge count for an agent. No-op if the user is currently
+    /// viewing that agent's chat (activeChatAgentId == agentId).
+    func incrementUnreadCount(agentId: String, by count: Int = 1) {
+        guard activeChatAgentId != agentId else { return }
+        let current = conversations[agentId]?.unreadCount ?? 0
+        conversations[agentId]?.unreadCount = current + count
+        UserDefaults.standard.set(current + count, forKey: "unreadCount_\(agentId)")
+    }
+
+    /// Clear the unread badge count for an agent (called when ChatView opens).
+    func clearUnreadCount(agentId: String) {
+        conversations[agentId]?.unreadCount = 0
+        UserDefaults.standard.removeObject(forKey: "unreadCount_\(agentId)")
     }
 
     /// Correct a voice transcript using the AI agent for the given agent.

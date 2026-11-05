@@ -26,6 +26,18 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         completionHandler([.banner, .badge, .sound])
     }
 
+    // Called whenever the app is running (foreground or background) and a push with
+    // content-available: 1 arrives. Used to increment the unread badge without user tap.
+    func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable: Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
+        if let data = userInfo["data"] as? [String: Any],
+           let agentName = data["agentName"] as? String {
+            Task { @MainActor in
+                PushNotificationManager.shared.backgroundPushAgentName = agentName
+            }
+        }
+        completionHandler(.newData)
+    }
+
     // Handle notification tap — extract agent name for deep-link navigation
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         let userInfo = response.notification.request.content.userInfo

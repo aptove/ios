@@ -17,6 +17,10 @@ class PushNotificationManager: NSObject, ObservableObject {
 
     /// Agent name extracted from the tapped push notification — consumed by ContentView for navigation.
     @Published var tappedAgentName: String?
+
+    /// Agent name from a background push (content-available: 1) received while app was suspended.
+    /// Consumed by ContentView to increment the unread badge without user interaction.
+    @Published var backgroundPushAgentName: String?
     
     /// Callbacks waiting for a device token
     private var tokenCallbacks: [(String) -> Void] = []
