@@ -608,6 +608,11 @@ class ACPClientWrapper: ObservableObject {
     /// Consumed by ChatViewModel when the chat view opens.
     var pendingBufferedResponse: String?
 
+    /// Called after a cold-start buffer replay completes (no active sendMessage).
+    /// Passes the full accumulated response text so AgentManager can update the
+    /// conversation preview and unread badge without ChatView being open.
+    var onColdStartReplayComplete: ((String) -> Void)?
+
     /// Called when another device sends a user message to the same session.
     /// The string is the plain text of the remote message.
     var onRemoteUserMessage: ((String) -> Void)?
@@ -1077,6 +1082,13 @@ class ACPClientWrapper: ObservableObject {
                 print("🔄 [push-dbg] bridge/bufferReplayComplete count=0 — agent still responding via live connection")
             } else {
                 print("🔄 [push-dbg] bridge/bufferReplayComplete: no pending callback — cold-start buffer: \(pendingBufferedResponse?.count ?? 0) chars")
+                if let buffered = pendingBufferedResponse, !buffered.isEmpty {
+                    let callback = onColdStartReplayComplete
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 300_000_000) // let final chunks arrive
+                        callback?(buffered)
+                    }
+                }
             }
             return
         }

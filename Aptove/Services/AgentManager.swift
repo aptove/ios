@@ -512,6 +512,24 @@ class AgentManager: ObservableObject {
                 self.persistBridgeIdentity(agentId: agentId, bridgeAgentId: bridgeAgentId, cwd: bridgeCwd)
             }
 
+            client.onColdStartReplayComplete = { [weak self, weak client] text in
+                guard let self else { return }
+                Task { @MainActor in
+                    let preview = Message(text: text, sender: .agent, status: .sent, type: .text)
+                    // Persist to CoreData so preview survives app restart
+                    if let entity = self.repository.getAgentEntity(agentId: agentId) {
+                        let existing = self.conversations[agentId]?.messages ?? []
+                        self.messageRepository.saveMessages(existing + [preview], agentId: agentId, agent: entity)
+                    }
+                    // Update in-memory conversation for immediate AgentListView update
+                    self.conversations[agentId]?.messages.append(preview)
+                    // Clear pendingBufferedResponse so ChatViewModel doesn't double-add it
+                    client?.pendingBufferedResponse = nil
+                    // Increment unread badge (no-op if ChatView for this agent is currently open)
+                    self.incrementUnreadCount(agentId: agentId)
+                }
+            }
+
             await clientCache.setClient(client, for: agentId)
             await client.connect(existingSessionId: existingSessionId)
 

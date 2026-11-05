@@ -88,7 +88,7 @@ struct AgentRow: View {
     }
 
     private var lastMessage: Message? {
-        conversation?.messages.last
+        conversation?.messages.last(where: { $0.type == .text })
     }
 
     private var activeTransport: String? {
