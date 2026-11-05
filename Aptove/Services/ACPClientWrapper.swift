@@ -328,7 +328,7 @@ class ACPClientWrapper: ObservableObject {
                         // Debounce: after every update, reset the timer. When no more updates
                         // arrive for 150ms, all replayed messages have been processed.
                         self.coldStartDebounceTask?.cancel()
-                        self.coldStartDebounceTask = Task { [weak self] @MainActor in
+                        self.coldStartDebounceTask = Task { @MainActor [weak self] in
                             try? await Task.sleep(nanoseconds: 150_000_000)
                             guard let self, !Task.isCancelled else { return }
                             guard let buffered = self.pendingBufferedResponse, !buffered.isEmpty else { return }
