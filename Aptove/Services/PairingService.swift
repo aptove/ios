@@ -54,31 +54,36 @@ struct PairingURL {
             throw PairingError.invalidURL("Pairing URL must use https:// or http://")
         }
         
-        // Extract pairing type from path
-        let path = components.path
-        guard path.hasPrefix("/pair/") else {
+        // Extract pairing type from path.
+        // Path may have a prefix (e.g. /abc12345/pair/tailscale for Tailscale
+        // multi-instance routing). Find "/pair/" anywhere in the path.
+        let fullPath = components.path
+        guard let pairRange = fullPath.range(of: "/pair/") else {
             throw PairingError.invalidURL("Not a pairing URL (expected /pair/...)")
         }
-        let pairingType = PairingType(from: path)
-        
+        let pairSubpath = String(fullPath[pairRange.lowerBound...]) // "/pair/tailscale"
+        let pathPrefix = String(fullPath[fullPath.startIndex..<pairRange.lowerBound]) // "" or "/abc12345"
+        let pairingType = PairingType(from: pairSubpath)
+
         // Extract query parameters
         let queryItems = components.queryItems ?? []
         let params = Dictionary(uniqueKeysWithValues: queryItems.compactMap { item -> (String, String)? in
             guard let value = item.value else { return nil }
             return (item.name, value)
         })
-        
+
         // Code is required
         guard let code = params["code"], !code.isEmpty else {
             throw PairingError.missingCode
         }
-        
+
         // Fingerprint is optional (required for local, not for cloudflare)
         let fingerprint = params["fp"]
-        
-        // Build base URL (without path and query)
+
+        // Build base URL: strip /pair/... but keep any path prefix
+        // (e.g. https://host.ts.net/abc12345 for Tailscale multi-instance)
         var baseComponents = components
-        baseComponents.path = ""
+        baseComponents.path = pathPrefix
         baseComponents.queryItems = nil
         guard let baseURL = baseComponents.url else {
             throw PairingError.invalidURL("Could not construct base URL")
