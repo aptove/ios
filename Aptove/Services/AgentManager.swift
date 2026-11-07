@@ -512,7 +512,7 @@ class AgentManager: ObservableObject {
                 self.persistBridgeIdentity(agentId: agentId, bridgeAgentId: bridgeAgentId, cwd: bridgeCwd)
             }
 
-            client.onColdStartReplayComplete = { [weak self, weak client] text in
+            client.onColdStartReplayComplete = { [weak self, weak client] text, messageCount in
                 guard let self else { return }
                 Task { @MainActor in
                     let preview = Message(text: text, sender: .agent, status: .sent, type: .text)
@@ -525,8 +525,9 @@ class AgentManager: ObservableObject {
                     self.conversations[agentId]?.messages.append(preview)
                     // Clear pendingBufferedResponse so ChatViewModel doesn't double-add it
                     client?.pendingBufferedResponse = nil
-                    // Increment unread badge (no-op if ChatView for this agent is currently open)
-                    self.incrementUnreadCount(agentId: agentId)
+                    // Increment unread badge by the number of distinct agent messages
+                    // (no-op if ChatView for this agent is currently open)
+                    self.incrementUnreadCount(agentId: agentId, by: messageCount)
                 }
             }
 

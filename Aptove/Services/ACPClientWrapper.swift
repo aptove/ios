@@ -323,6 +323,10 @@ class ACPClientWrapper: ObservableObject {
                                 self.pendingBufferedResponse = ""
                             }
                             self.pendingBufferedResponse?.append(textContent.text)
+                            // Track distinct agent responses by messageId
+                            if let msgId = chunk.messageId?.rawValue {
+                                self.coldStartMessageIds.insert(msgId)
+                            }
                             print("🔄 [push-dbg] Buffered agent chunk (cold-start): \(textContent.text)")
                         }
                         // Debounce: after every update, reset the timer. When no more updates
@@ -332,8 +336,10 @@ class ACPClientWrapper: ObservableObject {
                             try? await Task.sleep(nanoseconds: 150_000_000)
                             guard let self, !Task.isCancelled else { return }
                             guard let buffered = self.pendingBufferedResponse, !buffered.isEmpty else { return }
-                            print("🔄 [push-dbg] Cold-start debounce fired: \(buffered.count) chars — calling onColdStartReplayComplete")
-                            self.onColdStartReplayComplete?(buffered)
+                            let messageCount = max(self.coldStartMessageIds.count, 1)
+                            print("🔄 [push-dbg] Cold-start debounce fired: \(buffered.count) chars, \(messageCount) message(s) — calling onColdStartReplayComplete")
+                            self.onColdStartReplayComplete?(buffered, messageCount)
+                            self.coldStartMessageIds.removeAll()
                             self.coldStartDebounceTask = nil
                         }
                     }
@@ -622,12 +628,16 @@ class ACPClientWrapper: ObservableObject {
     var pendingBufferedResponse: String?
 
     /// Called after a cold-start buffer replay completes (no active sendMessage).
-    /// Passes the full accumulated response text so AgentManager can update the
-    /// conversation preview and unread badge without ChatView being open.
-    var onColdStartReplayComplete: ((String) -> Void)?
+    /// Passes the full accumulated response text and the number of distinct agent
+    /// messages (by unique messageId) so AgentManager can update the conversation
+    /// preview and unread badge without ChatView being open.
+    var onColdStartReplayComplete: ((String, Int) -> Void)?
 
     /// Task for debouncing cold-start replay completion.
     private var coldStartDebounceTask: Task<Void, Never>?
+
+    /// Unique messageIds seen during cold-start buffer replay, used to count distinct agent messages.
+    private var coldStartMessageIds: Set<String> = []
 
     /// Called when another device sends a user message to the same session.
     /// The string is the plain text of the remote message.
@@ -1350,8 +1360,23 @@ class ACPClientWrapper: ObservableObject {
             let notif = try JSONDecoder().decode(V2UpdateSessionNotification.self, from: data)
             let update = notif.update
 
-            // Feed active prompt stream (if any)
-            v2PromptContinuation?.yield(update)
+            // Feed active prompt stream or cold-start buffer handler
+            if v2PromptContinuation != nil {
+                v2PromptContinuation?.yield(update)
+            } else {
+                // No active prompt (cold-start): route agent message chunks through
+                // V1 onSessionUpdate so the cold-start buffer handler captures them.
+                switch update {
+                case .agentMessageChunk(let chunk):
+                    if case .text(let t) = chunk.content {
+                        await client?.onSessionUpdate(.agentMessageChunk(
+                            AgentMessageChunk(content: .text(TextContent(text: t.text)), messageId: chunk.messageId)
+                        ))
+                    }
+                default:
+                    break
+                }
+            }
 
             // Handle persistent (non-prompt) updates
             switch update {
