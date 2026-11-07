@@ -706,7 +706,10 @@ class AgentManager: ObservableObject {
     func clearUnreadCount(agentId: String) {
         conversations[agentId]?.unreadCount = 0
         UserDefaults.standard.removeObject(forKey: "unreadCount_\(agentId)")
-        newMessageStartIds.removeValue(forKey: agentId)
+        // Note: newMessageStartIds is intentionally NOT cleared here. clearUnreadCount
+        // is called from onAppear which can fire when foregrounding (before or after
+        // cold-start replay sets the separator). The separator is only cleared in
+        // onDisappear so it persists until the user leaves the chat.
     }
 
     /// Correct a voice transcript using the AI agent for the given agent.

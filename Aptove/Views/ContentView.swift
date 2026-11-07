@@ -108,6 +108,12 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
             case .active:
+                // SwiftUI fires onDisappear on ChatView when app backgrounds, setting
+                // isInChat = false. onAppear may not reliably re-fire on foreground.
+                // Restore isInChat if the navigation stack still has items (we're in a chat).
+                if !navigationPath.isEmpty {
+                    isInChat = true
+                }
                 guard hasGoneToBackground else {
                     print("🌅 [push-dbg] App became ACTIVE (initial launch — skipping reconnect)")
                     break
