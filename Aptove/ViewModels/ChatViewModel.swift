@@ -118,15 +118,27 @@ class ChatViewModel: ObservableObject {
                 if let buffered = client.pendingBufferedResponse, !buffered.isEmpty {
                     print("🔄 [push-dbg] ChatViewModel consuming cold-start buffer: \(buffered.count) chars")
                     client.pendingBufferedResponse = nil
-                    let msg = Message(
-                        text: buffered,
-                        sender: .agent,
-                        status: .sent,
-                        type: .text
-                    )
-                    self.messages.append(msg)
-                    self.updateConversation()
-                    self.saveMessagesToDisk()
+                    // Skip voice correction protocol responses — machine-readable JSON that
+                    // must never appear in the chat UI.
+                    let trimmed = buffered.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let isVoiceCorrectionResponse: Bool = {
+                        guard trimmed.hasPrefix("{"),
+                              let data = trimmed.data(using: .utf8),
+                              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+                        else { return false }
+                        return json["corrected_text"] != nil && json.count <= 2
+                    }()
+                    if !isVoiceCorrectionResponse {
+                        let msg = Message(
+                            text: buffered,
+                            sender: .agent,
+                            status: .sent,
+                            type: .text
+                        )
+                        self.messages.append(msg)
+                        self.updateConversation()
+                        self.saveMessagesToDisk()
+                    }
                 }
             } else {
                 print("🔥 ChatViewModel: Pre-warm complete but no client")
@@ -149,6 +161,10 @@ class ChatViewModel: ObservableObject {
         }
 
         client.onRemoteUserMessage = { [weak self] text in
+            // Voice correction protocol messages are machine-readable JSON sent to the LLM
+            // for speech enhancement. They must never appear in the chat UI, even when the
+            // bridge echoes them back via bridge/remoteUserMessage for multi-device sync.
+            if text.contains("\"voice_correction_request\"") { return }
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 let msg = Message(

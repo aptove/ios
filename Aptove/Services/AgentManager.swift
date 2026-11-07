@@ -534,6 +534,17 @@ class AgentManager: ObservableObject {
             client.onColdStartReplayComplete = { [weak self, weak client] text, messageCount in
                 guard let self else { return }
                 Task { @MainActor in
+                    // Skip voice correction protocol responses — these are machine-readable JSON
+                    // returned by the LLM for speech enhancement and must never show in chat.
+                    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if trimmed.hasPrefix("{"),
+                       let data = trimmed.data(using: .utf8),
+                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       json["corrected_text"] != nil, json.count <= 2 {
+                        client?.pendingBufferedResponse = nil
+                        return
+                    }
+
                     let preview = Message(text: text, sender: .agent, status: .sent, type: .text)
                     // Persist to CoreData so preview survives app restart
                     if let entity = self.repository.getAgentEntity(agentId: agentId) {
