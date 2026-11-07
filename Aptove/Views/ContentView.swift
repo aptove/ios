@@ -108,6 +108,12 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
             case .active:
+                agentManager.isAppActive = true
+                // If the user is returning to an open chat, clear its badge — new messages
+                // may have incremented it while the app was backgrounded.
+                if let activeId = agentManager.activeChatAgentId {
+                    agentManager.clearUnreadCount(agentId: activeId)
+                }
                 guard hasGoneToBackground else {
                     print("🌅 [push-dbg] App became ACTIVE (initial launch — skipping reconnect)")
                     break
@@ -120,6 +126,7 @@ struct ContentView: View {
             case .inactive:
                 print("🌄 [push-dbg] App became INACTIVE (transitioning)")
             case .background:
+                agentManager.isAppActive = false
                 hasGoneToBackground = true
                 print("🌙 [push-dbg] App entered BACKGROUND — closing WebSocket so bridge detects disconnect and pushes")
                 final class BGTaskBox: @unchecked Sendable { var id = UIBackgroundTaskIdentifier.invalid }

@@ -110,6 +110,7 @@
 "file_load_error" = "Couldn't read \"%@\". Make sure it's downloaded.";
 
 /* ChatView */
+"new_messages_separator" = "New Messages";
 "Converting speech to text..." = "Converting speech to text...";
 "Copy" = "Copy";
 "Approve" = "Approve";

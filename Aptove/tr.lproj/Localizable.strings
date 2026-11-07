@@ -110,6 +110,7 @@
 "file_load_error" = "\"%@\" okunamadı. İndirildiğinden emin olun.";
 
 /* ChatView */
+"new_messages_separator" = "Yeni Mesajlar";
 "Converting speech to text..." = "Konuşma metne dönüştürülüyor...";
 "Copy" = "Kopyala";
 "Approve" = "Onayla";

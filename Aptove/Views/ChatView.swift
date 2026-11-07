@@ -42,6 +42,10 @@ struct ChatView: View {
         return viewModel.messages.filter { $0.type != .thought && $0.type != .toolStatus }
     }
 
+    private var newMessageStartId: String? {
+        agentManager.newMessageStartIds[agentId]
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Custom navigation header — replaces system nav bar so we have
@@ -63,6 +67,9 @@ struct ChatView: View {
                 ScrollView {
                     LazyVStack(spacing: 12) {
                         ForEach(displayedMessages) { message in
+                            if message.id == newMessageStartId {
+                                NewMessagesSeparator()
+                            }
                             MessageBubble(message: message, viewModel: viewModel)
                                 .id(message.id)
                         }
@@ -335,6 +342,7 @@ struct ChatView: View {
             if agentManager.activeChatAgentId == agentId {
                 agentManager.activeChatAgentId = nil
             }
+            agentManager.newMessageStartIds.removeValue(forKey: agentId)
         }
         .onChange(of: viewModel.voiceCorrectedText) { _, correctedText in
             if let text = correctedText {
@@ -946,6 +954,21 @@ struct MessageBubble: View {
         }
     }
 
+}
+
+private struct NewMessagesSeparator: View {
+    var body: some View {
+        HStack {
+            VStack { Divider() }
+            Text("new_messages_separator")
+                .font(.caption)
+                .foregroundColor(.accentColor)
+                .padding(.horizontal, 8)
+                .fixedSize()
+            VStack { Divider() }
+        }
+        .padding(.vertical, 4)
+    }
 }
 
 #Preview {
