@@ -337,6 +337,12 @@ struct ChatView: View {
             voiceViewModel.updateLocale(newLang)
             viewModel.voiceLanguage = newLang
         }
+        .onChange(of: agentManager.conversations[agentId]?.messages.count ?? 0) { oldCount, newCount in
+            // Sync ChatViewModel when AgentManager's conversation grows from outside
+            // (e.g. cold-start replay after foregrounding into an open chat).
+            guard newCount > oldCount else { return }
+            viewModel.loadMessages()
+        }
         .onDisappear {
             isInChat = false
             if agentManager.activeChatAgentId == agentId {

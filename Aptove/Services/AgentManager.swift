@@ -29,10 +29,6 @@ class AgentManager: ObservableObject {
     /// Per-agent bridge mismatch warning messages. Populated when a wrong-bridge
     /// identity error is detected; cleared when the agent reconnects successfully.
     @Published var bridgeMismatchWarnings: [String: String] = [:]
-    /// Tracks whether the app is currently in the foreground. Set by ContentView via
-    /// scenePhase observation. Used by incrementUnreadCount to allow badge increments
-    /// even when activeChatAgentId is set (user is "in" the chat but app is backgrounded).
-    var isAppActive: Bool = true
     /// Maps agentId → message ID of the first new message that arrived while the user
     /// was in that chat but the app was backgrounded. ChatView renders a "New Messages"
     /// separator at this position. Cleared when ChatView appears or disappears.
@@ -545,6 +541,11 @@ class AgentManager: ObservableObject {
                     }
                     // Update in-memory conversation for immediate AgentListView update
                     self.conversations[agentId]?.messages.append(preview)
+                    // If the user is in this chat (app was backgrounded while in chat),
+                    // mark where new messages begin so ChatView renders a separator.
+                    if self.activeChatAgentId == agentId && self.newMessageStartIds[agentId] == nil {
+                        self.newMessageStartIds[agentId] = preview.id
+                    }
                     // Clear pendingBufferedResponse so ChatViewModel doesn't double-add it
                     client?.pendingBufferedResponse = nil
                     // Increment unread badge by the number of distinct agent messages
@@ -692,24 +693,13 @@ class AgentManager: ObservableObject {
         }
     }
 
-    /// Increment the unread badge count for an agent. Suppressed only when the app is
-    /// active AND the user is currently viewing that agent's chat. When the app is
-    /// backgrounded, increments even if activeChatAgentId == agentId so the badge
-    /// appears correctly on the agents list when the user returns.
+    /// Increment the unread badge count for an agent. No-op if the user is currently
+    /// viewing that agent's chat (activeChatAgentId == agentId).
     func incrementUnreadCount(agentId: String, by count: Int = 1) {
-        // Only suppress when the user is actively reading this chat in the foreground
-        let userIsActivelyReading = isAppActive && activeChatAgentId == agentId
-        guard !userIsActivelyReading else { return }
-
+        guard activeChatAgentId != agentId else { return }
         let current = conversations[agentId]?.unreadCount ?? 0
         conversations[agentId]?.unreadCount = current + count
         UserDefaults.standard.set(current + count, forKey: "unreadCount_\(agentId)")
-
-        // If the user was in this chat but app was backgrounded, record where new
-        // messages start so ChatView can show a "New Messages" separator.
-        if !isAppActive && activeChatAgentId == agentId && newMessageStartIds[agentId] == nil {
-            newMessageStartIds[agentId] = conversations[agentId]?.messages.last?.id
-        }
     }
 
     /// Clear the unread badge count for an agent (called when ChatView opens).
