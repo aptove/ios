@@ -159,6 +159,10 @@ class ACPClientWrapper: ObservableObject {
     /// `bridgeAgentId` (paired before the identity feature). Args: (bridgeAgentId, cwd).
     var onLearnBridgeIdentity: ((String, String) -> Void)?
 
+    /// Called when a `bridge/identify` includes `agentName`. iOS uses this to sync the
+    /// bridge's configured name to CoreData on every connection.
+    var onAgentNameReceived: ((String) -> Void)?
+
     /// The bridgeAgentId this client expects to see from the bridge.
     /// If set, every `bridge/*` notification is validated against this value.
     /// A mismatch means the iOS app auto-connected to a different bridge at the
@@ -548,6 +552,20 @@ class ACPClientWrapper: ObservableObject {
         }
     }
     
+    /// Send the new agent name to the bridge so it updates `common.toml` and
+    /// subsequent push notification titles.
+    func setAgentName(_ name: String) async {
+        guard let transport = self.transport else { return }
+        let params: JsonValue = .object(["name": .string(name)])
+        let notification = JsonRpcNotification(method: "bridge/setAgentName", params: params)
+        let message = JsonRpcMessage.notification(notification)
+        do {
+            try await transport.send(message)
+        } catch {
+            print("❌ ACPClientWrapper: Failed to send setAgentName: \(error)")
+        }
+    }
+
     /// Correct a voice transcript using the AI agent.
     /// Returns the corrected text, or the raw transcript if correction fails.
     func correctTranscript(_ rawTranscript: String, language: String) async -> String {
@@ -1066,6 +1084,10 @@ class ACPClientWrapper: ObservableObject {
                 onLearnBridgeIdentity?(receivedId, receivedCwd)
             } else {
                 print("✅ ACPClientWrapper: bridge identity confirmed (bridgeAgentId=\(receivedId), cwd=\(receivedCwd))")
+            }
+            // Notify caller of the bridge's configured agent name (if present).
+            if case .string(let name) = p["agentName"] {
+                onAgentNameReceived?(name)
             }
             return
         }

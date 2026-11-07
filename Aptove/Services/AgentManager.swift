@@ -512,6 +512,20 @@ class AgentManager: ObservableObject {
                 self.persistBridgeIdentity(agentId: agentId, bridgeAgentId: bridgeAgentId, cwd: bridgeCwd)
             }
 
+            // Sync agent name: if the iOS app has a local rename not yet sent to the bridge,
+            // push it now. Otherwise, let the bridge's configured name win.
+            client.onAgentNameReceived = { [weak self, weak client] bridgeName in
+                guard let self else { return }
+                let localName = self.agents.first(where: { $0.id == agentId })?.name ?? ""
+                if !localName.isEmpty && localName != bridgeName {
+                    // Local rename not yet synced — push it to bridge.
+                    Task { await client?.setAgentName(localName) }
+                } else {
+                    // Bridge name is authoritative — update local to match.
+                    Task { @MainActor in self.renameAgentLocalOnly(agentId: agentId, newName: bridgeName) }
+                }
+            }
+
             client.onColdStartReplayComplete = { [weak self, weak client] text, messageCount in
                 guard let self else { return }
                 Task { @MainActor in
@@ -645,6 +659,18 @@ class AgentManager: ObservableObject {
     }
 
     func renameAgent(agentId: String, newName: String) {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        repository.renameAgent(agentId: agentId, newName: trimmed)
+        // Sync to bridge so it updates common.toml and push notification title.
+        Task {
+            if let wrapper = await clientCache.getClient(for: agentId) {
+                await wrapper.setAgentName(trimmed)
+            }
+        }
+    }
+
+    private func renameAgentLocalOnly(agentId: String, newName: String) {
         let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         repository.renameAgent(agentId: agentId, newName: trimmed)
