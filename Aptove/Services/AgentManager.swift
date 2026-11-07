@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import UserNotifications
 
 /// Thread-safe client cache using actor isolation
 actor ClientCache {
@@ -729,7 +730,9 @@ class AgentManager: ObservableObject {
     /// Update the iOS app icon badge to the total unread count across all agents.
     private func syncAppBadge() {
         let total = conversations.values.reduce(0) { $0 + $1.unreadCount }
-        UIApplication.shared.applicationIconBadgeNumber = total
+        Task {
+            try? await UNUserNotificationCenter.current().setBadgeCount(total)
+        }
     }
 
     /// Correct a voice transcript using the AI agent for the given agent.
