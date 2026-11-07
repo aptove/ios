@@ -135,19 +135,19 @@ struct AgentRow: View {
 
             Spacer()
 
-            VStack(alignment: .trailing, spacing: 4) {
-                statusIndicator
-
+            HStack(spacing: 6) {
                 if let unreadCount = conversation?.unreadCount, unreadCount > 0 {
                     Text("\(unreadCount)")
-                        .font(.caption2)
+                        .font(.footnote)
                         .fontWeight(.semibold)
                         .foregroundColor(.white)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
                         .background(Color.blue)
                         .clipShape(Capsule())
                 }
+
+                statusIndicator
             }
         }
         .padding(.vertical, 4)
