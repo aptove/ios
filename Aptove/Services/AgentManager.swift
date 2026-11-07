@@ -73,6 +73,7 @@ class AgentManager: ObservableObject {
                 }
                 if wasEmpty && !updatedAgents.isEmpty {
                     print("📱 AgentManager: Loaded \(updatedAgents.count) agents from CoreData")
+                    self.syncAppBadge()
                     autoConnectAllAgents()
                     startBackgroundRetry()
                 }
@@ -700,6 +701,7 @@ class AgentManager: ObservableObject {
         let current = conversations[agentId]?.unreadCount ?? 0
         conversations[agentId]?.unreadCount = current + count
         UserDefaults.standard.set(current + count, forKey: "unreadCount_\(agentId)")
+        syncAppBadge()
     }
 
     /// Clear the unread badge count for an agent (called when ChatView opens).
@@ -710,6 +712,13 @@ class AgentManager: ObservableObject {
         // is called from onAppear which can fire when foregrounding (before or after
         // cold-start replay sets the separator). The separator is only cleared in
         // onDisappear so it persists until the user leaves the chat.
+        syncAppBadge()
+    }
+
+    /// Update the iOS app icon badge to the total unread count across all agents.
+    private func syncAppBadge() {
+        let total = conversations.values.reduce(0) { $0 + $1.unreadCount }
+        UIApplication.shared.applicationIconBadgeNumber = total
     }
 
     /// Correct a voice transcript using the AI agent for the given agent.
