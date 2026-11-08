@@ -53,6 +53,7 @@ struct ContentView: View {
     @State private var hasGoneToBackground = false
     @State private var tabBarHeight: CGFloat = 0
     @State private var searchText = ""
+    @State private var isSearchActive = false
 
     init() {
         print("🖥️  ContentView: Initializing...")
@@ -66,7 +67,7 @@ struct ContentView: View {
                     if agentManager.agents.isEmpty {
                         EmptyStateView()
                     } else {
-                        AgentListView(isInChat: $isInChat, searchText: searchText)
+                        AgentListView(isInChat: $isInChat, searchText: searchText, isSearchActive: $isSearchActive)
                     }
                 }
                 .navigationDestination(for: String.self) { agentId in
@@ -76,7 +77,7 @@ struct ContentView: View {
                     ChatView(agentId: dest.agentId, scrollToMessageId: dest.scrollToMessageId, isInChat: $isInChat)
                 }
                 .navigationTitle(Bundle.localized("Agents", language: appLanguage))
-                .searchable(text: $searchText, prompt: Text("search_conversations_prompt"))
+                .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: Text("search_conversations_prompt"))
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
                         Button {
@@ -99,7 +100,7 @@ struct ContentView: View {
                 .allowsHitTesting(selectedTab == .settings)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if !isInChat && searchText.isEmpty {
+            if !isInChat && !isSearchActive {
                 BottomTabBar(selectedTab: $selectedTab)
                     .padding(.bottom, 8)
                     .background(GeometryReader { geo in

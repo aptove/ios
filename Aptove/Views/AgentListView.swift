@@ -16,6 +16,8 @@ struct AgentListView: View {
     @EnvironmentObject var agentManager: AgentManager
     @Binding var isInChat: Bool
     var searchText: String = ""
+    @Binding var isSearchActive: Bool
+    @Environment(\.isSearching) private var isSearching
     @State private var agentToDelete: Agent?
     @State private var showingDeleteConfirmation = false
     @State private var agentToConfigureId: String? = nil
@@ -84,6 +86,7 @@ struct AgentListView: View {
                 }
             }
         }
+        .onChange(of: isSearching) { _, active in isSearchActive = active }
         .onAppear { loadAvatars() }
         .navigationDestination(isPresented: Binding(
             get: { agentToConfigureId != nil },
@@ -277,7 +280,7 @@ struct AgentRow: View {
 
 #Preview {
     NavigationStack {
-        AgentListView(isInChat: .constant(false))
+        AgentListView(isInChat: .constant(false), isSearchActive: .constant(false))
             .environmentObject(AgentManager())
     }
 }
