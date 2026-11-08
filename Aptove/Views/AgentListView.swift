@@ -134,18 +134,32 @@ private struct SearchResultRow: View {
         return f
     }()
 
+    // Characters of context to show before the match so it appears roughly centred.
+    private static let contextLeading = 40
+
     private static func highlighted(_ fullText: String, query: String) -> Text {
         guard !query.isEmpty else {
             return Text(fullText).font(.caption).foregroundColor(.secondary)
         }
         let nsText = fullText as NSString
-        let range = nsText.range(of: query, options: [.caseInsensitive, .diacriticInsensitive])
-        guard range.location != NSNotFound else {
+        let matchRange = nsText.range(of: query, options: [.caseInsensitive, .diacriticInsensitive])
+        guard matchRange.location != NSNotFound else {
             return Text(fullText).font(.caption).foregroundColor(.secondary)
         }
-        let before = nsText.substring(to: range.location)
-        let match  = nsText.substring(with: range)
-        let after  = nsText.substring(from: range.location + range.length)
+
+        // Build a snippet centred on the match: start `contextLeading` chars before it.
+        let snippetStart = max(0, Int(matchRange.location) - contextLeading)
+        let leadingTrimmed = snippetStart > 0
+
+        // Adjust match range relative to the snippet start.
+        let relMatchLoc = matchRange.location - snippetStart
+        let relMatchRange = NSRange(location: relMatchLoc, length: matchRange.length)
+
+        let snippet = nsText.substring(from: snippetStart) as NSString
+        let before = (leadingTrimmed ? "…" : "") + snippet.substring(to: relMatchRange.location)
+        let match  = snippet.substring(with: relMatchRange)
+        let after  = snippet.substring(from: relMatchRange.location + relMatchRange.length)
+
         var result = Text(before).font(.caption).foregroundColor(.secondary)
         result = result + Text(match).font(.caption.bold()).foregroundColor(.accentColor)
         result = result + Text(after).font(.caption).foregroundColor(.secondary)
