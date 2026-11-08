@@ -333,8 +333,24 @@ struct ChatView: View {
                 commandQuery = nil
             }
         }
-        .toolbar(.hidden, for: .navigationBar)
+        .toolbar(scrollToMessageId != nil ? .visible : .hidden, for: .navigationBar)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationTitle("")
         .navigationBarBackButtonHidden(true)
+        .toolbar {
+            if scrollToMessageId != nil {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button { dismiss() } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                            Text("back_to_search")
+                                .font(.subheadline)
+                        }
+                    }
+                }
+            }
+        }
         .navigationDestination(isPresented: $showingAgentConfig) {
             AgentConfigurationView(agentId: agentId)
         }

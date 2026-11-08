@@ -126,6 +126,7 @@
 "chat_session_resumed" = "Oturum devam ediyor";
 "chat_new_session" = "Yeni oturum";
 "Message" = "Mesaj";
+"back_to_search" = "Aramaya dön";
 
 /* Transport names */
 "Local" = "Yerel";

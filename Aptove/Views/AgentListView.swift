@@ -18,8 +18,6 @@ struct AgentListView: View {
     var searchText: String = ""
     @Binding var isSearchActive: Bool
     @Environment(\.isSearching) private var isSearching
-    /// Called alongside NavigationLink tap to set scrollToMessageId before navigation fires.
-    var onSearchResultTap: ((ChatDestination) -> Void)?
     @State private var agentToDelete: Agent?
     @State private var showingDeleteConfirmation = false
     @State private var agentToConfigureId: String? = nil
@@ -41,7 +39,7 @@ struct AgentListView: View {
         List {
             if searchText.isEmpty {
                 ForEach(agentManager.agents) { agent in
-                    NavigationLink(value: agent.id) {
+                    NavigationLink(value: ChatDestination(agentId: agent.id, scrollToMessageId: nil)) {
                         AgentRow(agent: agent, avatarImage: avatarImages[agent.id])
                     }
                     .contextMenu {
@@ -81,12 +79,9 @@ struct AgentListView: View {
                         .listRowSeparator(.hidden)
                 } else {
                     ForEach(searchResults) { result in
-                        NavigationLink(value: result.agentId) {
+                        NavigationLink(value: ChatDestination(agentId: result.agentId, scrollToMessageId: result.id)) {
                             SearchResultRow(result: result, query: searchText)
                         }
-                        .simultaneousGesture(TapGesture().onEnded {
-                            onSearchResultTap?(ChatDestination(agentId: result.agentId, scrollToMessageId: result.id))
-                        })
                     }
                 }
             }

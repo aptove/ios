@@ -54,7 +54,6 @@ struct ContentView: View {
     @State private var tabBarHeight: CGFloat = 0
     @State private var searchText = ""
     @State private var isSearchActive = false
-    @State private var pendingScrollMessageId: String? = nil
 
     init() {
         print("🖥️  ContentView: Initializing...")
@@ -68,14 +67,11 @@ struct ContentView: View {
                     if agentManager.agents.isEmpty {
                         EmptyStateView()
                     } else {
-                        AgentListView(isInChat: $isInChat, searchText: searchText, isSearchActive: $isSearchActive) { dest in
-                            pendingScrollMessageId = dest.scrollToMessageId
-                        }
+                        AgentListView(isInChat: $isInChat, searchText: searchText, isSearchActive: $isSearchActive)
                     }
                 }
-                .navigationDestination(for: String.self) { agentId in
-                    ChatView(agentId: agentId, scrollToMessageId: pendingScrollMessageId, isInChat: $isInChat)
-                        .onAppear { pendingScrollMessageId = nil }
+                .navigationDestination(for: ChatDestination.self) { dest in
+                    ChatView(agentId: dest.agentId, scrollToMessageId: dest.scrollToMessageId, isInChat: $isInChat)
                 }
                 .navigationTitle(Bundle.localized("Agents", language: appLanguage))
                 .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: Text("search_conversations_prompt"))
@@ -186,7 +182,7 @@ struct ContentView: View {
             navigationPath = NavigationPath()
             // Small delay so NavigationStack resets before pushing
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                navigationPath.append(agent.id)
+                navigationPath.append(ChatDestination(agentId: agent.id, scrollToMessageId: nil))
             }
         }
     }

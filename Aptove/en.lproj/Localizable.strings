@@ -126,6 +126,7 @@
 "chat_session_resumed" = "Session resumed";
 "chat_new_session" = "New session";
 "Message" = "Message";
+"back_to_search" = "Back to search";
 
 /* Transport names */
 "Local" = "Local";
