@@ -642,7 +642,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSAppTransportSecurity = "{\n    NSAllowsArbitraryLoads = YES;\n}";
-				INFOPLIST_KEY_NSCameraUsageDescription = "Aptove needs camera access to scan QR codes for agent connection";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Aptove needs camera access to scan QR codes and capture photos for chat";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Aptove needs microphone access to record voice messages";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Aptove uses your photo library to attach images to messages.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Aptove uses speech recognition to convert your voice to text for messages";
@@ -678,7 +678,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSAppTransportSecurity = "{\n    NSAllowsArbitraryLoads = YES;\n}";
-				INFOPLIST_KEY_NSCameraUsageDescription = "Aptove needs camera access to scan QR codes for agent connection";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Aptove needs camera access to scan QR codes and capture photos for chat";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Aptove needs microphone access to record voice messages";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Aptove uses your photo library to attach images to messages.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Aptove uses speech recognition to convert your voice to text for messages";

@@ -3,6 +3,7 @@ import MarkdownUI
 import PhotosUI
 import ACPModel
 import UniformTypeIdentifiers
+import AVFoundation
 
 struct ChatView: View {
     @EnvironmentObject var agentManager: AgentManager
@@ -21,6 +22,8 @@ struct ChatView: View {
     @State private var pickerItems: [PhotosPickerItem] = []
     @State private var selectedFiles: [FileAttachment] = []
     @State private var showFilePicker = false
+    @State private var showCamera = false
+    @State private var showCameraPermissionDenied = false
     @State private var fileErrorMessage: String? = nil
     @State private var showingFileError = false
     @State private var commandQuery: String? = nil // nil = picker hidden
@@ -209,6 +212,10 @@ struct ChatView: View {
                                 showAttachmentPanel = false
                                 showPhotoPicker = true
                             }
+                            attachmentItem(icon: "camera", label: "camera_label", color: .indigo) {
+                                showAttachmentPanel = false
+                                handleCameraAction()
+                            }
                             attachmentItem(icon: "paperclip", label: "files_label", color: .green) {
                                 showAttachmentPanel = false
                                 showFilePicker = true
@@ -285,6 +292,22 @@ struct ChatView: View {
                 Task {
                     await handleFileImporterResult(result)
                 }
+            }
+            .fullScreenCover(isPresented: $showCamera) {
+                CameraCapture(isPresented: $showCamera) { image in
+                    selectedImages.append(image)
+                }
+                .ignoresSafeArea()
+            }
+            .alert("camera_permission_denied_title", isPresented: $showCameraPermissionDenied) {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("camera_chat_permission_denied_message")
             }
             .alert("file_error_title", isPresented: $showingFileError) {
                 Button("OK", role: .cancel) { fileErrorMessage = nil }
@@ -502,6 +525,25 @@ struct ChatView: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .padding(.horizontal)
             .padding(.top, 4)
+        }
+    }
+
+    private func handleCameraAction() {
+        guard UIImagePickerController.isSourceTypeAvailable(.camera) else { return }
+        let status = AVCaptureDevice.authorizationStatus(for: .video)
+        switch status {
+        case .authorized:
+            showCamera = true
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async {
+                    if granted { showCamera = true } else { showCameraPermissionDenied = true }
+                }
+            }
+        case .denied, .restricted:
+            showCameraPermissionDenied = true
+        @unknown default:
+            break
         }
     }
 

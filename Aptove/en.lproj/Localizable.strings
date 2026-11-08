@@ -105,6 +105,8 @@
 
 /* ChatView — file attachment */
 "files_label" = "Files";
+"camera_label" = "Camera";
+"camera_chat_permission_denied_message" = "Aptove needs camera access to capture photos for chat. Please go to Settings and enable camera access.";
 "file_error_title" = "Couldn't Open File";
 "file_too_large_error" = "File \"%@\" is too large (max 10 MB).";
 "file_load_error" = "Couldn't read \"%@\". Make sure it's downloaded.";
