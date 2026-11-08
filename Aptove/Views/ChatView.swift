@@ -253,7 +253,7 @@ struct ChatView: View {
                             Task { await viewModel.sendVoiceCorrectionRequest(transcript) }
                         }
 
-                        if messageText.isEmpty && selectedImages.isEmpty && selectedFiles.isEmpty {
+                        if messageText.isEmpty {
                             Button {
                                 voiceViewModel.onTranscriptReady = { transcript in
                                     Task { await viewModel.sendVoiceCorrectionRequest(transcript) }
