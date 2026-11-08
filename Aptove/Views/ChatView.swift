@@ -208,7 +208,7 @@ struct ChatView: View {
 
                     if showAttachmentPanel {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 72), spacing: 8)], spacing: 16) {
-                            attachmentItem(icon: "photo", label: "Photos", color: .blue) {
+                            attachmentItem(icon: "photo", label: "attachment_photos", color: .blue) {
                                 showAttachmentPanel = false
                                 showPhotoPicker = true
                             }
@@ -220,12 +220,12 @@ struct ChatView: View {
                                 showAttachmentPanel = false
                                 showFilePicker = true
                             }
-                            attachmentItem(icon: nil, slashLabel: "/", label: "Commands", color: .purple) {
+                            attachmentItem(icon: nil, slashLabel: "/", label: "attachment_commands", color: .purple) {
                                 showAttachmentPanel = false
                                 commandQuery = ""
                                 isInputFocused = true
                             }
-                            attachmentItem(icon: "brain", label: "Memory", color: .orange) {
+                            attachmentItem(icon: "brain", label: "attachment_memory", color: .orange) {
                                 showAttachmentPanel = false
                                 showMemoryEntry = true
                             }

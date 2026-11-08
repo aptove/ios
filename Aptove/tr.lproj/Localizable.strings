@@ -106,6 +106,9 @@
 /* ChatView — file attachment */
 "files_label" = "Dosyalar";
 "camera_label" = "Kamera";
+"attachment_photos" = "Fotoğraflar";
+"attachment_commands" = "Komutlar";
+"attachment_memory" = "Anı";
 "camera_chat_permission_denied_message" = "Aptove'nin sohbet için fotoğraf çekebilmesi kamera erişimine ihtiyacı var. Lütfen Ayarlar'a gidip kamera erişimini etkinleştirin.";
 "file_error_title" = "Dosya Açılamadı";
 "file_too_large_error" = "\"%@\" dosyası çok büyük (max 10 MB).";
