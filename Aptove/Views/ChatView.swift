@@ -345,9 +345,11 @@ struct ChatView: View {
         }
         .onDisappear {
             isInChat = false
-            if agentManager.activeChatAgentId == agentId {
-                agentManager.activeChatAgentId = nil
-            }
+            // Do NOT clear activeChatAgentId here — onDisappear fires when the app
+            // backgrounds (not just on navigation). Keeping it set lets
+            // onColdStartReplayComplete place the separator correctly on foreground.
+            // activeChatAgentId is cleared in ContentView when navigationPath becomes
+            // empty (user actually navigated back to the agent list).
             agentManager.newMessageStartIds.removeValue(forKey: agentId)
         }
         .onChange(of: viewModel.voiceCorrectedText) { _, correctedText in

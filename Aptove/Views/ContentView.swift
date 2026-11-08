@@ -105,6 +105,13 @@ struct ContentView: View {
         .onAppear {
             print("🖥️  ContentView: View appeared and rendered")
         }
+        .onChange(of: navigationPath.isEmpty) { _, isEmpty in
+            // When the user pops back to the agent list, clear activeChatAgentId so
+            // unread increments and separators are not suppressed for future chats.
+            if isEmpty {
+                agentManager.activeChatAgentId = nil
+            }
+        }
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
             case .active:

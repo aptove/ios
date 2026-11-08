@@ -406,6 +406,7 @@ class ACPClientWrapper: ObservableObject {
                     connectionMessage = "Connected successfully!"
                     connectionState = .connected
                     print("✅ ACPClientWrapper.connect(): Connection flow complete!")
+                    self.onReconnect?()
 
                     // Watch for unexpected transport close (network loss, bridge restart, etc.)
                     // Cancelled in disconnect() so intentional closes don't fire this callback.
@@ -660,6 +661,11 @@ class ACPClientWrapper: ObservableObject {
     /// Called when another device sends a user message to the same session.
     /// The string is the plain text of the remote message.
     var onRemoteUserMessage: ((String) -> Void)?
+
+    /// Called each time a connection (or reconnection) succeeds.
+    /// Subscribers should expire any stale in-flight state (e.g. pending tool approvals)
+    /// because the new AptoveClient instance has empty pendingPermissions.
+    var onReconnect: (() -> Void)?
 
     /// Cache of the last received available commands — populated before the callback fires
     /// so late subscribers (e.g. ChatViewModel) can read them on first subscription.

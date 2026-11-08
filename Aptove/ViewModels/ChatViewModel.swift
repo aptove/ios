@@ -216,6 +216,42 @@ class ChatViewModel: ObservableObject {
                 }
             }
         }
+
+        // On every (re)connect the inner AptoveClient is fresh — its pendingPermissions is
+        // empty. Expire any approval cards that are still awaiting a decision so the user
+        // doesn't see frozen buttons that silently fail when tapped.
+        client.onReconnect = { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                var changed = false
+                for i in messages.indices {
+                    guard messages[i].type == .toolApprovalRequest,
+                          let ta = messages[i].toolApproval,
+                          ta.approved == nil else { continue }
+                    messages[i] = Message(
+                        id: messages[i].id,
+                        text: messages[i].text,
+                        sender: messages[i].sender,
+                        timestamp: messages[i].timestamp,
+                        status: .error,
+                        type: messages[i].type,
+                        toolApproval: ToolApprovalInfo(
+                            toolCallId: ta.toolCallId,
+                            title: ta.title,
+                            command: ta.command,
+                            approved: false,
+                            options: ta.options
+                        )
+                    )
+                    changed = true
+                }
+                if changed {
+                    updateConversation()
+                    saveMessagesToDisk()
+                }
+                approvalQueue.removeAll()
+            }
+        }
     }
     
     private func setupToolApprovalHandler() async {
@@ -769,7 +805,29 @@ class ChatViewModel: ObservableObject {
                 saveMessagesToDisk()
             }
         } catch {
-            print("Error approving tool: \(error)")
+            // The pending approval RPC is gone (connection was reset and AptoveClient recreated).
+            // Mark the card expired so the frozen buttons are removed.
+            if let index = messages.firstIndex(where: { $0.id == messageId }) {
+                let expiredApproval = ToolApprovalInfo(
+                    toolCallId: toolApproval.toolCallId,
+                    title: toolApproval.title,
+                    command: toolApproval.command,
+                    approved: false,
+                    options: toolApproval.options
+                )
+                messages[index] = Message(
+                    id: message.id,
+                    text: message.text,
+                    sender: message.sender,
+                    timestamp: message.timestamp,
+                    status: .error,
+                    type: message.type,
+                    toolApproval: expiredApproval
+                )
+                updateConversation()
+                saveMessagesToDisk()
+            }
+            print("Tool approval expired after reconnect: \(error)")
         }
     }
 
@@ -804,7 +862,29 @@ class ChatViewModel: ObservableObject {
                 saveMessagesToDisk()
             }
         } catch {
-            print("Error rejecting tool: \(error)")
+            // The pending approval RPC is gone (connection was reset and AptoveClient recreated).
+            // Mark the card expired so the frozen buttons are removed.
+            if let index = messages.firstIndex(where: { $0.id == messageId }) {
+                let expiredApproval = ToolApprovalInfo(
+                    toolCallId: toolApproval.toolCallId,
+                    title: toolApproval.title,
+                    command: toolApproval.command,
+                    approved: false,
+                    options: toolApproval.options
+                )
+                messages[index] = Message(
+                    id: message.id,
+                    text: message.text,
+                    sender: message.sender,
+                    timestamp: message.timestamp,
+                    status: .error,
+                    type: message.type,
+                    toolApproval: expiredApproval
+                )
+                updateConversation()
+                saveMessagesToDisk()
+            }
+            print("Tool rejection expired after reconnect: \(error)")
         }
     }
     
