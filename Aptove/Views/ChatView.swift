@@ -207,7 +207,7 @@ struct ChatView: View {
                     commandPickerView
 
                     if showAttachmentPanel {
-                        HStack(spacing: 32) {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 72), spacing: 8)], spacing: 16) {
                             attachmentItem(icon: "photo", label: "Photos", color: .blue) {
                                 showAttachmentPanel = false
                                 showPhotoPicker = true
@@ -229,7 +229,6 @@ struct ChatView: View {
                                 showAttachmentPanel = false
                                 showMemoryEntry = true
                             }
-                            Spacer()
                         }
                         .padding(.horizontal, 20)
                         .padding(.vertical, 16)
@@ -482,7 +481,7 @@ struct ChatView: View {
                         Text(slashLabel).foregroundColor(.white).font(.system(.title2, design: .monospaced))
                     }
                 }
-                Text(label).font(.caption).foregroundColor(.primary)
+                Text(LocalizedStringKey(label)).font(.caption).foregroundColor(.primary)
             }
         }
     }
