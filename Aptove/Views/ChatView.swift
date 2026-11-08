@@ -293,22 +293,6 @@ struct ChatView: View {
                     await handleFileImporterResult(result)
                 }
             }
-            .fullScreenCover(isPresented: $showCamera) {
-                CameraCapture(isPresented: $showCamera) { image in
-                    selectedImages.append(image)
-                }
-                .ignoresSafeArea()
-            }
-            .alert("camera_permission_denied_title", isPresented: $showCameraPermissionDenied) {
-                Button("Open Settings") {
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(url)
-                    }
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("camera_chat_permission_denied_message")
-            }
             .alert("file_error_title", isPresented: $showingFileError) {
                 Button("OK", role: .cancel) { fileErrorMessage = nil }
             } message: {
@@ -374,6 +358,22 @@ struct ChatView: View {
             // activeChatAgentId is cleared in ContentView when navigationPath becomes
             // empty (user actually navigated back to the agent list).
             agentManager.newMessageStartIds.removeValue(forKey: agentId)
+        }
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraCapture(isPresented: $showCamera) { image in
+                selectedImages.append(image)
+            }
+            .ignoresSafeArea()
+        }
+        .alert("camera_permission_denied_title", isPresented: $showCameraPermissionDenied) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("camera_chat_permission_denied_message")
         }
         .onChange(of: viewModel.voiceCorrectedText) { _, correctedText in
             if let text = correctedText {
