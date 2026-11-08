@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Search result model
 
@@ -18,6 +19,8 @@ struct AgentListView: View {
     var searchText: String = ""
     @Binding var isSearchActive: Bool
     @Environment(\.isSearching) private var isSearching
+    /// Called when a search result row is tapped; caller handles dismissing search + navigation.
+    var onSearchResultTap: ((ChatDestination) -> Void)?
     @State private var agentToDelete: Agent?
     @State private var showingDeleteConfirmation = false
     @State private var agentToConfigureId: String? = nil
@@ -79,9 +82,18 @@ struct AgentListView: View {
                         .listRowSeparator(.hidden)
                 } else {
                     ForEach(searchResults) { result in
-                        NavigationLink(value: ChatDestination(agentId: result.agentId, scrollToMessageId: result.id)) {
+                        Button {
+                            // Dismiss the UISearchController before navigating to prevent
+                            // it from leaving a phantom back-button in the navigation stack.
+                            UIApplication.shared.sendAction(
+                                #selector(UIResponder.resignFirstResponder),
+                                to: nil, from: nil, for: nil
+                            )
+                            onSearchResultTap?(ChatDestination(agentId: result.agentId, scrollToMessageId: result.id))
+                        } label: {
                             SearchResultRow(result: result, query: searchText)
                         }
+                        .foregroundStyle(.primary)
                     }
                 }
             }
