@@ -856,7 +856,8 @@ struct MessageBubble: View {
             .font(.subheadline)
             .italic()
             .padding(10)
-            .background(Color.purple.opacity(0.1))
+            .background(Color.purple.opacity(0.12))
+            .background(Color(.systemBackground))
             .foregroundColor(.purple)
             .cornerRadius(12)
     }
@@ -869,7 +870,8 @@ struct MessageBubble: View {
                 .font(.subheadline)
         }
         .padding(10)
-        .background(Color.blue.opacity(0.1))
+        .background(Color.blue.opacity(0.12))
+        .background(Color(.systemBackground))
         .foregroundColor(.blue)
         .cornerRadius(12)
     }
@@ -881,7 +883,8 @@ struct MessageBubble: View {
             Text(message.text)
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.orange.opacity(0.1))
+                .background(Color.orange.opacity(0.12))
+                .background(Color(.systemBackground))
                 .cornerRadius(12)
             
             // Show approval buttons if not yet decided
@@ -969,7 +972,7 @@ struct MessageBubble: View {
     }
     
     private var backgroundColor: Color {
-        message.sender == .user ? .blue : .gray.opacity(0.2)
+        message.sender == .user ? .blue : Color(.secondarySystemBackground)
     }
     
     private var textColor: Color {

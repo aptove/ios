@@ -35,13 +35,13 @@ struct ChatPatternBackground: View {
             ? UIColor(red: 0.11, green: 0.11, blue: 0.14, alpha: 1.0)   // deep charcoal/navy
             : UIColor(red: 0.91, green: 0.92, blue: 0.94, alpha: 1.0)   // cool light gray
 
-        // Icon tint — very low opacity so they read as a subtle watermark
-        let iconAlpha: CGFloat = dark ? 0.09 : 0.08
+        // Icon tint — visible but not distracting
+        let iconAlpha: CGFloat = dark ? 0.14 : 0.13
         let iconColor = (dark ? UIColor.white : UIColor.black).withAlphaComponent(iconAlpha)
 
         // (name, cx, cy, pointSize, rotationDegrees)
         let icons: [(String, CGFloat, CGFloat, CGFloat, CGFloat)] = [
-            // --- original 12 ---
+            // --- set 1 (original) ---
             ("cpu",                                   38,  48,  26, -12),
             ("gear",                                 215, 155,  28,  22),
             ("network",                              120, 235,  24,   0),
@@ -54,7 +54,7 @@ struct ChatPatternBackground: View {
             ("bubble.left",                          178,   8,  22,  14),
             ("square.grid.3x3",                       68, 108,  14, -30),
             ("dot.radiowaves.right",                 185, 210,  14,   0),
-            // --- additional 12 ---
+            // --- set 2 ---
             ("gearshape.2",                          145, 100,  22, -15),
             ("cpu",                                  268,  12,  18,  18),
             ("waveform.path.ecg",                     12, 130,  16,   0),
@@ -67,6 +67,32 @@ struct ChatPatternBackground: View {
             ("bubble.left",                           88, 200,  16, -15),
             ("curlybraces.square",                   140,  18,  14,  28),
             ("dot.radiowaves.right",                 268, 190,  16,  20),
+            // --- set 3 (robot-themed) ---
+            ("memorychip",                            95,  22,  16, -12),
+            ("brain",                                200,  48,  18,  18),
+            ("wrench.and.screwdriver",               108,  68,  15, -20),
+            ("terminal",                              45,  85,  16,   8),
+            ("arrow.triangle.2.circlepath",          170, 112,  16, -15),
+            ("rays",                                 245, 108,  14,  22),
+            ("magnifyingglass",                       10, 165,  14, -12),
+            ("qrcode",                               192,  90,  14,   2),
+            ("timer",                                132, 152,  14,  20),
+            ("powerplug",                            265, 145,  15,  -8),
+            ("function",                             225, 182,  14,  12),
+            ("chart.bar",                             75, 148,  13,   0),
+            // --- set 4 (robot-themed fill-in) ---
+            ("brain",                                  8,  38,  16,  25),
+            ("memorychip",                           148, 238,  14, -18),
+            ("terminal",                             265, 242,  13,  -5),
+            ("wrench.and.screwdriver",               125, 192,  13,  22),
+            ("rays",                                 168, 168,  13,  -8),
+            ("chart.bar",                            272,  62,  13, -15),
+            ("function",                              58,  25,  14,  -5),
+            ("powerplug",                             98, 152,  13,  10),
+            ("timer",                                228, 272,  13, -18),
+            ("qrcode",                                72, 255,  15,  12),
+            ("arrow.triangle.2.circlepath",          228, 200,  13, -25),
+            ("magnifyingglass",                       30, 212,  13,  15),
         ]
 
         let renderer = UIGraphicsImageRenderer(size: size)
