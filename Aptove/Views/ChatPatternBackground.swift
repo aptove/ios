@@ -16,6 +16,8 @@ struct ChatPatternBackground: View {
 
     private static var lightTile: UIImage?
     private static var darkTile: UIImage?
+    // Bump this string to bust the in-memory cache after layout changes.
+    private static let tileVersion = "v3-no-overlap"
 
     private static func tile(dark: Bool) -> UIImage {
         if dark, let cached = darkTile { return cached }
@@ -73,10 +75,13 @@ struct ChatPatternBackground: View {
 
             for row in 0..<rows {
                 for col in 0..<cols {
-                    let cx     = (CGFloat(col) + next()) * cellW   // random within cell
-                    let cy     = (CGFloat(row) + next()) * cellH
+                    // Constrain center to middle 40% of each cell so the minimum
+                    // distance between any two adjacent icon centers is cellW × 0.6 ≈ 14 pt.
+                    // Icon sizes are capped at 12 pt, guaranteeing no overlap.
+                    let cx     = (CGFloat(col) + 0.3 + next() * 0.4) * cellW
+                    let cy     = (CGFloat(row) + 0.3 + next() * 0.4) * cellH
                     let deg    = next() * 72 - 36
-                    let ptSize = 11 + next() * 7
+                    let ptSize = 9 + next() * 3    // 9–12 pt (was 11–18)
                     let isEmoji = next() < 0.1
 
                     cgCtx.saveGState()
@@ -86,7 +91,7 @@ struct ChatPatternBackground: View {
                         cgCtx.rotate(by: deg * 0.3 * .pi / 180)
                         cgCtx.setAlpha(iconAlpha)
                         let attrs: [NSAttributedString.Key: Any] = [
-                            .font: UIFont.systemFont(ofSize: ptSize + 3)
+                            .font: UIFont.systemFont(ofSize: ptSize)
                         ]
                         let str = NSAttributedString(string: "🤖", attributes: attrs)
                         let sz = str.size()
