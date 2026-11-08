@@ -68,12 +68,8 @@ struct ContentView: View {
                         EmptyStateView()
                     } else {
                         AgentListView(isInChat: $isInChat, searchText: searchText, isSearchActive: $isSearchActive) { dest in
-                            // Clear search text so UISearchController dismisses, then navigate
-                            // after a short delay to let the controller fully tear down.
                             searchText = ""
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                                navigationPath.append(dest)
-                            }
+                            navigationPath.append(dest)
                         }
                     }
                 }

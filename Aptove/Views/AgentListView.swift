@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 // MARK: - Search result model
 
@@ -19,7 +18,8 @@ struct AgentListView: View {
     var searchText: String = ""
     @Binding var isSearchActive: Bool
     @Environment(\.isSearching) private var isSearching
-    /// Called when a search result row is tapped; caller handles dismissing search + navigation.
+    @Environment(\.dismissSearch) private var dismissSearch
+    /// Called when a search result row is tapped; caller handles navigation.
     var onSearchResultTap: ((ChatDestination) -> Void)?
     @State private var agentToDelete: Agent?
     @State private var showingDeleteConfirmation = false
@@ -83,12 +83,10 @@ struct AgentListView: View {
                 } else {
                     ForEach(searchResults) { result in
                         Button {
-                            // Dismiss the UISearchController before navigating to prevent
-                            // it from leaving a phantom back-button in the navigation stack.
-                            UIApplication.shared.sendAction(
-                                #selector(UIResponder.resignFirstResponder),
-                                to: nil, from: nil, for: nil
-                            )
+                            // dismissSearch() sets UISearchController.isActive = false
+                            // synchronously, removing its phantom navigation context
+                            // before the push — eliminates the duplicate back button.
+                            dismissSearch()
                             onSearchResultTap?(ChatDestination(agentId: result.agentId, scrollToMessageId: result.id))
                         } label: {
                             SearchResultRow(result: result, query: searchText)
