@@ -76,7 +76,7 @@ struct ContentView: View {
                     ChatView(agentId: dest.agentId, scrollToMessageId: dest.scrollToMessageId, isInChat: $isInChat)
                 }
                 .navigationTitle(Bundle.localized("Agents", language: appLanguage))
-                .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: Text("search_conversations_prompt"))
+                .searchable(text: $searchText, prompt: Text("search_conversations_prompt"))
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
                         Button {
