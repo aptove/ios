@@ -13,6 +13,7 @@ struct ChatView: View {
     @AppStorage("isVerboseMode") private var isVerboseMode: Bool = true
 
     let agentId: String
+    let scrollToMessageId: String?
     @Binding var isInChat: Bool
 
     @State private var messageText = ""
@@ -34,8 +35,9 @@ struct ChatView: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    init(agentId: String, isInChat: Binding<Bool>) {
+    init(agentId: String, scrollToMessageId: String? = nil, isInChat: Binding<Bool>) {
         self.agentId = agentId
+        self.scrollToMessageId = scrollToMessageId
         self._isInChat = isInChat
         self._viewModel = StateObject(wrappedValue: ChatViewModel(agentId: agentId))
     }
@@ -83,14 +85,16 @@ struct ChatView: View {
                     .padding()
                 }
                 .onChange(of: viewModel.messages.count) { oldCount, _ in
-                    if let lastMessage = viewModel.messages.last {
-                        if oldCount == 0 {
-                            // Initial load — jump instantly, no animation
+                    if oldCount == 0 {
+                        // Initial load — jump to searched message if set, otherwise last
+                        if let target = scrollToMessageId {
+                            proxy.scrollTo(target, anchor: .center)
+                        } else if let lastMessage = viewModel.messages.last {
                             proxy.scrollTo(lastMessage.id, anchor: .bottom)
-                        } else {
-                            withAnimation {
-                                proxy.scrollTo(lastMessage.id, anchor: .bottom)
-                            }
+                        }
+                    } else if let lastMessage = viewModel.messages.last {
+                        withAnimation {
+                            proxy.scrollTo(lastMessage.id, anchor: .bottom)
                         }
                     }
                 }

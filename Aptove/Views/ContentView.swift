@@ -36,6 +36,11 @@ extension Bundle {
     }
 }
 
+struct ChatDestination: Hashable {
+    let agentId: String
+    let scrollToMessageId: String?
+}
+
 struct ContentView: View {
     @EnvironmentObject private var agentManager: AgentManager
     @EnvironmentObject private var pushManager: PushNotificationManager
@@ -67,6 +72,9 @@ struct ContentView: View {
                 .navigationDestination(for: String.self) { agentId in
                     ChatView(agentId: agentId, isInChat: $isInChat)
                 }
+                .navigationDestination(for: ChatDestination.self) { dest in
+                    ChatView(agentId: dest.agentId, scrollToMessageId: dest.scrollToMessageId, isInChat: $isInChat)
+                }
                 .navigationTitle(Bundle.localized("Agents", language: appLanguage))
                 .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: Text("search_conversations_prompt"))
                 .toolbar {
@@ -91,7 +99,7 @@ struct ContentView: View {
                 .allowsHitTesting(selectedTab == .settings)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if !isInChat {
+            if !isInChat && searchText.isEmpty {
                 BottomTabBar(selectedTab: $selectedTab)
                     .padding(.bottom, 8)
                     .background(GeometryReader { geo in

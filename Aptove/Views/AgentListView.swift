@@ -77,7 +77,7 @@ struct AgentListView: View {
                         .listRowSeparator(.hidden)
                 } else {
                     ForEach(searchResults) { result in
-                        NavigationLink(value: result.agentId) {
+                        NavigationLink(value: ChatDestination(agentId: result.agentId, scrollToMessageId: result.id)) {
                             SearchResultRow(result: result)
                         }
                     }
