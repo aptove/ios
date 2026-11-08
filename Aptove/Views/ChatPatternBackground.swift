@@ -53,7 +53,7 @@ struct ChatPatternBackground: View {
             ? UIColor(red: 0.11, green: 0.11, blue: 0.14, alpha: 1.0)
             : UIColor(red: 0.91, green: 0.92, blue: 0.94, alpha: 1.0)
 
-        let iconAlpha: CGFloat = dark ? 0.16 : 0.14
+        let iconAlpha: CGFloat = dark ? 0.11 : 0.09
         let iconColor = (dark ? UIColor.white : UIColor.black).withAlphaComponent(iconAlpha)
 
         // Seeded Xorshift32 — deterministic but looks truly random
