@@ -27,73 +27,32 @@ struct ChatPatternBackground: View {
 
     // MARK: - Tile generation
 
+    private static let symbolNames: [String] = [
+        "cpu", "gear", "network", "bolt", "waveform", "eye",
+        "curlybraces", "hexagon", "antenna.radiowaves.left.and.right",
+        "bubble.left", "square.grid.3x3", "dot.radiowaves.right",
+        "gearshape.2", "waveform.path.ecg", "bolt.circle", "eye.circle",
+        "chevron.left.forwardslash.chevron.right", "curlybraces.square",
+        "memorychip", "brain", "wrench.and.screwdriver", "terminal",
+        "arrow.triangle.2.circlepath", "rays", "magnifyingglass",
+        "qrcode", "timer", "powerplug", "function", "chart.bar",
+    ]
+
     private static func makeTile(dark: Bool) -> UIImage {
         let size = CGSize(width: 280, height: 280)
 
         // Background colour — slightly tinted so it reads as "tech"
         let bgColor: UIColor = dark
-            ? UIColor(red: 0.11, green: 0.11, blue: 0.14, alpha: 1.0)   // deep charcoal/navy
-            : UIColor(red: 0.91, green: 0.92, blue: 0.94, alpha: 1.0)   // cool light gray
+            ? UIColor(red: 0.11, green: 0.11, blue: 0.14, alpha: 1.0)
+            : UIColor(red: 0.91, green: 0.92, blue: 0.94, alpha: 1.0)
 
-        // Icon tint — visible but not distracting
         let iconAlpha: CGFloat = dark ? 0.14 : 0.13
         let iconColor = (dark ? UIColor.white : UIColor.black).withAlphaComponent(iconAlpha)
 
-        // (name, cx, cy, pointSize, rotationDegrees)
-        let icons: [(String, CGFloat, CGFloat, CGFloat, CGFloat)] = [
-            // --- set 1 (original) ---
-            ("cpu",                                   38,  48,  26, -12),
-            ("gear",                                 215, 155,  28,  22),
-            ("network",                              120, 235,  24,   0),
-            ("bolt",                                 165,  58,  20,  10),
-            ("waveform",                              55, 180,  18, -18),
-            ("eye",                                  228,  72,  20,   6),
-            ("curlybraces",                          102, 118,  16,  -8),
-            ("hexagon",                              248, 228,  18,  32),
-            ("antenna.radiowaves.left.and.right",     28, 248,  16, -24),
-            ("bubble.left",                          178,   8,  22,  14),
-            ("square.grid.3x3",                       68, 108,  14, -30),
-            ("dot.radiowaves.right",                 185, 210,  14,   0),
-            // --- set 2 ---
-            ("gearshape.2",                          145, 100,  22, -15),
-            ("cpu",                                  268,  12,  18,  18),
-            ("waveform.path.ecg",                     12, 130,  16,   0),
-            ("bolt.circle",                          240, 130,  20, -10),
-            ("eye.circle",                            88, 268,  18,  25),
-            ("chevron.left.forwardslash.chevron.right", 200, 268, 15,  0),
-            ("antenna.radiowaves.left.and.right",    155, 170,  16,  12),
-            ("hexagon",                               12,  12,  18, -20),
-            ("network",                              260,  88,  16,  -5),
-            ("bubble.left",                           88, 200,  16, -15),
-            ("curlybraces.square",                   140,  18,  14,  28),
-            ("dot.radiowaves.right",                 268, 190,  16,  20),
-            // --- set 3 (robot-themed) ---
-            ("memorychip",                            95,  22,  16, -12),
-            ("brain",                                200,  48,  18,  18),
-            ("wrench.and.screwdriver",               108,  68,  15, -20),
-            ("terminal",                              45,  85,  16,   8),
-            ("arrow.triangle.2.circlepath",          170, 112,  16, -15),
-            ("rays",                                 245, 108,  14,  22),
-            ("magnifyingglass",                       10, 165,  14, -12),
-            ("qrcode",                               192,  90,  14,   2),
-            ("timer",                                132, 152,  14,  20),
-            ("powerplug",                            265, 145,  15,  -8),
-            ("function",                             225, 182,  14,  12),
-            ("chart.bar",                             75, 148,  13,   0),
-            // --- set 4 (robot-themed fill-in) ---
-            ("brain",                                  8,  38,  16,  25),
-            ("memorychip",                           148, 238,  14, -18),
-            ("terminal",                             265, 242,  13,  -5),
-            ("wrench.and.screwdriver",               125, 192,  13,  22),
-            ("rays",                                 168, 168,  13,  -8),
-            ("chart.bar",                            272,  62,  13, -15),
-            ("function",                              58,  25,  14,  -5),
-            ("powerplug",                             98, 152,  13,  10),
-            ("timer",                                228, 272,  13, -18),
-            ("qrcode",                                72, 255,  15,  12),
-            ("arrow.triangle.2.circlepath",          228, 200,  13, -25),
-            ("magnifyingglass",                       30, 212,  13,  15),
-        ]
+        // 12×12 grid = 144 icons
+        let cols = 12, rows = 12
+        let cellW = size.width / CGFloat(cols)
+        let cellH = size.height / CGFloat(rows)
 
         let renderer = UIGraphicsImageRenderer(size: size)
         return renderer.image { ctx in
@@ -101,18 +60,45 @@ struct ChatPatternBackground: View {
             ctx.fill(CGRect(origin: .zero, size: size))
 
             let cgCtx = ctx.cgContext
-            for (name, cx, cy, ptSize, deg) in icons {
-                let cfg = UIImage.SymbolConfiguration(pointSize: ptSize, weight: .thin)
-                guard let symbol = UIImage(systemName: name, withConfiguration: cfg) else { continue }
-                let colored = symbol.withTintColor(iconColor, renderingMode: .alwaysOriginal)
-                let w = colored.size.width
-                let h = colored.size.height
 
-                cgCtx.saveGState()
-                cgCtx.translateBy(x: cx, y: cy)
-                cgCtx.rotate(by: deg * .pi / 180)
-                colored.draw(in: CGRect(x: -w / 2, y: -h / 2, width: w, height: h))
-                cgCtx.restoreGState()
+            for row in 0..<rows {
+                for col in 0..<cols {
+                    let idx = row * cols + col
+
+                    // Deterministic pseudo-random offsets (no stdlib random needed)
+                    let jx = CGFloat((idx * 37 + col * 11 + 7) % 100) / 100.0 * cellW * 0.8 - cellW * 0.4
+                    let jy = CGFloat((idx * 53 + row * 17 + 3) % 100) / 100.0 * cellH * 0.8 - cellH * 0.4
+                    let cx = min(size.width - 4, max(4, cellW * (CGFloat(col) + 0.5) + jx))
+                    let cy = min(size.height - 4, max(4, cellH * (CGFloat(row) + 0.5) + jy))
+                    let deg = CGFloat((idx * 29 + col * 7 + 13) % 72) - 36
+                    let ptSize = CGFloat(11 + (idx * 7 + col * 3) % 7)   // 11–17 pt
+
+                    cgCtx.saveGState()
+                    cgCtx.translateBy(x: cx, y: cy)
+
+                    // Every 10th icon → robot emoji 🤖
+                    if idx % 10 == 7 {
+                        cgCtx.rotate(by: deg * 0.3 * .pi / 180)   // gentle tilt only
+                        cgCtx.setAlpha(iconAlpha)
+                        let attrs: [NSAttributedString.Key: Any] = [
+                            .font: UIFont.systemFont(ofSize: ptSize + 3)
+                        ]
+                        let str = NSAttributedString(string: "🤖", attributes: attrs)
+                        let sz = str.size()
+                        str.draw(at: CGPoint(x: -sz.width / 2, y: -sz.height / 2))
+                    } else {
+                        cgCtx.rotate(by: deg * .pi / 180)
+                        let name = symbolNames[idx % symbolNames.count]
+                        let cfg = UIImage.SymbolConfiguration(pointSize: ptSize, weight: .thin)
+                        if let symbol = UIImage(systemName: name, withConfiguration: cfg) {
+                            let colored = symbol.withTintColor(iconColor, renderingMode: .alwaysOriginal)
+                            let w = colored.size.width, h = colored.size.height
+                            colored.draw(in: CGRect(x: -w / 2, y: -h / 2, width: w, height: h))
+                        }
+                    }
+
+                    cgCtx.restoreGState()
+                }
             }
         }
     }
