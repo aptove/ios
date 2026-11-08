@@ -88,12 +88,14 @@ struct AgentListView: View {
         }
         .onChange(of: isSearching) { _, active in isSearchActive = active }
         .onAppear { loadAvatars() }
-        .navigationDestination(isPresented: Binding(
+        .sheet(isPresented: Binding(
             get: { agentToConfigureId != nil },
             set: { if !$0 { agentToConfigureId = nil } }
         )) {
             if let id = agentToConfigureId {
-                AgentConfigurationView(agentId: id)
+                NavigationStack {
+                    AgentConfigurationView(agentId: id)
+                }
             }
         }
         .alert("Delete Agent?", isPresented: $showingDeleteConfirmation, presenting: agentToDelete) { agent in
