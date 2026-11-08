@@ -15,7 +15,7 @@ private struct ConversationSearchResult: Identifiable {
 struct AgentListView: View {
     @EnvironmentObject var agentManager: AgentManager
     @Binding var isInChat: Bool
-    @State private var searchText = ""
+    var searchText: String = ""
     @State private var agentToDelete: Agent?
     @State private var showingDeleteConfirmation = false
     @State private var agentToConfigureId: String? = nil
@@ -84,7 +84,6 @@ struct AgentListView: View {
                 }
             }
         }
-        .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: Text("search_conversations_prompt"))
         .onAppear { loadAvatars() }
         .navigationDestination(isPresented: Binding(
             get: { agentToConfigureId != nil },

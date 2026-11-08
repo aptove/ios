@@ -47,6 +47,7 @@ struct ContentView: View {
     @State private var navigationPath = NavigationPath()
     @State private var hasGoneToBackground = false
     @State private var tabBarHeight: CGFloat = 0
+    @State private var searchText = ""
 
     init() {
         print("🖥️  ContentView: Initializing...")
@@ -60,13 +61,14 @@ struct ContentView: View {
                     if agentManager.agents.isEmpty {
                         EmptyStateView()
                     } else {
-                        AgentListView(isInChat: $isInChat)
+                        AgentListView(isInChat: $isInChat, searchText: searchText)
                     }
                 }
                 .navigationDestination(for: String.self) { agentId in
                     ChatView(agentId: agentId, isInChat: $isInChat)
                 }
                 .navigationTitle(Bundle.localized("Agents", language: appLanguage))
+                .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: Text("search_conversations_prompt"))
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
                         Button {
