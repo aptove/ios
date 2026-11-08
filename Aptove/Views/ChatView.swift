@@ -824,7 +824,7 @@ struct MessageBubble: View {
         .foregroundColor(textColor)
         .cornerRadius(16)
         .contextMenu {
-            if message.sender == .agent && !message.text.isEmpty {
+            if !message.text.isEmpty {
                 Button {
                     UIPasteboard.general.string = message.text
                 } label: {
