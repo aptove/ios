@@ -54,6 +54,7 @@ struct ContentView: View {
     @State private var tabBarHeight: CGFloat = 0
     @State private var searchText = ""
     @State private var isSearchActive = false
+    @State private var pendingScrollMessageId: String? = nil
 
     init() {
         print("🖥️  ContentView: Initializing...")
@@ -69,15 +70,14 @@ struct ContentView: View {
                     } else {
                         AgentListView(isInChat: $isInChat, searchText: searchText, isSearchActive: $isSearchActive) { dest in
                             searchText = ""
-                            navigationPath.append(dest)
+                            pendingScrollMessageId = dest.scrollToMessageId
+                            navigationPath.append(dest.agentId)
                         }
                     }
                 }
                 .navigationDestination(for: String.self) { agentId in
-                    ChatView(agentId: agentId, isInChat: $isInChat)
-                }
-                .navigationDestination(for: ChatDestination.self) { dest in
-                    ChatView(agentId: dest.agentId, scrollToMessageId: dest.scrollToMessageId, isInChat: $isInChat)
+                    ChatView(agentId: agentId, scrollToMessageId: pendingScrollMessageId, isInChat: $isInChat)
+                        .onAppear { pendingScrollMessageId = nil }
                 }
                 .navigationTitle(Bundle.localized("Agents", language: appLanguage))
                 .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: Text("search_conversations_prompt"))
