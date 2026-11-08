@@ -69,7 +69,10 @@ struct ChatView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 12) {
-                        ForEach(displayedMessages) { message in
+                        ForEach(Array(displayedMessages.enumerated()), id: \.element.id) { idx, message in
+                            if idx == 0 || !Calendar.current.isDate(displayedMessages[idx - 1].timestamp, inSameDayAs: message.timestamp) {
+                                ChatDateSeparator(date: message.timestamp)
+                            }
                             if message.id == newMessageStartId {
                                 NewMessagesSeparator()
                             }
@@ -1007,6 +1010,29 @@ struct MessageBubble: View {
         }
     }
 
+}
+
+private struct ChatDateSeparator: View {
+    let date: Date
+
+    private static let formatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .none
+        f.doesRelativeDateFormatting = true   // auto "Today" / "Yesterday" in user's locale
+        return f
+    }()
+
+    var body: some View {
+        Text(Self.formatter.string(from: date))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 5)
+            .background(Capsule().fill(Color(.secondarySystemBackground)))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 4)
+    }
 }
 
 private struct NewMessagesSeparator: View {

@@ -6,6 +6,8 @@
 "Tap the + button to scan a QR code\nand connect to an agent" = "Ajan bağlamak için + düğmesine dokunarak QR kodu tarayın";
 
 /* AgentListView */
+"search_conversations_prompt" = "Konuşmalarda ara";
+"no_search_results" = "Sonuç yok";
 "Configure" = "Yapılandır";
 "Delete" = "Sil";
 "Delete Agent?" = "Ajan Silinsin mi?";

@@ -1,50 +1,90 @@
 import SwiftUI
 
+// MARK: - Search result model
+
+private struct ConversationSearchResult: Identifiable {
+    let id: String          // message id
+    let agentId: String
+    let agentName: String
+    let avatarImage: UIImage?
+    let message: Message
+}
+
+// MARK: - AgentListView
+
 struct AgentListView: View {
     @EnvironmentObject var agentManager: AgentManager
     @Binding var isInChat: Bool
+    @State private var searchText = ""
     @State private var agentToDelete: Agent?
     @State private var showingDeleteConfirmation = false
     @State private var agentToConfigureId: String? = nil
     @State private var avatarImages: [String: UIImage] = [:]
 
+    private var searchResults: [ConversationSearchResult] {
+        guard !searchText.isEmpty else { return [] }
+        let lower = searchText.lowercased()
+        return agentManager.agents.flatMap { agent -> [ConversationSearchResult] in
+            guard let conv = agentManager.conversations[agent.id] else { return [] }
+            return conv.messages
+                .filter { $0.type == .text && !$0.text.isEmpty && $0.text.lowercased().contains(lower) }
+                .map { ConversationSearchResult(id: $0.id, agentId: agent.id, agentName: agent.name, avatarImage: avatarImages[agent.id], message: $0) }
+        }
+        .sorted { $0.message.timestamp > $1.message.timestamp }
+    }
+
     var body: some View {
         List {
-            ForEach(agentManager.agents) { agent in
-                NavigationLink(value: agent.id) {
-                    AgentRow(agent: agent, avatarImage: avatarImages[agent.id])
+            if searchText.isEmpty {
+                ForEach(agentManager.agents) { agent in
+                    NavigationLink(value: agent.id) {
+                        AgentRow(agent: agent, avatarImage: avatarImages[agent.id])
+                    }
+                    .contextMenu {
+                        Button {
+                            agentToConfigureId = agent.id
+                        } label: {
+                            Label("Configure", systemImage: "gear")
+                        }
+                        Button(role: .destructive) {
+                            agentToDelete = agent
+                            showingDeleteConfirmation = true
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            agentToDelete = agent
+                            showingDeleteConfirmation = true
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                        Button {
+                            agentToConfigureId = agent.id
+                        } label: {
+                            Label("Configure", systemImage: "gear")
+                        }
+                        .tint(.blue)
+                    }
                 }
-                .contextMenu {
-                    Button {
-                        agentToConfigureId = agent.id
-                    } label: {
-                        Label("Configure", systemImage: "gear")
+            } else {
+                if searchResults.isEmpty {
+                    Text("no_search_results")
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 24)
+                        .listRowSeparator(.hidden)
+                } else {
+                    ForEach(searchResults) { result in
+                        NavigationLink(value: result.agentId) {
+                            SearchResultRow(result: result)
+                        }
                     }
-
-                    Button(role: .destructive) {
-                        agentToDelete = agent
-                        showingDeleteConfirmation = true
-                    } label: {
-                        Label("Delete", systemImage: "trash")
-                    }
-                }
-                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    Button(role: .destructive) {
-                        agentToDelete = agent
-                        showingDeleteConfirmation = true
-                    } label: {
-                        Label("Delete", systemImage: "trash")
-                    }
-
-                    Button {
-                        agentToConfigureId = agent.id
-                    } label: {
-                        Label("Configure", systemImage: "gear")
-                    }
-                    .tint(.blue)
                 }
             }
         }
+        .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: Text("search_conversations_prompt"))
         .onAppear { loadAvatars() }
         .navigationDestination(isPresented: Binding(
             get: { agentToConfigureId != nil },
@@ -75,6 +115,65 @@ struct AgentListView: View {
             images[agent.id] = AvatarStore.load(for: agent.id)
         }
         avatarImages = images
+    }
+}
+
+// MARK: - SearchResultRow
+
+private struct SearchResultRow: View {
+    let result: ConversationSearchResult
+
+    private static let formatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .short
+        f.timeStyle = .short
+        f.doesRelativeDateFormatting = true
+        return f
+    }()
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle().fill(Color.gray.opacity(0.3))
+                if let img = result.avatarImage {
+                    Image(uiImage: img)
+                        .resizable()
+                        .scaledToFill()
+                        .clipShape(Circle())
+                } else {
+                    Text(result.agentName.prefix(1).uppercased())
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                }
+            }
+            .frame(width: 40, height: 40)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(result.agentName)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    if result.message.sender == .user {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.blue)
+                    }
+                    Text(result.message.text)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+
+            Spacer()
+
+            Text(Self.formatter.string(from: result.message.timestamp))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 2)
     }
 }
 

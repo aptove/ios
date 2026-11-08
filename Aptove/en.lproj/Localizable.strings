@@ -6,6 +6,8 @@
 "Tap the + button to scan a QR code\nand connect to an agent" = "Tap the + button to scan a QR code\nand connect to an agent";
 
 /* AgentListView */
+"search_conversations_prompt" = "Search conversations";
+"no_search_results" = "No results";
 "Configure" = "Configure";
 "Delete" = "Delete";
 "Delete Agent?" = "Delete Agent?";
