@@ -41,7 +41,12 @@ struct ChatPatternBackground: View {
     ]
 
     private static func makeTile(dark: Bool) -> UIImage {
-        let size = CGSize(width: 280, height: 280)
+        // 320×320 tile with a 10×10 grid → cell = 32pt.
+        // Centering icons in the middle 40% of each cell guarantees a minimum
+        // center-to-center distance of 32 × 0.6 = 19.2pt between any two adjacent
+        // icons. With a max icon size of 18pt the smallest possible gap is 1.2pt
+        // — overlap is impossible regardless of which sizes the RNG picks.
+        let size = CGSize(width: 320, height: 320)
 
         // Background colour — slightly tinted so it reads as "tech"
         let bgColor: UIColor = dark
@@ -60,9 +65,7 @@ struct ChatPatternBackground: View {
             return CGFloat(rng) / CGFloat(UInt32.max)
         }
 
-        // Jittered grid: 12×12 cells, one icon per cell at a fully random
-        // position within it — even coverage with no visible grid pattern.
-        let cols = 12, rows = 12
+        let cols = 10, rows = 10   // 100 icons total
         let cellW = size.width / CGFloat(cols)
         let cellH = size.height / CGFloat(rows)
 
@@ -81,7 +84,7 @@ struct ChatPatternBackground: View {
                     let cx     = (CGFloat(col) + 0.3 + next() * 0.4) * cellW
                     let cy     = (CGFloat(row) + 0.3 + next() * 0.4) * cellH
                     let deg    = next() * 72 - 36
-                    let ptSize = 9 + next() * 3    // 9–12 pt (was 11–18)
+                    let ptSize = 8 + next() * 10   // 8–18 pt, randomly varied
                     let isEmoji = next() < 0.1
 
                     cgCtx.saveGState()
