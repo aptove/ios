@@ -91,6 +91,7 @@ struct ChatView: View {
                         }
                     }
                 }
+                .background(ChatPatternBackground())
             }
             
             Divider()
@@ -312,7 +313,7 @@ struct ChatView: View {
                             loaded.append(img)
                         }
                     }
-                    selectedImages = loaded
+                    selectedImages += loaded
                     pickerItems = []
                 }
             }
