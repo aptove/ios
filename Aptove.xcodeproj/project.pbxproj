@@ -10,7 +10,6 @@
 		C800000000000030 /* ACP in Frameworks */ = {isa = PBXBuildFile; productRef = C800000000000031 /* ACP */; };
 		C800000000000032 /* ACPHTTP in Frameworks */ = {isa = PBXBuildFile; productRef = C800000000000033 /* ACPHTTP */; };
 		C800000000000034 /* ACPModel in Frameworks */ = {isa = PBXBuildFile; productRef = C800000000000035 /* ACPModel */; };
-		C800000000000036 /* CodeScanner in Frameworks */ = {isa = PBXBuildFile; productRef = C800000000000037 /* CodeScanner */; };
 		C800000000000061 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000060 /* SettingsView.swift */; };
 		C800000000000306 /* SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000305 /* SplashView.swift */; };
 		C800000000000308 /* MemoryEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000307 /* MemoryEntryView.swift */; };
@@ -140,7 +139,6 @@
 				C800000000000030 /* ACP in Frameworks */,
 				C800000000000032 /* ACPHTTP in Frameworks */,
 				C800000000000034 /* ACPModel in Frameworks */,
-				C800000000000036 /* CodeScanner in Frameworks */,
 				C800000000000300 /* MarkdownUI in Frameworks */,
 				C800000000000400 /* Splash in Frameworks */,
 			);
@@ -339,7 +337,6 @@
 				C800000000000031 /* ACP */,
 				C800000000000033 /* ACPHTTP */,
 				C800000000000035 /* ACPModel */,
-				C800000000000037 /* CodeScanner */,
 				C800000000000301 /* MarkdownUI */,
 				C800000000000404 /* Splash */,
 			);
@@ -396,7 +393,6 @@
 			mainGroup = C800000000000025;
 			packageReferences = (
 				C80000000000003B /* XCRemoteSwiftPackageReference "swift-sdk" */,
-				C80000000000003C /* XCRemoteSwiftPackageReference "CodeScanner" */,
 				C800000000000302 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
 				C800000000000403 /* XCRemoteSwiftPackageReference "Splash" */,
 			);
@@ -787,14 +783,6 @@
 				minimumVersion = 0.2.3;
 			};
 		};
-		C80000000000003C /* XCRemoteSwiftPackageReference "CodeScanner" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/twostraws/CodeScanner";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.3.0;
-			};
-		};
 		C800000000000302 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/gonzalezreal/swift-markdown-ui";
@@ -828,11 +816,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C80000000000003B /* XCRemoteSwiftPackageReference "swift-sdk" */;
 			productName = ACPModel;
-		};
-		C800000000000037 /* CodeScanner */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = C80000000000003C /* XCRemoteSwiftPackageReference "CodeScanner" */;
-			productName = CodeScanner;
 		};
 		C800000000000301 /* MarkdownUI */ = {
 			isa = XCSwiftPackageProductDependency;

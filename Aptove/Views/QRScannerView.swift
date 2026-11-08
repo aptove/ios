@@ -1,5 +1,4 @@
 import SwiftUI
-import CodeScanner
 import AVFoundation
 
 struct QRScannerView: View {
@@ -16,11 +15,8 @@ struct QRScannerView: View {
     @ViewBuilder
     private var scannerLayer: some View {
         if isScannerActive && !isConnecting {
-            CodeScannerView(
-                codeTypes: [.qr],
-                scanInterval: 0.1,
+            NativeQRScannerRepresentable(
                 simulatedData: "https://192.168.1.100:8080/pair/local?code=123456&fp=SHA256:ABC123",
-                shouldVibrateOnSuccess: false,
                 completion: handleScan
             )
             .id(scannerID)

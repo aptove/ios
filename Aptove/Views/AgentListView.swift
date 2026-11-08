@@ -80,7 +80,7 @@ struct AgentListView: View {
                 } else {
                     ForEach(searchResults) { result in
                         NavigationLink(value: ChatDestination(agentId: result.agentId, scrollToMessageId: result.id)) {
-                            SearchResultRow(result: result)
+                            SearchResultRow(result: result, query: searchText)
                         }
                     }
                 }
@@ -124,6 +124,7 @@ struct AgentListView: View {
 
 private struct SearchResultRow: View {
     let result: ConversationSearchResult
+    let query: String
 
     private static let formatter: DateFormatter = {
         let f = DateFormatter()
@@ -132,6 +133,24 @@ private struct SearchResultRow: View {
         f.doesRelativeDateFormatting = true
         return f
     }()
+
+    private static func highlighted(_ fullText: String, query: String) -> Text {
+        guard !query.isEmpty else {
+            return Text(fullText).font(.caption).foregroundColor(.secondary)
+        }
+        let nsText = fullText as NSString
+        let range = nsText.range(of: query, options: [.caseInsensitive, .diacriticInsensitive])
+        guard range.location != NSNotFound else {
+            return Text(fullText).font(.caption).foregroundColor(.secondary)
+        }
+        let before = nsText.substring(to: range.location)
+        let match  = nsText.substring(with: range)
+        let after  = nsText.substring(from: range.location + range.length)
+        var result = Text(before).font(.caption).foregroundColor(.secondary)
+        result = result + Text(match).font(.caption.bold()).foregroundColor(.accentColor)
+        result = result + Text(after).font(.caption).foregroundColor(.secondary)
+        return result
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -162,9 +181,7 @@ private struct SearchResultRow: View {
                             .font(.caption2)
                             .foregroundStyle(.blue)
                     }
-                    Text(result.message.text)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Self.highlighted(result.message.text, query: query)
                         .lineLimit(2)
                 }
             }
