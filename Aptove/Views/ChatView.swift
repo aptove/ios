@@ -334,6 +334,7 @@ struct ChatView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .navigationBarBackButtonHidden(true)
         .navigationDestination(isPresented: $showingAgentConfig) {
             AgentConfigurationView(agentId: agentId)
         }
