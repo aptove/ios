@@ -69,9 +69,7 @@ struct ContentView: View {
                         EmptyStateView()
                     } else {
                         AgentListView(isInChat: $isInChat, searchText: searchText, isSearchActive: $isSearchActive) { dest in
-                            searchText = ""
                             pendingScrollMessageId = dest.scrollToMessageId
-                            navigationPath.append(dest.agentId)
                         }
                     }
                 }

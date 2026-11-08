@@ -18,8 +18,7 @@ struct AgentListView: View {
     var searchText: String = ""
     @Binding var isSearchActive: Bool
     @Environment(\.isSearching) private var isSearching
-    @Environment(\.dismissSearch) private var dismissSearch
-    /// Called when a search result row is tapped; caller handles navigation.
+    /// Called alongside NavigationLink tap to set scrollToMessageId before navigation fires.
     var onSearchResultTap: ((ChatDestination) -> Void)?
     @State private var agentToDelete: Agent?
     @State private var showingDeleteConfirmation = false
@@ -82,16 +81,12 @@ struct AgentListView: View {
                         .listRowSeparator(.hidden)
                 } else {
                     ForEach(searchResults) { result in
-                        Button {
-                            // dismissSearch() sets UISearchController.isActive = false
-                            // synchronously, removing its phantom navigation context
-                            // before the push — eliminates the duplicate back button.
-                            dismissSearch()
-                            onSearchResultTap?(ChatDestination(agentId: result.agentId, scrollToMessageId: result.id))
-                        } label: {
+                        NavigationLink(value: result.agentId) {
                             SearchResultRow(result: result, query: searchText)
                         }
-                        .foregroundStyle(.primary)
+                        .simultaneousGesture(TapGesture().onEnded {
+                            onSearchResultTap?(ChatDestination(agentId: result.agentId, scrollToMessageId: result.id))
+                        })
                     }
                 }
             }
