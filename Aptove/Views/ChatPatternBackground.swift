@@ -49,7 +49,17 @@ struct ChatPatternBackground: View {
         let iconAlpha: CGFloat = dark ? 0.14 : 0.13
         let iconColor = (dark ? UIColor.white : UIColor.black).withAlphaComponent(iconAlpha)
 
-        // 12×12 grid = 144 icons
+        // Seeded Xorshift32 — deterministic but looks truly random
+        var rng: UInt32 = 0xABCD1234
+        func next() -> CGFloat {
+            rng ^= rng << 13
+            rng ^= rng >> 17
+            rng ^= rng << 5
+            return CGFloat(rng) / CGFloat(UInt32.max)
+        }
+
+        // Jittered grid: 12×12 cells, one icon per cell at a fully random
+        // position within it — even coverage with no visible grid pattern.
         let cols = 12, rows = 12
         let cellW = size.width / CGFloat(cols)
         let cellH = size.height / CGFloat(rows)
@@ -63,22 +73,17 @@ struct ChatPatternBackground: View {
 
             for row in 0..<rows {
                 for col in 0..<cols {
-                    let idx = row * cols + col
-
-                    // Deterministic pseudo-random offsets (no stdlib random needed)
-                    let jx = CGFloat((idx * 37 + col * 11 + 7) % 100) / 100.0 * cellW * 0.8 - cellW * 0.4
-                    let jy = CGFloat((idx * 53 + row * 17 + 3) % 100) / 100.0 * cellH * 0.8 - cellH * 0.4
-                    let cx = min(size.width - 4, max(4, cellW * (CGFloat(col) + 0.5) + jx))
-                    let cy = min(size.height - 4, max(4, cellH * (CGFloat(row) + 0.5) + jy))
-                    let deg = CGFloat((idx * 29 + col * 7 + 13) % 72) - 36
-                    let ptSize = CGFloat(11 + (idx * 7 + col * 3) % 7)   // 11–17 pt
+                    let cx     = (CGFloat(col) + next()) * cellW   // random within cell
+                    let cy     = (CGFloat(row) + next()) * cellH
+                    let deg    = next() * 72 - 36
+                    let ptSize = 11 + next() * 7
+                    let isEmoji = next() < 0.1
 
                     cgCtx.saveGState()
                     cgCtx.translateBy(x: cx, y: cy)
 
-                    // Every 10th icon → robot emoji 🤖
-                    if idx % 10 == 7 {
-                        cgCtx.rotate(by: deg * 0.3 * .pi / 180)   // gentle tilt only
+                    if isEmoji {
+                        cgCtx.rotate(by: deg * 0.3 * .pi / 180)
                         cgCtx.setAlpha(iconAlpha)
                         let attrs: [NSAttributedString.Key: Any] = [
                             .font: UIFont.systemFont(ofSize: ptSize + 3)
@@ -88,7 +93,7 @@ struct ChatPatternBackground: View {
                         str.draw(at: CGPoint(x: -sz.width / 2, y: -sz.height / 2))
                     } else {
                         cgCtx.rotate(by: deg * .pi / 180)
-                        let name = symbolNames[idx % symbolNames.count]
+                        let name = symbolNames[Int(next() * CGFloat(symbolNames.count)) % symbolNames.count]
                         let cfg = UIImage.SymbolConfiguration(pointSize: ptSize, weight: .thin)
                         if let symbol = UIImage(systemName: name, withConfiguration: cfg) {
                             let colored = symbol.withTintColor(iconColor, renderingMode: .alwaysOriginal)
