@@ -21,6 +21,7 @@ extension MessageEntity {
     @NSManaged public var content: String?
     @NSManaged public var timestamp: Date?
     @NSManaged public var isError: Bool
+    @NSManaged public var isStarred: Bool
     @NSManaged public var extraData: Data?
 
     // MARK: - Relationships

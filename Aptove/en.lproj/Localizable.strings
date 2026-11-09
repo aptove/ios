@@ -1,6 +1,7 @@
 /* ContentView */
 "Agents" = "Agents";
 "Chat" = "Chat";
+"Starred" = "Starred";
 "Settings" = "Settings";
 "No Agents Connected" = "No Agents Connected";
 "Tap the + button to scan a QR code\nand connect to an agent" = "Tap the + button to scan a QR code\nand connect to an agent";
@@ -131,10 +132,17 @@
 "file_too_large_error" = "File \"%@\" is too large (max 10 MB).";
 "file_load_error" = "Couldn't read \"%@\". Make sure it's downloaded.";
 
+/* StarredMessagesView */
+"search_starred_prompt" = "Search starred messages";
+"no_starred_messages" = "No Starred Messages";
+"no_starred_messages_subtitle" = "Star messages to save them here";
+
 /* ChatView */
 "new_messages_separator" = "New Messages";
 "Converting speech to text..." = "Converting speech to text...";
 "Copy" = "Copy";
+"star_message" = "Star";
+"unstar_message" = "Unstar";
 "Approve" = "Approve";
 "Reject" = "Reject";
 "chat_default_title" = "Chat";
@@ -142,6 +150,7 @@
 "chat_new_session" = "New session";
 "Message" = "Message";
 "back_to_search" = "Back to search";
+"back_to_starred" = "Back to starred messages";
 
 /* Transport names */
 "Local" = "Local";

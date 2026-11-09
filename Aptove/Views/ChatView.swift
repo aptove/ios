@@ -15,6 +15,7 @@ struct ChatView: View {
     let agentId: String
     let scrollToMessageId: String?
     @Binding var isInChat: Bool
+    let onDismiss: (() -> Void)?
 
     @State private var messageText = ""
     @State private var isInputFocused: Bool = false
@@ -37,10 +38,11 @@ struct ChatView: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    init(agentId: String, scrollToMessageId: String? = nil, isInChat: Binding<Bool>) {
+    init(agentId: String, scrollToMessageId: String? = nil, isInChat: Binding<Bool>, onDismiss: (() -> Void)? = nil) {
         self.agentId = agentId
         self.scrollToMessageId = scrollToMessageId
         self._isInChat = isInChat
+        self.onDismiss = onDismiss
         self._viewModel = StateObject(wrappedValue: ChatViewModel(agentId: agentId))
     }
 
@@ -80,8 +82,10 @@ struct ChatView: View {
                             if message.id == newMessageStartId {
                                 NewMessagesSeparator()
                             }
-                            MessageBubble(message: message, viewModel: viewModel)
-                                .id(message.id)
+                            MessageBubble(message: message, viewModel: viewModel) {
+                                viewModel.toggleStar(messageId: message.id)
+                            }
+                            .id(message.id)
                         }
                     }
                     .padding()
@@ -362,10 +366,13 @@ struct ChatView: View {
         .toolbar {
             if scrollToMessageId != nil {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button { dismiss() } label: {
+                    Button {
+                        dismiss()
+                        onDismiss?()
+                    } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "chevron.left")
-                            Text("back_to_search")
+                            Text(onDismiss != nil ? "back_to_starred" : "back_to_search")
                                 .font(.subheadline)
                         }
                     }
@@ -784,6 +791,7 @@ struct WaveformView: View {
 struct MessageBubble: View {
     let message: Message
     let viewModel: ChatViewModel
+    let onToggleStar: () -> Void
 
     var body: some View {
         let isAgent = message.sender == .agent
@@ -813,6 +821,12 @@ struct MessageBubble: View {
 
                     if message.sender == .user {
                         statusIcon
+                    }
+
+                    if message.isStarred {
+                        Image(systemName: "star.fill")
+                            .font(.caption2)
+                            .foregroundColor(.yellow)
                     }
                 }
             }
@@ -869,6 +883,13 @@ struct MessageBubble: View {
         .foregroundColor(textColor)
         .cornerRadius(16)
         .contextMenu {
+            Button {
+                onToggleStar()
+            } label: {
+                Label(message.isStarred ? "unstar_message" : "star_message",
+                      systemImage: message.isStarred ? "star.slash.fill" : "star.fill")
+            }
+            .tint(.yellow)
             if !message.text.isEmpty {
                 Button {
                     UIPasteboard.general.string = message.text

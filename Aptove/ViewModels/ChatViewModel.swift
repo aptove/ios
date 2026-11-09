@@ -286,6 +286,12 @@ class ChatViewModel: ObservableObject {
             $0.type != .toolApprovalRequest || $0.toolApproval?.approved != nil
         }
     }
+
+    func toggleStar(messageId: String) {
+        guard let idx = messages.firstIndex(where: { $0.id == messageId }) else { return }
+        messages[idx].isStarred.toggle()
+        agentManager?.toggleMessageStar(messageId: messageId, agentId: agentId)
+    }
     
     func sendMessage(_ text: String, images: [UIImage] = [], files: [FileAttachment] = []) async {
         print("📤 ChatViewModel.sendMessage: Starting...")

@@ -12,6 +12,13 @@ struct MessageExtra: Codable {
     var toolApproval: ToolApprovalInfo?
 }
 
+struct StarredMessage: Identifiable {
+    var id: String { message.id }
+    let message: Message
+    let agentId: String
+    let agentName: String
+}
+
 class MessageRepository {
     private let stack: CoreDataStack
 
@@ -70,6 +77,41 @@ class MessageRepository {
         }
     }
 
+    // MARK: - Star
+
+    /// Fetches all starred messages across all agents, sorted by timestamp descending.
+    func fetchStarredMessages() -> [StarredMessage] {
+        let request = MessageEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "isStarred == YES")
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \MessageEntity.timestamp, ascending: false)]
+
+        do {
+            let entities = try stack.viewContext.fetch(request)
+            return entities.compactMap { entity in
+                guard let agentId = entity.agentId,
+                      let message = toModel(entity) else { return nil }
+                let agentName = entity.agent?.name ?? agentId
+                return StarredMessage(message: message, agentId: agentId, agentName: agentName)
+            }
+        } catch {
+            print("❌ MessageRepository: Failed to fetch starred messages: \(error)")
+            return []
+        }
+    }
+
+    /// Sets the starred state of a single message by messageId.
+    func setStarred(messageId: String, isStarred: Bool) {
+        let context = stack.viewContext
+        let request = MessageEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "messageId == %@", messageId)
+
+        guard let entity = try? context.fetch(request).first else { return }
+        entity.isStarred = isStarred
+        if context.hasChanges {
+            try? context.save()
+        }
+    }
+
     // MARK: - Delete
 
     /// Deletes all persisted messages for an agent (called on Clear Session / credential update).
@@ -99,6 +141,7 @@ class MessageRepository {
         entity.role = message.sender.rawValue
         entity.timestamp = message.timestamp
         entity.agent = agent
+        entity.isStarred = message.isStarred
 
         let extra = MessageExtra(
             type: message.type.rawValue,
@@ -135,7 +178,8 @@ class MessageRepository {
             status: status,
             type: type,
             toolApproval: toolApproval,
-            isThinking: false  // transient — always false when loaded
+            isThinking: false,  // transient — always false when loaded
+            isStarred: entity.isStarred
         )
     }
 }

@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-enum BottomTab { case chat, settings }
+enum BottomTab { case chat, starred, settings }
 
 // MARK: - Tab bar height propagation
 
@@ -39,6 +39,7 @@ extension Bundle {
 struct ChatDestination: Hashable {
     let agentId: String
     let scrollToMessageId: String?
+    var returnsToStarred: Bool = false
 }
 
 struct ContentView: View {
@@ -71,7 +72,12 @@ struct ContentView: View {
                     }
                 }
                 .navigationDestination(for: ChatDestination.self) { dest in
-                    ChatView(agentId: dest.agentId, scrollToMessageId: dest.scrollToMessageId, isInChat: $isInChat)
+                    ChatView(
+                        agentId: dest.agentId,
+                        scrollToMessageId: dest.scrollToMessageId,
+                        isInChat: $isInChat,
+                        onDismiss: dest.returnsToStarred ? { selectedTab = .starred } : nil
+                    )
                 }
                 .navigationTitle(Bundle.localized("Agents", language: appLanguage))
                 .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: Text("search_conversations_prompt"))
@@ -90,6 +96,11 @@ struct ContentView: View {
             }
             .opacity(selectedTab == .chat ? 1 : 0)
             .allowsHitTesting(selectedTab == .chat)
+
+            // Starred tab
+            StarredMessagesView(selectedTab: $selectedTab, navigationPath: $navigationPath)
+                .opacity(selectedTab == .starred ? 1 : 0)
+                .allowsHitTesting(selectedTab == .starred)
 
             // Settings tab — full screen, not a sheet
             SettingsView()
@@ -195,6 +206,9 @@ private struct BottomTabBar: View {
         HStack(spacing: 0) {
             TabBarButton(icon: "bubble.left.and.bubble.right.fill", label: "Chat", selected: selectedTab == .chat) {
                 selectedTab = .chat
+            }
+            TabBarButton(icon: "star.fill", label: "Starred", selected: selectedTab == .starred) {
+                selectedTab = .starred
             }
             TabBarButton(icon: "gearshape.fill", label: "Settings", selected: selectedTab == .settings) {
                 selectedTab = .settings

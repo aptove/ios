@@ -746,4 +746,19 @@ class AgentManager: ObservableObject {
         guard let client = await getConnectedClient(for: agentId) else { return }
         await client.sendMemoryEntry(text)
     }
+
+    // MARK: - Starred Messages
+
+    /// Toggle the starred state of a message, updating both in-memory and CoreData.
+    func toggleMessageStar(messageId: String, agentId: String) {
+        guard let idx = conversations[agentId]?.messages.firstIndex(where: { $0.id == messageId }) else { return }
+        let newValue = !conversations[agentId]!.messages[idx].isStarred
+        conversations[agentId]!.messages[idx].isStarred = newValue
+        messageRepository.setStarred(messageId: messageId, isStarred: newValue)
+    }
+
+    /// Returns all starred messages across all agents, sorted by timestamp descending.
+    func fetchStarredMessages() -> [StarredMessage] {
+        messageRepository.fetchStarredMessages()
+    }
 }

@@ -1,6 +1,7 @@
 /* ContentView */
 "Agents" = "Ajanlar";
 "Chat" = "Sohbet";
+"Starred" = "Yıldızlı";
 "Settings" = "Ayarlar";
 "No Agents Connected" = "Bağlı Ajan Yok";
 "Tap the + button to scan a QR code\nand connect to an agent" = "Ajan bağlamak için + düğmesine dokunarak QR kodu tarayın";
@@ -131,10 +132,17 @@
 "file_too_large_error" = "\"%@\" dosyası çok büyük (max 10 MB).";
 "file_load_error" = "\"%@\" okunamadı. İndirildiğinden emin olun.";
 
+/* StarredMessagesView */
+"search_starred_prompt" = "Yıldızlı mesajlarda ara";
+"no_starred_messages" = "Yıldızlı Mesaj Yok";
+"no_starred_messages_subtitle" = "Mesajları buraya kaydetmek için yıldızlayın";
+
 /* ChatView */
 "new_messages_separator" = "Yeni Mesajlar";
 "Converting speech to text..." = "Konuşma metne dönüştürülüyor...";
 "Copy" = "Kopyala";
+"star_message" = "Yıldızla";
+"unstar_message" = "Yıldızı Kaldır";
 "Approve" = "Onayla";
 "Reject" = "Reddet";
 "chat_default_title" = "Sohbet";
@@ -142,6 +150,7 @@
 "chat_new_session" = "Yeni oturum";
 "Message" = "Mesaj";
 "back_to_search" = "Aramaya dön";
+"back_to_starred" = "Yıldızlı mesajlara dön";
 
 /* Transport names */
 "Local" = "Yerel";
