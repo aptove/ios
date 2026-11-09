@@ -147,6 +147,14 @@
 "reply_from_you" = "You";
 "reply_from_agent" = "Agent";
 "reply_image_placeholder" = "Image";
+"forward_message" = "Forward";
+"forward_to_title" = "Forward To";
+"forward_send_button" = "Forward";
+"forward_none_selected" = "Select messages";
+"forward_count_selected" = "%d selected";
+"forward_current_agent" = "This chat";
+"forward_prefix" = "Forwarded";
+"forward_sender_you" = "You";
 "Approve" = "Approve";
 "Reject" = "Reject";
 "chat_default_title" = "Chat";

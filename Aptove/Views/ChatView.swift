@@ -36,6 +36,9 @@ struct ChatView: View {
     @State private var showingAgentConfig = false
     @State private var loadedAvatarImage: UIImage?
     @State private var replyingToMessage: Message? = nil
+    @State private var isForwardMode = false
+    @State private var selectedForwardIds = Set<String>()
+    @State private var showForwardAgentPicker = false
 
     @Environment(\.dismiss) private var dismiss
 
@@ -83,13 +86,44 @@ struct ChatView: View {
                             if message.id == newMessageStartId {
                                 NewMessagesSeparator()
                             }
-                            MessageBubble(message: message, viewModel: viewModel, onToggleStar: {
-                                viewModel.toggleStar(messageId: message.id)
-                            }, onReply: {
-                                replyingToMessage = message
-                                isInputFocused = true
-                            })
+                            HStack(spacing: 0) {
+                                if isForwardMode {
+                                    Button {
+                                        if selectedForwardIds.contains(message.id) {
+                                            selectedForwardIds.remove(message.id)
+                                        } else {
+                                            selectedForwardIds.insert(message.id)
+                                        }
+                                    } label: {
+                                        Image(systemName: selectedForwardIds.contains(message.id)
+                                              ? "checkmark.circle.fill" : "circle")
+                                            .foregroundStyle(selectedForwardIds.contains(message.id) ? .green : Color(.tertiaryLabel))
+                                            .font(.title2)
+                                            .padding(.leading, 4)
+                                            .padding(.trailing, 8)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                MessageBubble(
+                                    message: message,
+                                    viewModel: viewModel,
+                                    isForwardMode: isForwardMode,
+                                    isSelected: selectedForwardIds.contains(message.id),
+                                    onToggleStar: { viewModel.toggleStar(messageId: message.id) },
+                                    onReply: { replyingToMessage = message; isInputFocused = true },
+                                    onForward: { isForwardMode = true; selectedForwardIds = [message.id] }
+                                )
+                            }
                             .id(message.id)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                guard isForwardMode else { return }
+                                if selectedForwardIds.contains(message.id) {
+                                    selectedForwardIds.remove(message.id)
+                                } else {
+                                    selectedForwardIds.insert(message.id)
+                                }
+                            }
                         }
                     }
                     .padding()
@@ -116,7 +150,9 @@ struct ChatView: View {
             Divider()
 
             VStack(spacing: 0) {
-                if voiceViewModel.recordingState.isActiveRecording {
+                if isForwardMode {
+                    forwardModeToolbar
+                } else if voiceViewModel.recordingState.isActiveRecording {
                     let isPaused = { if case .paused = voiceViewModel.recordingState { return true }; return false }()
                     VStack(spacing: 8) {
                         // Waveform preview row
@@ -353,6 +389,14 @@ struct ChatView: View {
                 Button("OK", role: .cancel) { fileErrorMessage = nil }
             } message: {
                 Text(fileErrorMessage ?? "")
+            }
+            .sheet(isPresented: $showForwardAgentPicker) {
+                ForwardAgentPickerView(
+                    agents: agentManager.agents,
+                    currentAgentId: agentId
+                ) { destAgentId in
+                    forwardSelectedMessages(to: destAgentId)
+                }
             }
             .sheet(isPresented: $showMemoryEntry) {
                 MemoryEntryView(agentId: agentId)
@@ -658,6 +702,54 @@ struct ChatView: View {
         }
     }
 
+    private var forwardModeToolbar: some View {
+        HStack {
+            Button("Cancel") {
+                isForwardMode = false
+                selectedForwardIds = []
+            }
+            .foregroundStyle(.secondary)
+            Spacer()
+            Text(selectedForwardIds.isEmpty
+                 ? String(localized: "forward_none_selected")
+                 : String(format: String(localized: "forward_count_selected"), selectedForwardIds.count))
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+            Spacer()
+            Button {
+                showForwardAgentPicker = true
+            } label: {
+                Label("forward_send_button", systemImage: "arrowshape.turn.up.right.fill")
+            }
+            .disabled(selectedForwardIds.isEmpty)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+        .background(Color(.systemBackground))
+    }
+
+    private func forwardSelectedMessages(to destAgentId: String) {
+        let ordered = displayedMessages.filter { selectedForwardIds.contains($0.id) }
+        guard !ordered.isEmpty else { return }
+        let currentAgentName = agentName
+        let lines = ordered.map { msg -> String in
+            let senderLabel = msg.sender == .user
+                ? String(localized: "forward_sender_you")
+                : currentAgentName
+            return "**\(senderLabel):** \(msg.text)"
+        }.joined(separator: "\n\n")
+        let combinedText = "**\(String(localized: "forward_prefix")):**\n\n" + lines
+        isForwardMode = false
+        selectedForwardIds = []
+        if destAgentId == agentId {
+            Task { await viewModel.sendMessage(combinedText) }
+        } else {
+            let destVM = ChatViewModel(agentId: destAgentId)
+            destVM.setAgentManager(agentManager)
+            Task { await destVM.sendMessage(combinedText) }
+        }
+    }
+
     private func handleFileImporterResult(_ result: Result<[URL], Error>) async {
         switch result {
         case .failure(let error):
@@ -836,8 +928,11 @@ struct WaveformView: View {
 struct MessageBubble: View {
     let message: Message
     let viewModel: ChatViewModel
+    let isForwardMode: Bool
+    let isSelected: Bool
     let onToggleStar: () -> Void
     let onReply: () -> Void
+    let onForward: () -> Void
 
     var body: some View {
         let isAgent = message.sender == .agent
@@ -929,23 +1024,30 @@ struct MessageBubble: View {
         .foregroundColor(textColor)
         .cornerRadius(16)
         .contextMenu {
-            Button {
-                onReply()
-            } label: {
-                Label("reply_message", systemImage: "arrowshape.turn.up.left")
-            }
-            Button {
-                onToggleStar()
-            } label: {
-                Label(message.isStarred ? "unstar_message" : "star_message",
-                      systemImage: message.isStarred ? "star.slash.fill" : "star.fill")
-            }
-            .tint(.yellow)
-            if !message.text.isEmpty {
+            if !isForwardMode {
                 Button {
-                    UIPasteboard.general.string = message.text
+                    onReply()
                 } label: {
-                    Label("Copy", systemImage: "doc.on.doc")
+                    Label("reply_message", systemImage: "arrowshape.turn.up.left")
+                }
+                Button {
+                    onForward()
+                } label: {
+                    Label("forward_message", systemImage: "arrowshape.turn.up.right")
+                }
+                Button {
+                    onToggleStar()
+                } label: {
+                    Label(message.isStarred ? "unstar_message" : "star_message",
+                          systemImage: message.isStarred ? "star.slash.fill" : "star.fill")
+                }
+                .tint(.yellow)
+                if !message.text.isEmpty {
+                    Button {
+                        UIPasteboard.general.string = message.text
+                    } label: {
+                        Label("Copy", systemImage: "doc.on.doc")
+                    }
                 }
             }
         }
@@ -1161,6 +1263,45 @@ private struct NewMessagesSeparator: View {
             VStack { Divider() }
         }
         .padding(.vertical, 4)
+    }
+}
+
+private struct ForwardAgentPickerView: View {
+    let agents: [Agent]
+    let currentAgentId: String
+    let onSelect: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List(agents) { agent in
+                Button {
+                    dismiss()
+                    onSelect(agent.id)
+                } label: {
+                    HStack {
+                        Circle()
+                            .fill(agent.status == .connected ? Color.green : Color.gray)
+                            .frame(width: 10, height: 10)
+                        Text(agent.name)
+                            .foregroundStyle(.primary)
+                        if agent.id == currentAgentId {
+                            Spacer()
+                            Text("forward_current_agent")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("forward_to_title")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
     }
 }
 
