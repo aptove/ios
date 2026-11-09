@@ -86,44 +86,7 @@ struct ChatView: View {
                             if message.id == newMessageStartId {
                                 NewMessagesSeparator()
                             }
-                            HStack(spacing: 0) {
-                                if isForwardMode {
-                                    Button {
-                                        if selectedForwardIds.contains(message.id) {
-                                            selectedForwardIds.remove(message.id)
-                                        } else {
-                                            selectedForwardIds.insert(message.id)
-                                        }
-                                    } label: {
-                                        Image(systemName: selectedForwardIds.contains(message.id)
-                                              ? "checkmark.circle.fill" : "circle")
-                                            .foregroundStyle(selectedForwardIds.contains(message.id) ? .green : Color(.tertiaryLabel))
-                                            .font(.title2)
-                                            .padding(.leading, 4)
-                                            .padding(.trailing, 8)
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                                MessageBubble(
-                                    message: message,
-                                    viewModel: viewModel,
-                                    isForwardMode: isForwardMode,
-                                    isSelected: selectedForwardIds.contains(message.id),
-                                    onToggleStar: { viewModel.toggleStar(messageId: message.id) },
-                                    onReply: { replyingToMessage = message; isInputFocused = true },
-                                    onForward: { isForwardMode = true; selectedForwardIds = [message.id] }
-                                )
-                            }
-                            .id(message.id)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                guard isForwardMode else { return }
-                                if selectedForwardIds.contains(message.id) {
-                                    selectedForwardIds.remove(message.id)
-                                } else {
-                                    selectedForwardIds.insert(message.id)
-                                }
-                            }
+                            messageRow(for: message)
                         }
                     }
                     .padding()
@@ -549,6 +512,48 @@ struct ChatView: View {
         case .connected:    return .green
         case .reconnecting: return .orange
         default:            return .gray
+        }
+    }
+
+    @ViewBuilder
+    private func messageRow(for message: Message) -> some View {
+        let selected = selectedForwardIds.contains(message.id)
+        HStack(spacing: 0) {
+            if isForwardMode {
+                Button {
+                    if selected {
+                        selectedForwardIds.remove(message.id)
+                    } else {
+                        selectedForwardIds.insert(message.id)
+                    }
+                } label: {
+                    Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(selected ? .green : Color(.tertiaryLabel))
+                        .font(.title2)
+                        .padding(.leading, 4)
+                        .padding(.trailing, 8)
+                }
+                .buttonStyle(.plain)
+            }
+            MessageBubble(
+                message: message,
+                viewModel: viewModel,
+                isForwardMode: isForwardMode,
+                isSelected: selected,
+                onToggleStar: { viewModel.toggleStar(messageId: message.id) },
+                onReply: { replyingToMessage = message; isInputFocused = true },
+                onForward: { isForwardMode = true; selectedForwardIds = [message.id] }
+            )
+        }
+        .id(message.id)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            guard isForwardMode else { return }
+            if selected {
+                selectedForwardIds.remove(message.id)
+            } else {
+                selectedForwardIds.insert(message.id)
+            }
         }
     }
 
