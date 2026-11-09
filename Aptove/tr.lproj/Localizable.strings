@@ -153,8 +153,6 @@
 "forward_none_selected" = "Mesaj seçin";
 "forward_count_selected" = "%d seçili";
 "forward_current_agent" = "Bu sohbet";
-"forward_prefix" = "İletildi";
-"forward_sender_you" = "Sen";
 "Approve" = "Onayla";
 "Reject" = "Reddet";
 "chat_default_title" = "Sohbet";

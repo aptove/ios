@@ -153,8 +153,6 @@
 "forward_none_selected" = "Select messages";
 "forward_count_selected" = "%d selected";
 "forward_current_agent" = "This chat";
-"forward_prefix" = "Forwarded";
-"forward_sender_you" = "You";
 "Approve" = "Approve";
 "Reject" = "Reject";
 "chat_default_title" = "Chat";

@@ -731,14 +731,7 @@ struct ChatView: View {
     private func forwardSelectedMessages(to destAgentId: String) {
         let ordered = displayedMessages.filter { selectedForwardIds.contains($0.id) }
         guard !ordered.isEmpty else { return }
-        let currentAgentName = agentName
-        let lines = ordered.map { msg -> String in
-            let senderLabel = msg.sender == .user
-                ? String(localized: "forward_sender_you")
-                : currentAgentName
-            return "**\(senderLabel):** \(msg.text)"
-        }.joined(separator: "\n\n")
-        let combinedText = "**\(String(localized: "forward_prefix")):**\n\n" + lines
+        let combinedText = ordered.map(\.text).filter { !$0.isEmpty }.joined(separator: "\n\n")
         isForwardMode = false
         selectedForwardIds = []
         if destAgentId == agentId {
