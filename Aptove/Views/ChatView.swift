@@ -105,6 +105,8 @@ struct ChatView: View {
                     }
                 }
                 .background(ChatPatternBackground())
+                .scrollDismissesKeyboard(.interactively)
+                .simultaneousGesture(TapGesture().onEnded { isInputFocused = false })
             }
             
             Divider()
@@ -494,7 +496,9 @@ struct ChatView: View {
         .padding(.horizontal, 4)
         .frame(height: 52)
         .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
         .background(Color(.systemBackground))
+        .simultaneousGesture(TapGesture().onEnded { isInputFocused = false })
     }
 
     @ViewBuilder
