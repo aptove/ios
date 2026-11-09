@@ -26,7 +26,7 @@ enum ACPVersionMode: String, Codable, CaseIterable {
     }
 }
 
-struct Agent: Identifiable, Codable {
+struct Agent: Identifiable, Codable, Equatable {
     let id: String
     var name: String
     let url: String

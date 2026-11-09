@@ -108,7 +108,7 @@ struct ContentView: View {
                 .allowsHitTesting(selectedTab == .settings)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if !isInChat && !isSearchActive {
+            if navigationPath.isEmpty && !isSearchActive {
                 BottomTabBar(selectedTab: $selectedTab)
                     .padding(.bottom, 8)
                     .background(GeometryReader { geo in
@@ -201,6 +201,7 @@ struct ContentView: View {
             Task { @MainActor in agentManager.forwardNavigationRequest = nil }
             selectedTab = .chat
             navigationPath = NavigationPath()
+            // Known SwiftUI constraint: NavigationStack needs a frame to reset before push.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 navigationPath.append(ChatDestination(agentId: agentId, scrollToMessageId: nil))
             }

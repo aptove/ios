@@ -21,6 +21,8 @@ class ChatViewModel: ObservableObject {
 
     /// Expose the current ACP client for file browser access.
     var acpClient: ACPClientWrapper? { cachedClient }
+    /// True once the client is pre-warmed and ready to send messages.
+    @Published var isClientReady = false
     private var isPrewarmingClient = false
     private var hasShownSessionIndicator = false  // Track if we've already shown the indicator this view session
     
@@ -95,7 +97,8 @@ class ChatViewModel: ObservableObject {
             guard let self = self else { return }
             self.cachedClient = client
             self.isPrewarmingClient = false
-            
+            self.isClientReady = client != nil
+
             if let client = client {
                 print("🔥 ChatViewModel: Pre-warm complete, client cached, state: \(client.connectionState)")
                 

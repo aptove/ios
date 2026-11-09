@@ -59,282 +59,92 @@ struct ChatView: View {
         agentManager.newMessageStartIds[agentId]
     }
 
-    var body: some View {
+    // Extracted so chatWithObservers can observe a simple Int rather than a
+    // complex optional-chained expression that causes type-checker timeouts.
+    private var conversationMessageCount: Int {
+        agentManager.conversations[agentId]?.messages.count ?? 0
+    }
+
+    // Extracted so chatLayoutView's VStack content is all opaque some View types,
+    // avoiding deeply nested ModifiedContent<...> in the VStack TupleView.
+    @ViewBuilder
+    private var bridgeMismatchBanner: some View {
+        if let warning = agentManager.bridgeMismatchWarnings[agentId], !warning.isEmpty {
+            Text(warning)
+                .font(.caption)
+                .foregroundStyle(.yellow)
+                .padding(.horizontal)
+                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.yellow.opacity(0.12))
+        }
+    }
+
+    @ViewBuilder
+    private var messageScrollView: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 12) {
+                    ForEach(Array(displayedMessages.enumerated()), id: \.element.id) { idx, message in
+                        if idx == 0 || !Calendar.current.isDate(displayedMessages[idx - 1].timestamp, inSameDayAs: message.timestamp) {
+                            ChatDateSeparator(date: message.timestamp)
+                        }
+                        if message.id == newMessageStartId {
+                            NewMessagesSeparator()
+                        }
+                        messageRow(for: message)
+                    }
+                }
+                .padding()
+            }
+            .onChange(of: viewModel.messages.count) { oldCount, _ in
+                if oldCount == 0 {
+                    // Initial load — jump to searched message if set, otherwise last
+                    if let target = scrollToMessageId {
+                        proxy.scrollTo(target, anchor: .center)
+                    } else if let lastMessage = viewModel.messages.last {
+                        proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                    }
+                } else if let lastMessage = viewModel.messages.last {
+                    withAnimation {
+                        proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                    }
+                }
+            }
+            .background(ChatPatternBackground())
+            .scrollDismissesKeyboard(.interactively)
+            .simultaneousGesture(TapGesture().onEnded { isInputFocused = false })
+        }
+    }
+
+    // Split into three layers to keep each modifier chain short enough for
+    // the Swift type-checker (deeply nested ModifiedContent<...> causes timeouts).
+
+    private var chatLayoutView: some View {
         VStack(spacing: 0) {
             // Custom navigation header — replaces system nav bar so we have
             // full control over the avatar + name layout.
             chatHeaderView
             Divider()
-
-            if let warning = agentManager.bridgeMismatchWarnings[agentId], !warning.isEmpty {
-                Text(warning)
-                    .font(.caption)
-                    .foregroundStyle(.yellow)
-                    .padding(.horizontal)
-                    .padding(.vertical, 6)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.yellow.opacity(0.12))
-            }
-
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: 12) {
-                        ForEach(Array(displayedMessages.enumerated()), id: \.element.id) { idx, message in
-                            if idx == 0 || !Calendar.current.isDate(displayedMessages[idx - 1].timestamp, inSameDayAs: message.timestamp) {
-                                ChatDateSeparator(date: message.timestamp)
-                            }
-                            if message.id == newMessageStartId {
-                                NewMessagesSeparator()
-                            }
-                            messageRow(for: message)
-                        }
-                    }
-                    .padding()
-                }
-                .onChange(of: viewModel.messages.count) { oldCount, _ in
-                    if oldCount == 0 {
-                        // Initial load — jump to searched message if set, otherwise last
-                        if let target = scrollToMessageId {
-                            proxy.scrollTo(target, anchor: .center)
-                        } else if let lastMessage = viewModel.messages.last {
-                            proxy.scrollTo(lastMessage.id, anchor: .bottom)
-                        }
-                    } else if let lastMessage = viewModel.messages.last {
-                        withAnimation {
-                            proxy.scrollTo(lastMessage.id, anchor: .bottom)
-                        }
-                    }
-                }
-                .background(ChatPatternBackground())
-                .scrollDismissesKeyboard(.interactively)
-                .simultaneousGesture(TapGesture().onEnded { isInputFocused = false })
-            }
-            
+            bridgeMismatchBanner
+            messageScrollView
             Divider()
-
-            VStack(spacing: 0) {
-                if isForwardMode {
-                    forwardModeToolbar
-                } else if voiceViewModel.recordingState.isActiveRecording {
-                    let isPaused = { if case .paused = voiceViewModel.recordingState { return true }; return false }()
-                    VStack(spacing: 8) {
-                        // Waveform preview row
-                        HStack(spacing: 10) {
-                            Image(systemName: "play.fill")
-                                .foregroundColor(.secondary)
-                                .font(.caption)
-                            WaveformView(samples: voiceViewModel.waveformSamples)
-                            Text(timeString(voiceViewModel.elapsedSeconds))
-                                .font(.subheadline.monospacedDigit())
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .frame(maxWidth: .infinity)
-                        .background(Color(.systemGray5).opacity(0.8))
-                        .clipShape(Capsule())
-                        .padding(.horizontal)
-                        .padding(.top, 8)
-
-                        // Action row
-                        HStack {
-                            Button {
-                                voiceViewModel.cancelRecording()
-                            } label: {
-                                Image(systemName: "trash")
-                                    .font(.title2)
-                                    .foregroundColor(.red)
-                            }
-                            Spacer()
-                            Button {
-                                if isPaused {
-                                    voiceViewModel.resumeRecording()
-                                } else {
-                                    voiceViewModel.pauseRecording()
-                                }
-                            } label: {
-                                Image(systemName: isPaused ? "mic.fill" : "pause.fill")
-                                    .font(.title2)
-                                    .foregroundColor(.red)
-                                    .scaleEffect(isPaused ? 1.0 : 1.0 + CGFloat(voiceViewModel.waveformSamples.last ?? 0) * 0.4)
-                                    .animation(.easeOut(duration: 0.08), value: voiceViewModel.waveformSamples.last)
-                            }
-                            Spacer()
-                            Button {
-                                voiceViewModel.stopRecording()
-                            } label: {
-                                Image(systemName: "arrow.up.circle.fill")
-                                    .font(.largeTitle)
-                                    .foregroundColor(.green)
-                            }
-                        }
-                        .padding(.horizontal, 32)
-                        .padding(.bottom, 12)
-                    }
-                } else if case .processing = voiceViewModel.recordingState {
-                    HStack(spacing: 8) {
-                        ProgressView().scaleEffect(0.8)
-                        Text("Converting speech to text...")
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                } else {
-                    if !selectedImages.isEmpty {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(selectedImages.indices, id: \.self) { i in
-                                    ZStack(alignment: .topTrailing) {
-                                        Image(uiImage: selectedImages[i])
-                                            .resizable()
-                                            .scaledToFill()
-                                            .frame(width: 64, height: 64)
-                                            .clipped()
-                                            .cornerRadius(8)
-                                        Button {
-                                            selectedImages.remove(at: i)
-                                        } label: {
-                                            Image(systemName: "xmark.circle.fill")
-                                                .foregroundColor(.white)
-                                                .background(Color.black.opacity(0.4).clipShape(Circle()))
-                                        }
-                                        .padding(4)
-                                    }
-                                }
-                            }
-                            .padding(.horizontal)
-                        }
-                        .frame(height: 80)
-                        .background(Color(.systemGroupedBackground))
-                    }
-
-                    if !selectedFiles.isEmpty {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(selectedFiles.indices, id: \.self) { i in
-                                    fileChip(for: selectedFiles[i]) {
-                                        selectedFiles.remove(at: i)
-                                    }
-                                }
-                            }
-                            .padding(.horizontal)
-                        }
-                        .padding(.vertical, 6)
-                        .background(Color(.systemGroupedBackground))
-                    }
-
-                    if let reply = replyingToMessage {
-                        HStack(spacing: 8) {
-                            Image(systemName: "arrowshape.turn.up.left.fill")
-                                .foregroundStyle(.secondary)
-                                .font(.caption)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(reply.sender == .user ? "reply_from_you" : "reply_from_agent")
-                                    .font(.caption2)
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(.secondary)
-                                Text(reply.text.isEmpty ? "reply_image_placeholder" : reply.text)
-                                    .font(.caption)
-                                    .lineLimit(2)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Button { replyingToMessage = nil } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(.regularMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 4)
-                    }
-
-                    commandPickerView
-
-                    if showAttachmentPanel {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 72), spacing: 8)], spacing: 16) {
-                            attachmentItem(icon: "photo", label: "attachment_photos", color: .blue) {
-                                showAttachmentPanel = false
-                                showPhotoPicker = true
-                            }
-                            attachmentItem(icon: "camera", label: "camera_label", color: .indigo) {
-                                showAttachmentPanel = false
-                                handleCameraAction()
-                            }
-                            attachmentItem(icon: "paperclip", label: "files_label", color: .green) {
-                                showAttachmentPanel = false
-                                showFilePicker = true
-                            }
-                            attachmentItem(icon: nil, slashLabel: "/", label: "attachment_commands", color: .purple) {
-                                showAttachmentPanel = false
-                                commandQuery = ""
-                                isInputFocused = true
-                            }
-                            attachmentItem(icon: "brain", label: "attachment_memory", color: .orange) {
-                                showAttachmentPanel = false
-                                showMemoryEntry = true
-                            }
-                            attachmentItem(icon: "desktopcomputer", label: "attachment_computer", color: .teal) {
-                                showAttachmentPanel = false
-                                computerFileService.client = viewModel.acpClient
-                                viewModel.acpClient?.onFileBrowseNotification = { [weak computerFileService] notif in
-                                    Task { @MainActor in computerFileService?.handleNotification(notif) }
-                                }
-                                showComputerFileBrowser = true
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 16)
-                        .background(Color(.systemBackground))
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
-
-                    HStack(spacing: 12) {
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                showAttachmentPanel.toggle()
-                                if showAttachmentPanel { commandQuery = nil }
-                            }
-                        } label: {
-                            Image(systemName: "plus")
-                                .font(.title2)
-                                .foregroundColor(showAttachmentPanel ? .accentColor : .blue)
-                        }
-
-                        MessageTextField(text: $messageText, isFocused: $isInputFocused) { transcript in
-                            voiceViewModel.recordingState = .processing
-                            Task { await viewModel.sendVoiceCorrectionRequest(transcript) }
-                        }
-
-                        if messageText.isEmpty {
-                            Button {
-                                voiceViewModel.onTranscriptReady = { transcript in
-                                    Task { await viewModel.sendVoiceCorrectionRequest(transcript) }
-                                }
-                                voiceViewModel.startRecording()
-                            } label: {
-                                Image(systemName: "mic")
-                                    .font(.title2)
-                                    .foregroundColor(.blue)
-                            }
-                            .disabled(viewModel.isVoiceCorrectionPending)
-                        } else {
-                            Button {
-                                sendMessage()
-                            } label: {
-                                Image(systemName: "arrow.up.circle.fill")
-                                    .font(.title2)
-                                    .foregroundColor(.blue)
-                            }
-                            .disabled(viewModel.isSending)
-                        }
-                    }
-                    .padding()
-                }
+            inputPanelView
+        }
+        .onChange(of: messageText) { _, text in
+            if !text.isEmpty { showAttachmentPanel = false }
+            if text.hasPrefix("/"), !text.contains(" ") {
+                commandQuery = String(text.dropFirst())
+            } else {
+                commandQuery = nil
             }
+        }
+    }
+
+    // inputAreaView + all its sheet/picker/alert modifiers, extracted so the
+    // VStack in chatLayoutView doesn't accumulate deeply nested ModifiedContent types.
+    private var inputPanelView: some View {
+        inputAreaView
             .photosPicker(isPresented: $showPhotoPicker,
                           selection: $pickerItems,
                           maxSelectionCount: 10,
@@ -344,9 +154,7 @@ struct ChatView: View {
                 allowedContentTypes: [.pdf, .plainText, .commaSeparatedText, .json, .rtf],
                 allowsMultipleSelection: true
             ) { result in
-                Task {
-                    await handleFileImporterResult(result)
-                }
+                Task { await handleFileImporterResult(result) }
             }
             .alert("file_error_title", isPresented: $showingFileError) {
                 Button("OK", role: .cancel) { fileErrorMessage = nil }
@@ -377,7 +185,6 @@ struct ChatView: View {
                 )
             }
             .onChange(of: pickerItems) { _, items in
-                // Guard prevents re-triggering when we clear pickerItems below
                 guard !items.isEmpty else { return }
                 Task {
                     var loaded: [UIImage] = []
@@ -391,112 +198,120 @@ struct ChatView: View {
                     pickerItems = []
                 }
             }
-        }
-        .onChange(of: messageText) { _, text in
-            if !text.isEmpty { showAttachmentPanel = false }
-            if text.hasPrefix("/"), !text.contains(" ") {
-                commandQuery = String(text.dropFirst())
-            } else {
-                commandQuery = nil
+    }
+
+    // chatLayoutView + 5 lifecycle/observer modifiers
+    private var chatWithObservers: some View {
+        chatLayoutView
+            .onAppear {
+                isInChat = true
+                agentManager.activeChatAgentId = agentId
+                agentManager.clearUnreadCount(agentId: agentId)
+                viewModel.setAgentManager(agentManager)
+                viewModel.loadMessages()
+                voiceViewModel.updateLocale(voiceLanguage)
+                viewModel.voiceLanguage = voiceLanguage
+                loadedAvatarImage = AvatarStore.load(for: agentId)
             }
-        }
-        .toolbar(scrollToMessageId != nil ? .visible : .hidden, for: .navigationBar)
-        .toolbarBackground(.hidden, for: .navigationBar)
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationTitle("")
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            if scrollToMessageId != nil {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        dismiss()
-                        onDismiss?()
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                            Text(onDismiss != nil ? "back_to_starred" : "back_to_search")
-                                .font(.subheadline)
+            .onChange(of: viewModel.isClientReady) { _, ready in
+                // Send pending forward text once the client is pre-warmed.
+                // Cannot send in onAppear because the pre-warm is async.
+                guard ready,
+                      let pending = agentManager.pendingForwardText.removeValue(forKey: agentId)
+                else { return }
+                Task { await viewModel.sendMessage(pending) }
+            }
+            .onChange(of: voiceLanguage) { _, newLang in
+                voiceViewModel.updateLocale(newLang)
+                viewModel.voiceLanguage = newLang
+            }
+            .onChange(of: agentManager.agents) { _, agents in
+                // If a pending forward arrived before the connection was ready, send it now
+                // that the agent has become connected. No-op if pendingForwardText is empty.
+                guard agents.first(where: { $0.id == agentId })?.status == .connected,
+                      let pending = agentManager.pendingForwardText.removeValue(forKey: agentId)
+                else { return }
+                Task { await viewModel.sendMessage(pending) }
+            }
+            .onChange(of: conversationMessageCount) { oldCount, newCount in
+                // Sync ChatViewModel when AgentManager's conversation grows from outside
+                // (e.g. cold-start replay after foregrounding into an open chat).
+                guard newCount > oldCount else { return }
+                viewModel.loadMessages()
+            }
+            .onDisappear {
+                isInChat = false
+                // Do NOT clear activeChatAgentId here — onDisappear fires when the app
+                // backgrounds (not just on navigation). Keeping it set lets
+                // onColdStartReplayComplete place the separator correctly on foreground.
+                // activeChatAgentId is cleared in ContentView when navigationPath becomes
+                // empty (user actually navigated back to the agent list).
+                agentManager.newMessageStartIds.removeValue(forKey: agentId)
+            }
+    }
+
+    // chatWithObservers + 4 cover/alert/voice modifiers
+    private var chatLifecycleView: some View {
+        chatWithObservers
+            .fullScreenCover(isPresented: $showCamera) {
+                CameraCapture(isPresented: $showCamera) { image in
+                    selectedImages.append(image)
+                }
+                .ignoresSafeArea()
+            }
+            .alert("camera_permission_denied_title", isPresented: $showCameraPermissionDenied) {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("camera_chat_permission_denied_message")
+            }
+            .onChange(of: viewModel.voiceCorrectedText) { _, correctedText in
+                if let text = correctedText {
+                    messageText = text
+                    isInputFocused = true
+                    Task { @MainActor in viewModel.voiceCorrectedText = nil }
+                    // Always reset recording state when text is ready — handles both
+                    // successful AI correction and immediate fallback (no/lost connection).
+                    voiceViewModel.recordingState = .idle
+                }
+            }
+            .onChange(of: viewModel.isVoiceCorrectionPending) { _, pending in
+                if !pending {
+                    voiceViewModel.recordingState = .idle
+                }
+            }
+    }
+
+    var body: some View {
+        chatLifecycleView
+            .toolbar(scrollToMessageId != nil ? .visible : .hidden, for: .navigationBar)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("")
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                if scrollToMessageId != nil {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button {
+                            dismiss()
+                            onDismiss?()
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "chevron.left")
+                                Text(onDismiss != nil ? "back_to_starred" : "back_to_search")
+                                    .font(.subheadline)
+                            }
                         }
                     }
                 }
             }
-        }
-        .navigationDestination(isPresented: $showingAgentConfig) {
-            AgentConfigurationView(agentId: agentId)
-        }
-        .onAppear {
-            isInChat = true
-            agentManager.activeChatAgentId = agentId
-            agentManager.clearUnreadCount(agentId: agentId)
-            viewModel.setAgentManager(agentManager)
-            viewModel.loadMessages()
-            if let pending = agentManager.pendingForwardText[agentId],
-               agentManager.agents.first(where: { $0.id == agentId })?.status == .connected {
-                agentManager.pendingForwardText.removeValue(forKey: agentId)
-                Task { await viewModel.sendMessage(pending) }
+            .navigationDestination(isPresented: $showingAgentConfig) {
+                AgentConfigurationView(agentId: agentId)
             }
-            voiceViewModel.updateLocale(voiceLanguage)
-            viewModel.voiceLanguage = voiceLanguage
-            loadedAvatarImage = AvatarStore.load(for: agentId)
-        }
-        .onChange(of: voiceLanguage) { _, newLang in
-            voiceViewModel.updateLocale(newLang)
-            viewModel.voiceLanguage = newLang
-        }
-        .onChange(of: agentManager.agents) { _, agents in
-            // If a pending forward arrived before the connection was ready, send it now
-            // that the agent has become connected. No-op if pendingForwardText is empty.
-            guard agents.first(where: { $0.id == agentId })?.status == .connected,
-                  let pending = agentManager.pendingForwardText.removeValue(forKey: agentId)
-            else { return }
-            Task { await viewModel.sendMessage(pending) }
-        }
-        .onChange(of: agentManager.conversations[agentId]?.messages.count ?? 0) { oldCount, newCount in
-            // Sync ChatViewModel when AgentManager's conversation grows from outside
-            // (e.g. cold-start replay after foregrounding into an open chat).
-            guard newCount > oldCount else { return }
-            viewModel.loadMessages()
-        }
-        .onDisappear {
-            isInChat = false
-            // Do NOT clear activeChatAgentId here — onDisappear fires when the app
-            // backgrounds (not just on navigation). Keeping it set lets
-            // onColdStartReplayComplete place the separator correctly on foreground.
-            // activeChatAgentId is cleared in ContentView when navigationPath becomes
-            // empty (user actually navigated back to the agent list).
-            agentManager.newMessageStartIds.removeValue(forKey: agentId)
-        }
-        .fullScreenCover(isPresented: $showCamera) {
-            CameraCapture(isPresented: $showCamera) { image in
-                selectedImages.append(image)
-            }
-            .ignoresSafeArea()
-        }
-        .alert("camera_permission_denied_title", isPresented: $showCameraPermissionDenied) {
-            Button("Open Settings") {
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(url)
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("camera_chat_permission_denied_message")
-        }
-        .onChange(of: viewModel.voiceCorrectedText) { _, correctedText in
-            if let text = correctedText {
-                messageText = text
-                isInputFocused = true
-                Task { @MainActor in viewModel.voiceCorrectedText = nil }
-                // Always reset recording state when text is ready — handles both
-                // successful AI correction and immediate fallback (no/lost connection).
-                voiceViewModel.recordingState = .idle
-            }
-        }
-        .onChange(of: viewModel.isVoiceCorrectionPending) { _, pending in
-            if !pending {
-                voiceViewModel.recordingState = .idle
-            }
-        }
     }
     
     private func timeString(_ seconds: Int) -> String {
@@ -718,6 +533,222 @@ struct ChatView: View {
         Task {
             await viewModel.sendMessage(finalText, images: images, files: files)
         }
+    }
+
+    @ViewBuilder
+    private var inputAreaView: some View {
+        VStack(spacing: 0) {
+            if isForwardMode {
+                forwardModeToolbar
+            } else if voiceViewModel.recordingState.isActiveRecording {
+                voiceRecordingView
+            } else if case .processing = voiceViewModel.recordingState {
+                HStack(spacing: 8) {
+                    ProgressView().scaleEffect(0.8)
+                    Text("Converting speech to text...")
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+            } else {
+                normalInputView
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var voiceRecordingView: some View {
+        let isPaused = { if case .paused = voiceViewModel.recordingState { return true }; return false }()
+        VStack(spacing: 8) {
+            HStack(spacing: 10) {
+                Image(systemName: "play.fill")
+                    .foregroundColor(.secondary)
+                    .font(.caption)
+                WaveformView(samples: voiceViewModel.waveformSamples)
+                Text(timeString(voiceViewModel.elapsedSeconds))
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity)
+            .background(Color(.systemGray5).opacity(0.8))
+            .clipShape(Capsule())
+            .padding(.horizontal)
+            .padding(.top, 8)
+
+            HStack {
+                Button { voiceViewModel.cancelRecording() } label: {
+                    Image(systemName: "trash").font(.title2).foregroundColor(.red)
+                }
+                Spacer()
+                Button {
+                    if isPaused { voiceViewModel.resumeRecording() } else { voiceViewModel.pauseRecording() }
+                } label: {
+                    Image(systemName: isPaused ? "mic.fill" : "pause.fill")
+                        .font(.title2)
+                        .foregroundColor(.red)
+                        .scaleEffect(isPaused ? 1.0 : 1.0 + CGFloat(voiceViewModel.waveformSamples.last ?? 0) * 0.4)
+                        .animation(.easeOut(duration: 0.08), value: voiceViewModel.waveformSamples.last)
+                }
+                Spacer()
+                Button { voiceViewModel.stopRecording() } label: {
+                    Image(systemName: "arrow.up.circle.fill").font(.largeTitle).foregroundColor(.green)
+                }
+            }
+            .padding(.horizontal, 32)
+            .padding(.bottom, 12)
+        }
+    }
+
+    @ViewBuilder
+    private var normalInputView: some View {
+        VStack(spacing: 0) {
+            if !selectedImages.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(selectedImages.indices, id: \.self) { i in
+                            ZStack(alignment: .topTrailing) {
+                                Image(uiImage: selectedImages[i])
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 64, height: 64)
+                                    .clipped()
+                                    .cornerRadius(8)
+                                Button { selectedImages.remove(at: i) } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.white)
+                                        .background(Color.black.opacity(0.4).clipShape(Circle()))
+                                }
+                                .padding(4)
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                .frame(height: 80)
+                .background(Color(.systemGroupedBackground))
+            }
+            if !selectedFiles.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(selectedFiles.indices, id: \.self) { i in
+                            fileChip(for: selectedFiles[i]) { selectedFiles.remove(at: i) }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                .padding(.vertical, 6)
+                .background(Color(.systemGroupedBackground))
+            }
+            if let reply = replyingToMessage {
+                replyPreviewBar(reply: reply)
+            }
+            commandPickerView
+            if showAttachmentPanel {
+                attachmentPanelView
+            }
+            inputBarView
+        }
+    }
+
+    @ViewBuilder
+    private func replyPreviewBar(reply: Message) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "arrowshape.turn.up.left.fill")
+                .foregroundStyle(.secondary)
+                .font(.caption)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(reply.sender == .user ? "reply_from_you" : "reply_from_agent")
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+                Text(reply.text.isEmpty ? "reply_image_placeholder" : reply.text)
+                    .font(.caption)
+                    .lineLimit(2)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button { replyingToMessage = nil } label: {
+                Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .padding(.horizontal, 12)
+        .padding(.bottom, 4)
+    }
+
+    @ViewBuilder
+    private var attachmentPanelView: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 72), spacing: 8)], spacing: 16) {
+            attachmentItem(icon: "photo", label: "attachment_photos", color: .blue) {
+                showAttachmentPanel = false; showPhotoPicker = true
+            }
+            attachmentItem(icon: "camera", label: "camera_label", color: .indigo) {
+                showAttachmentPanel = false; handleCameraAction()
+            }
+            attachmentItem(icon: "paperclip", label: "files_label", color: .green) {
+                showAttachmentPanel = false; showFilePicker = true
+            }
+            attachmentItem(icon: nil, slashLabel: "/", label: "attachment_commands", color: .purple) {
+                showAttachmentPanel = false; commandQuery = ""; isInputFocused = true
+            }
+            attachmentItem(icon: "brain", label: "attachment_memory", color: .orange) {
+                showAttachmentPanel = false; showMemoryEntry = true
+            }
+            attachmentItem(icon: "desktopcomputer", label: "attachment_computer", color: .teal) {
+                showAttachmentPanel = false
+                computerFileService.client = viewModel.acpClient
+                viewModel.acpClient?.onFileBrowseNotification = { [weak computerFileService] notif in
+                    Task { @MainActor in computerFileService?.handleNotification(notif) }
+                }
+                showComputerFileBrowser = true
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .background(Color(.systemBackground))
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+
+    @ViewBuilder
+    private var inputBarView: some View {
+        HStack(spacing: 12) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showAttachmentPanel.toggle()
+                    if showAttachmentPanel { commandQuery = nil }
+                }
+            } label: {
+                Image(systemName: "plus")
+                    .font(.title2)
+                    .foregroundColor(showAttachmentPanel ? .accentColor : .blue)
+            }
+            MessageTextField(text: $messageText, isFocused: $isInputFocused) { transcript in
+                voiceViewModel.recordingState = .processing
+                Task { await viewModel.sendVoiceCorrectionRequest(transcript) }
+            }
+            if messageText.isEmpty {
+                Button {
+                    voiceViewModel.onTranscriptReady = { transcript in
+                        Task { await viewModel.sendVoiceCorrectionRequest(transcript) }
+                    }
+                    voiceViewModel.startRecording()
+                } label: {
+                    Image(systemName: "mic").font(.title2).foregroundColor(.blue)
+                }
+                .disabled(viewModel.isVoiceCorrectionPending)
+            } else {
+                Button { sendMessage() } label: {
+                    Image(systemName: "arrow.up.circle.fill").font(.title2).foregroundColor(.blue)
+                }
+                .disabled(viewModel.isSending)
+            }
+        }
+        .padding()
     }
 
     private var forwardModeToolbar: some View {
