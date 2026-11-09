@@ -200,7 +200,10 @@ struct ContentView: View {
             guard let agentId else { return }
             Task { @MainActor in agentManager.forwardNavigationRequest = nil }
             selectedTab = .chat
-            navigationPath.append(ChatDestination(agentId: agentId, scrollToMessageId: nil))
+            navigationPath = NavigationPath()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                navigationPath.append(ChatDestination(agentId: agentId, scrollToMessageId: nil))
+            }
         }
     }
 }

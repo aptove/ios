@@ -468,7 +468,11 @@ struct ChatView: View {
             viewModel.setAgentManager(agentManager)
             viewModel.loadMessages()
             if let pending = agentManager.pendingForwardText.removeValue(forKey: agentId) {
-                Task { await viewModel.sendMessage(pending) }
+                Task {
+                    // Allow the view and ACP connection to fully establish before sending.
+                    try? await Task.sleep(nanoseconds: 600_000_000)
+                    await viewModel.sendMessage(pending)
+                }
             }
             voiceViewModel.updateLocale(voiceLanguage)
             viewModel.voiceLanguage = voiceLanguage
