@@ -467,12 +467,10 @@ struct ChatView: View {
             agentManager.clearUnreadCount(agentId: agentId)
             viewModel.setAgentManager(agentManager)
             viewModel.loadMessages()
-            if let pending = agentManager.pendingForwardText.removeValue(forKey: agentId) {
-                Task {
-                    // Allow the view and ACP connection to fully establish before sending.
-                    try? await Task.sleep(nanoseconds: 600_000_000)
-                    await viewModel.sendMessage(pending)
-                }
+            if let pending = agentManager.pendingForwardText[agentId],
+               agentManager.agents.first(where: { $0.id == agentId })?.status == .connected {
+                agentManager.pendingForwardText.removeValue(forKey: agentId)
+                Task { await viewModel.sendMessage(pending) }
             }
             voiceViewModel.updateLocale(voiceLanguage)
             viewModel.voiceLanguage = voiceLanguage
@@ -481,6 +479,14 @@ struct ChatView: View {
         .onChange(of: voiceLanguage) { _, newLang in
             voiceViewModel.updateLocale(newLang)
             viewModel.voiceLanguage = newLang
+        }
+        .onChange(of: agentManager.agents) { _, agents in
+            // If a pending forward arrived before the connection was ready, send it now
+            // that the agent has become connected. No-op if pendingForwardText is empty.
+            guard agents.first(where: { $0.id == agentId })?.status == .connected,
+                  let pending = agentManager.pendingForwardText.removeValue(forKey: agentId)
+            else { return }
+            Task { await viewModel.sendMessage(pending) }
         }
         .onChange(of: agentManager.conversations[agentId]?.messages.count ?? 0) { oldCount, newCount in
             // Sync ChatViewModel when AgentManager's conversation grows from outside

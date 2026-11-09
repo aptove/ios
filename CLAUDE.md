@@ -123,6 +123,45 @@ Only app-entry-point files belong in `exclude` (`AptoveApp.swift`, assets, entit
 
 ## UI Performance Rules
 
+### Never use `Task.sleep` or `DispatchQueue.asyncAfter` to fix timing issues
+
+Arbitrary delays are not a fix — they are a sign that the code is reacting to the wrong signal. A delay that works on a fast device may fail on a slow one, and one that works in development may fail under real network conditions.
+
+**Wrong:**
+```swift
+// ❌ Hoping the connection is ready after some time
+Task {
+    try? await Task.sleep(nanoseconds: 600_000_000)
+    await viewModel.sendMessage(text)
+}
+// ❌ Hoping navigation has settled
+DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+    navigationPath.append(destination)
+}
+```
+
+**Right — react to the actual condition being met:**
+```swift
+// ✅ Already connected → send immediately; if not, onChange fires when it becomes ready
+if agentManager.agents.first(where: { $0.id == agentId })?.status == .connected {
+    Task { await viewModel.sendMessage(text) }
+}
+// Combined with a .onChange(of: agentManager.agents) that checks the status:
+// guard agents.first(...)?.status == .connected, let pending = ... else { return }
+// Task { await viewModel.sendMessage(pending) }
+```
+
+| Anti-pattern | Proper signal |
+|---|---|
+| `sleep` before sending a message | Observe `ConnectionStatus == .connected` via `.onChange` |
+| `asyncAfter` before reading new state | Observe the `@Published` property directly with `.onChange` |
+| `sleep` after a save | Use a completion callback or observe the saved `@Published` state |
+| `asyncAfter` to sequence two state mutations | Use `Task { @MainActor in }` sequencing or combine into one mutation |
+
+**Exception:** A single small `asyncAfter` is acceptable when forcing a NavigationStack reset that must complete before a push (e.g. `navigationPath = NavigationPath()` then push 0.1 s later). This is a known SwiftUI layout constraint, not a timing guess — document it with a comment.
+
+---
+
 ### Never call blocking APIs on the main actor
 
 `@MainActor` classes/functions run on the main thread. Any synchronous blocking call stalls the UI. Common offenders in this codebase:
