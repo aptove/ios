@@ -18,6 +18,9 @@ class ChatViewModel: ObservableObject {
     private var agentManager: AgentManager?
     private var isToolApprovalHandlerSetup = false
     private var cachedClient: ACPClientWrapper?
+
+    /// Expose the current ACP client for file browser access.
+    var acpClient: ACPClientWrapper? { cachedClient }
     private var isPrewarmingClient = false
     private var hasShownSessionIndicator = false  // Track if we've already shown the indicator this view session
     

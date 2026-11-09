@@ -15,6 +15,9 @@
 		C800000000000308 /* MemoryEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000307 /* MemoryEntryView.swift */; };
 		C80000000000030A /* CameraCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000309 /* CameraCapture.swift */; };
 		C80000000000030C /* ChatPatternBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80000000000030B /* ChatPatternBackground.swift */; };
+		C80000000000030E /* ComputerFileService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80000000000030D /* ComputerFileService.swift */; };
+		C800000000000310 /* ComputerFileBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80000000000030F /* ComputerFileBrowserView.swift */; };
+		C800000000000312 /* FileViewerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000311 /* FileViewerView.swift */; };
 		C800000000000083 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = C800000000000082 /* Localizable.strings */; };
 		C800000000000091 /* VoiceInputViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000090 /* VoiceInputViewModel.swift */; };
 		C8000000000000A1 /* AptoveApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000002 /* AptoveApp.swift */; };
@@ -108,6 +111,9 @@
 		C800000000000307 /* MemoryEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryEntryView.swift; sourceTree = "<group>"; };
 		C800000000000309 /* CameraCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraCapture.swift; sourceTree = "<group>"; };
 		C80000000000030B /* ChatPatternBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatPatternBackground.swift; sourceTree = "<group>"; };
+		C80000000000030D /* ComputerFileService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComputerFileService.swift; sourceTree = "<group>"; };
+		C80000000000030F /* ComputerFileBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComputerFileBrowserView.swift; sourceTree = "<group>"; };
+		C800000000000311 /* FileViewerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileViewerView.swift; sourceTree = "<group>"; };
 		C800000000000080 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		C800000000000081 /* tr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = tr; path = tr.lproj/Localizable.strings; sourceTree = "<group>"; };
 		C800000000000090 /* VoiceInputViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceInputViewModel.swift; sourceTree = "<group>"; };
@@ -207,6 +213,8 @@
 				C800000000000309 /* CameraCapture.swift */,
 				C80000000000030B /* ChatPatternBackground.swift */,
 				C800000000000402 /* SplashHighlighter.swift */,
+				C80000000000030F /* ComputerFileBrowserView.swift */,
+				C800000000000311 /* FileViewerView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -245,6 +253,7 @@
 				C800000000000500 /* FeatureRegistry.swift */,
 				C800000000000502 /* TransportProvider.swift */,
 				C800000000000504 /* AvatarStore.swift */,
+				C80000000000030D /* ComputerFileService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -461,6 +470,9 @@
 				C800000000000308 /* MemoryEntryView.swift in Sources */,
 				C80000000000030A /* CameraCapture.swift in Sources */,
 				C80000000000030C /* ChatPatternBackground.swift in Sources */,
+				C80000000000030E /* ComputerFileService.swift in Sources */,
+				C800000000000310 /* ComputerFileBrowserView.swift in Sources */,
+				C800000000000312 /* FileViewerView.swift in Sources */,
 				C8000000000000CA /* AgentConfigurationViewModel.swift in Sources */,
 				C8000000000000CC /* PushNotificationManager.swift in Sources */,
 				C800000000000200 /* CoreDataStack.swift in Sources */,

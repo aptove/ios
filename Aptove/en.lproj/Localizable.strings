@@ -111,6 +111,21 @@
 "attachment_photos" = "Photos";
 "attachment_commands" = "Commands";
 "attachment_memory" = "Memory";
+"attachment_computer" = "Computer";
+
+/* Computer file browser */
+"computer_files_title" = "Computer Files";
+"computer_files_add_n" = "Add %d";
+"computer_files_empty" = "This folder is empty";
+"computer_files_error" = "Could not load files";
+"computer_files_forbidden" = "Access denied";
+"close_button" = "Close";
+
+/* File viewer */
+"file_viewer_add" = "Add";
+"file_viewer_remove" = "Remove";
+"file_viewer_cannot_load_image" = "Cannot display image";
+"file_viewer_error_prefix" = "Could not open file";
 "camera_chat_permission_denied_message" = "Aptove needs camera access to capture photos for chat. Please go to Settings and enable camera access.";
 "file_error_title" = "Couldn't Open File";
 "file_too_large_error" = "File \"%@\" is too large (max 10 MB).";

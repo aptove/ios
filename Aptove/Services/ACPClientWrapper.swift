@@ -609,6 +609,19 @@ class ACPClientWrapper: ObservableObject {
         return rawTranscript
     }
 
+    /// Send a bridge-protocol notification over the WebSocket transport.
+    /// Used by ComputerFileService and other bridge-protocol consumers.
+    func sendBridgeMessage(method: String, params: JsonValue) async {
+        guard let transport = self.transport else { return }
+        let notification = JsonRpcNotification(method: method, params: params)
+        let message = JsonRpcMessage.notification(notification)
+        do {
+            try await transport.send(message)
+        } catch {
+            print("❌ ACPClientWrapper: Failed to send \(method): \(error)")
+        }
+    }
+
     /// Append a memory entry to the bridge's MEMORY.md file.
     func sendMemoryEntry(_ text: String) async {
         guard let transport = self.transport else {
@@ -661,6 +674,10 @@ class ACPClientWrapper: ObservableObject {
     /// Called when another device sends a user message to the same session.
     /// The string is the plain text of the remote message.
     var onRemoteUserMessage: ((String) -> Void)?
+
+    /// Called when a `bridge/files/listResponse` or `bridge/files/contentResponse`
+    /// notification arrives. The receiver is ComputerFileService.
+    var onFileBrowseNotification: ((JsonRpcNotification) -> Void)?
 
     /// Called each time a connection (or reconnection) succeeds.
     /// Subscribers should expire any stale in-flight state (e.g. pending tool approvals)
@@ -1152,6 +1169,11 @@ class ACPClientWrapper: ObservableObject {
                     self.connectionMessage = "⚠️ \(msg)"
                 }
             }
+            return
+        }
+
+        if notif.method == "bridge/files/listResponse" || notif.method == "bridge/files/contentResponse" {
+            onFileBrowseNotification?(notif)
             return
         }
 

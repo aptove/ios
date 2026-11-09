@@ -30,6 +30,8 @@ struct ChatView: View {
     @State private var commandQuery: String? = nil // nil = picker hidden
     @State private var showAttachmentPanel = false
     @State private var showMemoryEntry = false
+    @State private var showComputerFileBrowser = false
+    @StateObject private var computerFileService = ComputerFileService()
     @State private var showingAgentConfig = false
     @State private var loadedAvatarImage: UIImage?
 
@@ -237,6 +239,14 @@ struct ChatView: View {
                                 showAttachmentPanel = false
                                 showMemoryEntry = true
                             }
+                            attachmentItem(icon: "desktopcomputer", label: "attachment_computer", color: .teal) {
+                                showAttachmentPanel = false
+                                computerFileService.client = viewModel.acpClient
+                                viewModel.acpClient?.onFileBrowseNotification = { [weak computerFileService] notif in
+                                    Task { @MainActor in computerFileService?.handleNotification(notif) }
+                                }
+                                showComputerFileBrowser = true
+                            }
                         }
                         .padding(.horizontal, 20)
                         .padding(.vertical, 16)
@@ -308,6 +318,17 @@ struct ChatView: View {
             .sheet(isPresented: $showMemoryEntry) {
                 MemoryEntryView(agentId: agentId)
                     .environmentObject(agentManager)
+            }
+            .sheet(isPresented: $showComputerFileBrowser, onDismiss: {
+                viewModel.acpClient?.onFileBrowseNotification = nil
+            }) {
+                ComputerFileBrowserView(
+                    fileService: computerFileService,
+                    onAddImage: { image in selectedImages.append(image) },
+                    onAddFile: { file in selectedFiles.append(file) },
+                    onRemoveImage: { image in selectedImages.removeAll { $0 === image } },
+                    onRemoveFile: { file in selectedFiles.removeAll { $0.name == file.name } }
+                )
             }
             .onChange(of: pickerItems) { _, items in
                 // Guard prevents re-triggering when we clear pickerItems below

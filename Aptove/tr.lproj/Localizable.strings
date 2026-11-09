@@ -111,6 +111,21 @@
 "attachment_photos" = "Fotoğraflar";
 "attachment_commands" = "Komutlar";
 "attachment_memory" = "Anı";
+"attachment_computer" = "Bilgisayar";
+
+/* Computer file browser */
+"computer_files_title" = "Bilgisayar Dosyaları";
+"computer_files_add_n" = "%d Ekle";
+"computer_files_empty" = "Bu klasör boş";
+"computer_files_error" = "Dosyalar yüklenemedi";
+"computer_files_forbidden" = "Erişim reddedildi";
+"close_button" = "Kapat";
+
+/* File viewer */
+"file_viewer_add" = "Ekle";
+"file_viewer_remove" = "Kaldır";
+"file_viewer_cannot_load_image" = "Görüntü gösterilemiyor";
+"file_viewer_error_prefix" = "Dosya açılamadı";
 "camera_chat_permission_denied_message" = "Aptove'nin sohbet için fotoğraf çekebilmesi kamera erişimine ihtiyacı var. Lütfen Ayarlar'a gidip kamera erişimini etkinleştirin.";
 "file_error_title" = "Dosya Açılamadı";
 "file_too_large_error" = "\"%@\" dosyası çok büyük (max 10 MB).";
