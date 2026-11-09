@@ -55,6 +55,7 @@ struct ContentView: View {
     @State private var tabBarHeight: CGFloat = 0
     @State private var searchText = ""
     @State private var isSearchActive = false
+    @State private var isStarredSearchActive = false
 
     init() {
         print("🖥️  ContentView: Initializing...")
@@ -98,7 +99,7 @@ struct ContentView: View {
             .allowsHitTesting(selectedTab == .chat)
 
             // Starred tab
-            StarredMessagesView(selectedTab: $selectedTab, navigationPath: $navigationPath)
+            StarredMessagesView(selectedTab: $selectedTab, navigationPath: $navigationPath, isSearchActive: $isStarredSearchActive)
                 .opacity(selectedTab == .starred ? 1 : 0)
                 .allowsHitTesting(selectedTab == .starred)
 
@@ -108,7 +109,7 @@ struct ContentView: View {
                 .allowsHitTesting(selectedTab == .settings)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if !isInChat && !isSearchActive {
+            if !isInChat && !isSearchActive && !isStarredSearchActive {
                 BottomTabBar(selectedTab: $selectedTab)
                     .padding(.bottom, 8)
                     .background(GeometryReader { geo in

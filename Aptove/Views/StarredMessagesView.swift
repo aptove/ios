@@ -5,6 +5,8 @@ struct StarredMessagesView: View {
     @AppStorage("appLanguage") private var appLanguage: String = ""
     @Binding var selectedTab: BottomTab
     @Binding var navigationPath: NavigationPath
+    @Binding var isSearchActive: Bool
+    @Environment(\.isSearching) private var isSearching
     @State private var searchText = ""
     @State private var avatarImages: [String: UIImage] = [:]
 
@@ -64,6 +66,7 @@ struct StarredMessagesView: View {
             .onAppear {
                 loadAvatars()
             }
+            .onChange(of: isSearching) { _, active in isSearchActive = active }
         }
     }
 
