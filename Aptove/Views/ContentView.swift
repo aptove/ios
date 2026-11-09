@@ -196,6 +196,12 @@ struct ContentView: View {
                 navigationPath.append(ChatDestination(agentId: agent.id, scrollToMessageId: nil))
             }
         }
+        .onChange(of: agentManager.forwardNavigationRequest) { _, agentId in
+            guard let agentId else { return }
+            Task { @MainActor in agentManager.forwardNavigationRequest = nil }
+            selectedTab = .chat
+            navigationPath.append(ChatDestination(agentId: agentId, scrollToMessageId: nil))
+        }
     }
 }
 

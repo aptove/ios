@@ -34,6 +34,13 @@ class AgentManager: ObservableObject {
     /// was in that chat but the app was backgrounded. ChatView renders a "New Messages"
     /// separator at this position. Cleared when ChatView appears or disappears.
     @Published var newMessageStartIds: [String: String] = [:]
+    /// Text queued to be auto-sent when a ChatView for the keyed agentId next appears.
+    /// Used by the forward-to-other-agent flow so the send happens inside the real
+    /// ChatView (with an established connection) rather than a temporary ViewModel.
+    @Published var pendingForwardText: [String: String] = [:]
+    /// Set by the forward flow to trigger navigation to a destination agent's chat.
+    /// ContentView observes this and pushes the ChatDestination; reset to nil immediately.
+    @Published var forwardNavigationRequest: String? = nil
 
     private let clientCache = ClientCache()
     let repository: AgentRepository

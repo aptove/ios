@@ -467,6 +467,9 @@ struct ChatView: View {
             agentManager.clearUnreadCount(agentId: agentId)
             viewModel.setAgentManager(agentManager)
             viewModel.loadMessages()
+            if let pending = agentManager.pendingForwardText.removeValue(forKey: agentId) {
+                Task { await viewModel.sendMessage(pending) }
+            }
             voiceViewModel.updateLocale(voiceLanguage)
             viewModel.voiceLanguage = voiceLanguage
             loadedAvatarImage = AvatarStore.load(for: agentId)
@@ -737,9 +740,8 @@ struct ChatView: View {
         if destAgentId == agentId {
             Task { await viewModel.sendMessage(combinedText) }
         } else {
-            let destVM = ChatViewModel(agentId: destAgentId)
-            destVM.setAgentManager(agentManager)
-            Task { await destVM.sendMessage(combinedText) }
+            agentManager.pendingForwardText[destAgentId] = combinedText
+            agentManager.forwardNavigationRequest = destAgentId
         }
     }
 
