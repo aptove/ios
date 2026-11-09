@@ -143,6 +143,10 @@
 "Copy" = "Copy";
 "star_message" = "Star";
 "unstar_message" = "Unstar";
+"reply_message" = "Reply";
+"reply_from_you" = "You";
+"reply_from_agent" = "Agent";
+"reply_image_placeholder" = "Image";
 "Approve" = "Approve";
 "Reject" = "Reject";
 "chat_default_title" = "Chat";

@@ -143,6 +143,10 @@
 "Copy" = "Kopyala";
 "star_message" = "Yıldızla";
 "unstar_message" = "Yıldızı Kaldır";
+"reply_message" = "Yanıtla";
+"reply_from_you" = "Sen";
+"reply_from_agent" = "Ajan";
+"reply_image_placeholder" = "Görsel";
 "Approve" = "Onayla";
 "Reject" = "Reddet";
 "chat_default_title" = "Sohbet";

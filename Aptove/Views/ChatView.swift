@@ -35,6 +35,7 @@ struct ChatView: View {
     @StateObject private var computerFileService = ComputerFileService()
     @State private var showingAgentConfig = false
     @State private var loadedAvatarImage: UIImage?
+    @State private var replyingToMessage: Message? = nil
 
     @Environment(\.dismiss) private var dismiss
 
@@ -82,9 +83,12 @@ struct ChatView: View {
                             if message.id == newMessageStartId {
                                 NewMessagesSeparator()
                             }
-                            MessageBubble(message: message, viewModel: viewModel) {
+                            MessageBubble(message: message, viewModel: viewModel, onToggleStar: {
                                 viewModel.toggleStar(messageId: message.id)
-                            }
+                            }, onReply: {
+                                replyingToMessage = message
+                                isInputFocused = true
+                            })
                             .id(message.id)
                         }
                     }
@@ -218,6 +222,35 @@ struct ChatView: View {
                         }
                         .padding(.vertical, 6)
                         .background(Color(.systemGroupedBackground))
+                    }
+
+                    if let reply = replyingToMessage {
+                        HStack(spacing: 8) {
+                            Image(systemName: "arrowshape.turn.up.left.fill")
+                                .foregroundStyle(.secondary)
+                                .font(.caption)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(reply.sender == .user ? "reply_from_you" : "reply_from_agent")
+                                    .font(.caption2)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.secondary)
+                                Text(reply.text.isEmpty ? "reply_image_placeholder" : reply.text)
+                                    .font(.caption)
+                                    .lineLimit(2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button { replyingToMessage = nil } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(.regularMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 4)
                     }
 
                     commandPickerView
@@ -608,12 +641,20 @@ struct ChatView: View {
         guard !text.isEmpty || !selectedImages.isEmpty || !selectedFiles.isEmpty else { return }
         let images = selectedImages
         let files = selectedFiles
+        let replyContext = replyingToMessage
         messageText = ""
         selectedImages = []
         selectedFiles = []
+        replyingToMessage = nil
         isInputFocused = false
+        let finalText: String
+        if let reply = replyContext, !reply.text.isEmpty {
+            finalText = "> \(reply.text)\n\n\(text)"
+        } else {
+            finalText = text
+        }
         Task {
-            await viewModel.sendMessage(text, images: images, files: files)
+            await viewModel.sendMessage(finalText, images: images, files: files)
         }
     }
 
@@ -796,6 +837,7 @@ struct MessageBubble: View {
     let message: Message
     let viewModel: ChatViewModel
     let onToggleStar: () -> Void
+    let onReply: () -> Void
 
     var body: some View {
         let isAgent = message.sender == .agent
@@ -887,6 +929,11 @@ struct MessageBubble: View {
         .foregroundColor(textColor)
         .cornerRadius(16)
         .contextMenu {
+            Button {
+                onReply()
+            } label: {
+                Label("reply_message", systemImage: "arrowshape.turn.up.left")
+            }
             Button {
                 onToggleStar()
             } label: {
