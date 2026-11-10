@@ -639,6 +639,90 @@ class ACPClientWrapper: ObservableObject {
         }
     }
 
+    // MARK: - Scheduled Tasks
+
+    /// Response wrapper for bridge/createTask and bridge/updateTask.
+    private struct TaskResponse: Decodable {
+        let task: ScheduledTask
+    }
+
+    /// Response wrapper for bridge/listTasks.
+    private struct TaskListResponse: Decodable {
+        let tasks: [ScheduledTask]
+    }
+
+    /// Response wrapper for bridge/deleteTask.
+    private struct DeleteResponse: Decodable {
+        let deleted: Bool
+    }
+
+    /// Create a new scheduled task on the bridge.
+    func createTask(name: String, prompt: String, schedule: TaskSchedule) async throws -> ScheduledTask {
+        guard let proto = rawProto else {
+            throw NSError(domain: "ACPClientWrapper", code: -1, userInfo: [NSLocalizedDescriptionKey: "Not connected"])
+        }
+        struct CreateParams: Encodable {
+            let name: String
+            let prompt: String
+            let schedule: TaskSchedule
+        }
+        let result = try await proto.request(
+            method: "bridge/createTask",
+            params: CreateParams(name: name, prompt: prompt, schedule: schedule),
+            responseType: TaskResponse.self
+        )
+        return result.task
+    }
+
+    /// List all scheduled tasks from the bridge.
+    func listTasks() async throws -> [ScheduledTask] {
+        guard let proto = rawProto else {
+            throw NSError(domain: "ACPClientWrapper", code: -1, userInfo: [NSLocalizedDescriptionKey: "Not connected"])
+        }
+        struct EmptyParams: Encodable {}
+        let result = try await proto.request(
+            method: "bridge/listTasks",
+            params: EmptyParams(),
+            responseType: TaskListResponse.self
+        )
+        return result.tasks
+    }
+
+    /// Update an existing task on the bridge.
+    func updateTask(id: String, name: String? = nil, prompt: String? = nil, schedule: TaskSchedule? = nil, enabled: Bool? = nil) async throws -> ScheduledTask {
+        guard let proto = rawProto else {
+            throw NSError(domain: "ACPClientWrapper", code: -1, userInfo: [NSLocalizedDescriptionKey: "Not connected"])
+        }
+        struct UpdateParams: Encodable {
+            let id: String
+            let name: String?
+            let prompt: String?
+            let schedule: TaskSchedule?
+            let enabled: Bool?
+        }
+        let result = try await proto.request(
+            method: "bridge/updateTask",
+            params: UpdateParams(id: id, name: name, prompt: prompt, schedule: schedule, enabled: enabled),
+            responseType: TaskResponse.self
+        )
+        return result.task
+    }
+
+    /// Delete a task from the bridge.
+    func deleteTask(id: String) async throws {
+        guard let proto = rawProto else {
+            throw NSError(domain: "ACPClientWrapper", code: -1, userInfo: [NSLocalizedDescriptionKey: "Not connected"])
+        }
+        struct DeleteParams: Encodable {
+            let id: String
+        }
+        let _ = try await proto.request(
+            method: "bridge/deleteTask",
+            params: DeleteParams(id: id),
+            responseType: DeleteResponse.self
+        )
+    }
+
     /// Called when the WebSocket transport closes unexpectedly (not via `disconnect()`).
     /// Use this to trigger multi-transport reconnect logic in AgentManager.
     var onUnexpectedDisconnect: (() -> Void)?

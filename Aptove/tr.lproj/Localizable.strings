@@ -168,9 +168,39 @@
 "Tailscale" = "Tailscale";
 
 /* MemoryEntryView */
-"Add Memory" = "An\u0131 Ekle";
-"What do you want the AI to remember?" = "Yapay zekan\u0131n ne hat\u0131rlamas\u0131n\u0131 istiyorsunuz?";
-"memory_correcting" = "D\u00fczeltiliyor\u2026";
-"memory_recording" = "Kaydediliyor\u2026";
-"memory_transcribing" = "Yaz\u0131ya d\u00f6k\u00fcl\u00fcyor\u2026";
-"memory_tap_to_dictate" = "Dikte i\u00e7in mikrofona dokunun";
+"Add Memory" = "Anı Ekle";
+"What do you want the AI to remember?" = "Yapay zekanın ne hatırlamasını istiyorsunuz?";
+"memory_correcting" = "Düzeltiliyor…";
+"memory_recording" = "Kaydediliyor…";
+"memory_transcribing" = "Yazıya dökülüyor…";
+"memory_tap_to_dictate" = "Dikte için mikrofona dokunun";
+
+/* TasksListView / TaskCreateView */
+"search_tasks_prompt" = "Görevlerde ara";
+"task_view_title" = "Görev";
+"Tasks" = "Görevler";
+"Create Task" = "Görev Oluştur";
+"task_delete_confirm" = "Görev Silinsin mi?";
+"task_delete_message" = "Bu görev kalıcı olarak silinecek.";
+"no_tasks_yet" = "Henüz görev yok";
+"no_agents_connected" = "Bağlı ajan yok";
+"task_name_placeholder" = "Görev adı";
+"task_prompt_placeholder" = "Yapay zeka ne yapsın?";
+"schedule_type" = "Zamanlama";
+"task_date" = "Tarih ve Saat";
+"task_time" = "Saat";
+"task_day_of_week" = "Haftanın günü";
+"task_day_of_month" = "Ayın günü";
+"task_next_run %@" = "Sonraki: %@";
+"task_last_run %@" = "Son: %@";
+"task_saved" = "Görev kaydedildi";
+"attachment_task" = "Görev Planla";
+"task_type_once" = "Tek Seferlik";
+"task_type_repeating" = "Tekrarlayan";
+"task_schedule_once" = "Bir Kez";
+"task_schedule_daily" = "Günlük";
+"task_schedule_weekly" = "Haftalık";
+"task_schedule_monthly" = "Aylık";
+"schedule_summary_daily" = "Her gün %@";
+"schedule_summary_weekly" = "Her %1$@ %2$@";
+"schedule_summary_monthly" = "Her ay %@";

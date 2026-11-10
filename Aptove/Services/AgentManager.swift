@@ -754,6 +754,38 @@ class AgentManager: ObservableObject {
         await client.sendMemoryEntry(text)
     }
 
+    // MARK: - Scheduled Tasks
+
+    /// List all scheduled tasks for the given agent.
+    func listTasks(for agentId: String) async throws -> [ScheduledTask] {
+        guard let client = await getConnectedClient(for: agentId) else { return [] }
+        return try await client.listTasks()
+    }
+
+    /// Create a new scheduled task on the given agent.
+    func createTask(name: String, prompt: String, schedule: TaskSchedule, for agentId: String) async throws -> ScheduledTask {
+        guard let client = await getConnectedClient(for: agentId) else {
+            throw NSError(domain: "AgentManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Agent not connected"])
+        }
+        return try await client.createTask(name: name, prompt: prompt, schedule: schedule)
+    }
+
+    /// Update an existing task on the given agent.
+    func updateTask(id: String, name: String? = nil, prompt: String? = nil, schedule: TaskSchedule? = nil, enabled: Bool? = nil, for agentId: String) async throws -> ScheduledTask {
+        guard let client = await getConnectedClient(for: agentId) else {
+            throw NSError(domain: "AgentManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Agent not connected"])
+        }
+        return try await client.updateTask(id: id, name: name, prompt: prompt, schedule: schedule, enabled: enabled)
+    }
+
+    /// Delete a task on the given agent.
+    func deleteTask(id: String, for agentId: String) async throws {
+        guard let client = await getConnectedClient(for: agentId) else {
+            throw NSError(domain: "AgentManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Agent not connected"])
+        }
+        try await client.deleteTask(id: id)
+    }
+
     // MARK: - Starred Messages
 
     /// Toggle the starred state of a message, updating both in-memory and CoreData.

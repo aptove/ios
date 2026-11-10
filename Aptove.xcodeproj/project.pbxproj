@@ -67,6 +67,9 @@
 		C800000000000303 /* MessageRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000304 /* MessageRepository.swift */; };
 		C800000000000400 /* Splash in Frameworks */ = {isa = PBXBuildFile; productRef = C800000000000404 /* Splash */; };
 		C800000000000401 /* SplashHighlighter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000402 /* SplashHighlighter.swift */; };
+		C800000000000801 /* ScheduledTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000800 /* ScheduledTask.swift */; };
+		C800000000000803 /* TasksListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000802 /* TasksListView.swift */; };
+		C800000000000805 /* TaskCreateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000804 /* TaskCreateView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -138,6 +141,9 @@
 		C800000000000231 /* TransportCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransportCredentials.swift; sourceTree = "<group>"; };
 		C800000000000304 /* MessageRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageRepository.swift; sourceTree = "<group>"; };
 		C800000000000402 /* SplashHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashHighlighter.swift; sourceTree = "<group>"; };
+		C800000000000800 /* ScheduledTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduledTask.swift; sourceTree = "<group>"; };
+		C800000000000802 /* TasksListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasksListView.swift; sourceTree = "<group>"; };
+		C800000000000804 /* TaskCreateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskCreateView.swift; sourceTree = "<group>"; };
 		E27B6F572F4BE96D00311836 /* AptoveTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AptoveTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -218,6 +224,8 @@
 				C80000000000030F /* ComputerFileBrowserView.swift */,
 				C800000000000311 /* FileViewerView.swift */,
 			C800000000000313 /* StarredMessagesView.swift */,
+				C800000000000802 /* TasksListView.swift */,
+				C800000000000804 /* TaskCreateView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -241,6 +249,7 @@
 				C80000000000000F /* Conversation.swift */,
 				C800000000000011 /* ConnectionConfig.swift */,
 				C800000000000231 /* TransportCredentials.swift */,
+				C800000000000800 /* ScheduledTask.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -477,6 +486,9 @@
 				C800000000000310 /* ComputerFileBrowserView.swift in Sources */,
 				C800000000000312 /* FileViewerView.swift in Sources */,
 				C800000000000314 /* StarredMessagesView.swift in Sources */,
+				C800000000000801 /* ScheduledTask.swift in Sources */,
+				C800000000000803 /* TasksListView.swift in Sources */,
+				C800000000000805 /* TaskCreateView.swift in Sources */,
 				C8000000000000CA /* AgentConfigurationViewModel.swift in Sources */,
 				C8000000000000CC /* PushNotificationManager.swift in Sources */,
 				C800000000000200 /* CoreDataStack.swift in Sources */,

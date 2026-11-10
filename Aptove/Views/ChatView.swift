@@ -31,6 +31,7 @@ struct ChatView: View {
     @State private var commandQuery: String? = nil // nil = picker hidden
     @State private var showAttachmentPanel = false
     @State private var showMemoryEntry = false
+    @State private var showTaskCreate = false
     @State private var showComputerFileBrowser = false
     @StateObject private var computerFileService = ComputerFileService()
     @State private var showingAgentConfig = false
@@ -171,6 +172,10 @@ struct ChatView: View {
             }
             .sheet(isPresented: $showMemoryEntry) {
                 MemoryEntryView(agentId: agentId)
+                    .environmentObject(agentManager)
+            }
+            .sheet(isPresented: $showTaskCreate) {
+                TaskCreateView(agentId: agentId)
                     .environmentObject(agentManager)
             }
             .sheet(isPresented: $showComputerFileBrowser, onDismiss: {
@@ -698,6 +703,9 @@ struct ChatView: View {
             }
             attachmentItem(icon: "brain", label: "attachment_memory", color: .orange) {
                 showAttachmentPanel = false; showMemoryEntry = true
+            }
+            attachmentItem(icon: "clock", label: "attachment_task", color: .cyan) {
+                showAttachmentPanel = false; showTaskCreate = true
             }
             attachmentItem(icon: "desktopcomputer", label: "attachment_computer", color: .teal) {
                 showAttachmentPanel = false

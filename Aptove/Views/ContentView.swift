@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-enum BottomTab { case chat, starred, settings }
+enum BottomTab { case chat, starred, tasks, settings }
 
 // MARK: - Tab bar height propagation
 
@@ -101,6 +101,11 @@ struct ContentView: View {
             StarredMessagesView(selectedTab: $selectedTab, navigationPath: $navigationPath)
                 .opacity(selectedTab == .starred ? 1 : 0)
                 .allowsHitTesting(selectedTab == .starred)
+
+            // Tasks tab
+            TasksListView(selectedTab: $selectedTab)
+                .opacity(selectedTab == .tasks ? 1 : 0)
+                .allowsHitTesting(selectedTab == .tasks)
 
             // Settings tab — full screen, not a sheet
             SettingsView()
@@ -219,6 +224,9 @@ private struct BottomTabBar: View {
             }
             TabBarButton(icon: "star.fill", label: "Starred", selected: selectedTab == .starred) {
                 selectedTab = .starred
+            }
+            TabBarButton(icon: "clock.fill", label: "Tasks", selected: selectedTab == .tasks) {
+                selectedTab = .tasks
             }
             TabBarButton(icon: "gearshape.fill", label: "Settings", selected: selectedTab == .settings) {
                 selectedTab = .settings

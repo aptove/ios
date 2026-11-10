@@ -170,7 +170,37 @@
 /* MemoryEntryView */
 "Add Memory" = "Add Memory";
 "What do you want the AI to remember?" = "What do you want the AI to remember?";
-"memory_correcting" = "Correcting\u2026";
-"memory_recording" = "Recording\u2026";
-"memory_transcribing" = "Transcribing\u2026";
+"memory_correcting" = "Correcting..";
+"memory_recording" = "Recording...";
+"memory_transcribing" = "Transcribing...";
 "memory_tap_to_dictate" = "Tap mic to dictate";
+
+/* TasksListView / TaskCreateView */
+"search_tasks_prompt" = "Search tasks";
+"task_view_title" = "Task";
+"Tasks" = "Tasks";
+"Create Task" = "Create Task";
+"task_delete_confirm" = "Delete Task?";
+"task_delete_message" = "This task will be permanently deleted.";
+"no_tasks_yet" = "No tasks yet";
+"no_agents_connected" = "No agents connected";
+"task_name_placeholder" = "Task name";
+"task_prompt_placeholder" = "What should the AI do?";
+"schedule_type" = "Schedule";
+"task_date" = "Date & Time";
+"task_time" = "Time";
+"task_day_of_week" = "Day of week";
+"task_day_of_month" = "Day of month";
+"task_next_run %@" = "Next: %@";
+"task_last_run %@" = "Last: %@";
+"task_saved" = "Task saved";
+"attachment_task" = "Schedule Task";
+"task_type_once" = "One-time";
+"task_type_repeating" = "Repeating";
+"task_schedule_once" = "Once";
+"task_schedule_daily" = "Daily";
+"task_schedule_weekly" = "Weekly";
+"task_schedule_monthly" = "Monthly";
+"schedule_summary_daily" = "Daily at %@";
+"schedule_summary_weekly" = "Weekly on %1$@ at %2$@";
+"schedule_summary_monthly" = "Monthly at %@";
