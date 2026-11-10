@@ -167,7 +167,6 @@ struct NativeQRScannerRepresentable: UIViewControllerRepresentable {
                     preview.frame = self.view.bounds
                     self.view.layer.insertSublayer(preview, at: 0)
                     self.previewLayer = preview
-                    self.updateRectOfInterest()
                     self.addViewfinder()
                     #if targetEnvironment(simulator)
                     self.coordinator.fireSimulated(after: 1.0)
@@ -175,13 +174,22 @@ struct NativeQRScannerRepresentable: UIViewControllerRepresentable {
                 }
 
                 self.session.startRunning()
+                // Set rectOfInterest after startRunning so the preview layer transform is valid.
+                DispatchQueue.main.async { [weak self] in
+                    self?.updateRectOfInterest()
+                }
             }
         }
 
         // Restrict hardware QR detection to the center viewfinder area for faster decoding.
+        // Must be called after the session is running and the view has non-zero bounds;
+        // otherwise metadataOutputRectConverted produces a singular-matrix error and sets
+        // rectOfInterest to CGRectZero, which makes the hardware scan nothing.
         private func updateRectOfInterest() {
             guard let metadataOutput = session.outputs.compactMap({ $0 as? AVCaptureMetadataOutput }).first,
-                  let previewLayer else { return }
+                  let previewLayer,
+                  view.bounds.width > 0, view.bounds.height > 0,
+                  session.isRunning else { return }
             let bounds = view.bounds
             let size = min(bounds.width, bounds.height) * 0.6
             let rect = CGRect(
