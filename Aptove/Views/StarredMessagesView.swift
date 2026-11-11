@@ -5,6 +5,7 @@ struct StarredMessagesView: View {
     @AppStorage("appLanguage") private var appLanguage: String = ""
     @Binding var selectedTab: BottomTab
     @Binding var navigationPath: NavigationPath
+    @State private var hasBeenSelected = false
     @State private var searchText = ""
     @State private var avatarImages: [String: UIImage] = [:]
 
@@ -23,51 +24,56 @@ struct StarredMessagesView: View {
 
     var body: some View {
         NavigationStack {
-            // List is always the direct child of NavigationStack so the navigation bar's
-            // scroll-position tracking is always connected to it. Empty/no-results states
-            // are overlaid rather than replacing the List via a Group conditional — that
-            // pattern caused SwiftUI to initialise the title in the collapsed (inline) state
-            // when starred messages were present on first render (no loading-state transition
-            // to trigger a layout reset, unlike TasksListView which starts with ProgressView).
-            List {
-                ForEach(filtered) { item in
-                    StarredMessageRow(
-                        item: item,
-                        avatarImage: avatarImages[item.agentId],
-                        searchQuery: searchText
-                    )
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        selectedTab = .chat
-                        navigationPath = NavigationPath()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                            navigationPath.append(ChatDestination(agentId: item.agentId, scrollToMessageId: item.message.id, returnsToStarred: true))
-                        }
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button(role: .destructive) {
-                            agentManager.toggleMessageStar(messageId: item.message.id, agentId: item.agentId)
-                        } label: {
-                            Label("unstar_message", systemImage: "star.slash")
-                        }
-                    }
-                    .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
-                }
-            }
-            .listStyle(.plain)
-            .overlay {
-                if starredMessages.isEmpty {
+            Group {
+                if !hasBeenSelected || starredMessages.isEmpty {
                     emptyStateView
                 } else if filtered.isEmpty {
                     Text("no_search_results")
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List {
+                        ForEach(filtered) { item in
+                            StarredMessageRow(
+                                item: item,
+                                avatarImage: avatarImages[item.agentId],
+                                searchQuery: searchText
+                            )
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                selectedTab = .chat
+                                navigationPath = NavigationPath()
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                    navigationPath.append(ChatDestination(agentId: item.agentId, scrollToMessageId: item.message.id, returnsToStarred: true))
+                                }
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    agentManager.toggleMessageStar(messageId: item.message.id, agentId: item.agentId)
+                                } label: {
+                                    Label("unstar_message", systemImage: "star.slash")
+                                }
+                            }
+                            .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
+                        }
+                    }
+                    .listStyle(.plain)
                 }
             }
             .navigationTitle(Bundle.localized("Starred", language: appLanguage))
             .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: Text("search_starred_prompt"))
             .onAppear {
                 loadAvatars()
+            }
+            .onChange(of: selectedTab) { _, tab in
+                guard tab == .starred, !hasBeenSelected else { return }
+                // Defer by one frame so the navigation bar initialises in large-title mode
+                // (the render that fires when selectedTab changes sees emptyStateView, not List;
+                // the Task runs after that frame is committed and swaps in the real content).
+                Task { @MainActor in
+                    hasBeenSelected = true
+                    loadAvatars()
+                }
             }
         }
     }
