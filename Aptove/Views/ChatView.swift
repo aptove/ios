@@ -242,6 +242,11 @@ struct ChatView: View {
                 // Sync ChatViewModel when AgentManager's conversation grows from outside
                 // (e.g. cold-start replay after foregrounding into an open chat).
                 guard newCount > oldCount else { return }
+                // Don't reload while a streaming response is in flight. Cold-start previews
+                // appended by AgentManager during streaming would land after agentMessageIndex,
+                // triggering the bubble-seal/split logic and duplicating the response content.
+                // updateConversation() calls during streaming keep AgentManager in sync anyway.
+                guard !viewModel.isSending else { return }
                 viewModel.loadMessages()
             }
             .onDisappear {
