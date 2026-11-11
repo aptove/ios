@@ -60,6 +60,7 @@ struct StarredMessagesView: View {
                 }
             }
             .navigationTitle(Bundle.localized("Starred", language: appLanguage))
+            .navigationBarTitleDisplayMode(.large)
             .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: Text("search_starred_prompt"))
             .onAppear {
                 loadAvatars()
