@@ -34,6 +34,7 @@ struct ChatView: View {
     @State private var showTaskCreate = false
     @State private var showComputerFileBrowser = false
     @StateObject private var computerFileService = ComputerFileService()
+    @State private var showClearSessionAlert = false
     @State private var showingAgentConfig = false
     @State private var loadedAvatarImage: UIImage?
     @State private var replyingToMessage: Message? = nil
@@ -190,6 +191,17 @@ struct ChatView: View {
                 Button("OK", role: .cancel) { fileErrorMessage = nil }
             } message: {
                 Text(fileErrorMessage ?? "")
+            }
+            .alert("Clear Session?", isPresented: $showClearSessionAlert) {
+                Button("Cancel", role: .cancel) { }
+                Button("Clear", role: .destructive) {
+                    Task {
+                        await agentManager.clearSession(for: agentId)
+                        viewModel.loadMessages()
+                    }
+                }
+            } message: {
+                Text("Clear Session will delete all conversation history and start a fresh session.")
             }
             .sheet(isPresented: $showForwardAgentPicker) {
                 ForwardAgentPickerView(
@@ -740,6 +752,9 @@ struct ChatView: View {
             }
             attachmentItem(icon: "clock", label: "attachment_task", color: .cyan) {
                 showAttachmentPanel = false; showTaskCreate = true
+            }
+            attachmentItem(icon: "arrow.counterclockwise", label: "attachment_clear_session", color: .red) {
+                showAttachmentPanel = false; showClearSessionAlert = true
             }
             attachmentItem(icon: "desktopcomputer", label: "attachment_computer", color: .teal) {
                 showAttachmentPanel = false

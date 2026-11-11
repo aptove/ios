@@ -459,6 +459,10 @@ class AgentManager: ObservableObject {
         }
 
         print("📱 AgentManager: Cleared session for \(agentId)")
+
+        // Reconnect immediately to start a fresh session so Aptove Router injects
+        // MEMORY.md at session/new time before the user sends their first message.
+        _ = await connectAgent(agentId: agentId)
     }
 
     /// Connect to an agent by trying all its transport endpoints in priority order.

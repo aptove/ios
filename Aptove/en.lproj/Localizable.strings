@@ -197,6 +197,7 @@
 "task_last_run %@" = "Last: %@";
 "task_saved" = "Task saved";
 "attachment_task" = "Schedule Task";
+"attachment_clear_session" = "Clear Session";
 "task_type_once" = "One-time";
 "task_type_repeating" = "Repeating";
 "task_schedule_once" = "Once";
