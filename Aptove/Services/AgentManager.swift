@@ -100,6 +100,26 @@ class AgentManager: ObservableObject {
         }
     }
 
+    /// Re-run the auth/status check on every currently-connected agent.
+    /// Called on foreground resume so the mobile app reflects auth changes that
+    /// happened while it was backgrounded (e.g. the user logged out on the computer).
+    func recheckAuthStatusForAllAgents() {
+        for agent in agents where agent.status == .connected {
+            let agentId = agent.id
+            Task { [weak self] in
+                guard let self else { return }
+                guard let client = await self.clientCache.getClient(for: agentId) else { return }
+                guard let authResult = try? await client.checkAuthStatus() else { return }
+                await MainActor.run {
+                    if let idx = self.agents.firstIndex(where: { $0.id == agentId }) {
+                        self.agents[idx].isAuthenticated = authResult.authenticated
+                        self.agents[idx].authMessage = authResult.message
+                    }
+                }
+            }
+        }
+    }
+
     /// Start a background timer that retries disconnected agents with exponential backoff.
     ///
     /// Backoff schedule per agent: 30s → 60s → 120s → 240s → 480s → 600s (cap).
@@ -610,6 +630,18 @@ class AgentManager: ObservableObject {
                 retryFailureCounts[agentId] = 0
                 retryNotBefore.removeValue(forKey: agentId)
                 bridgeMismatchWarnings.removeValue(forKey: agentId)
+                let agentIdCapture = agentId
+                Task { [weak self] in
+                    guard let self else { return }
+                    guard let client = await self.clientCache.getClient(for: agentIdCapture) else { return }
+                    guard let authResult = try? await client.checkAuthStatus() else { return }
+                    await MainActor.run {
+                        if let idx = self.agents.firstIndex(where: { $0.id == agentIdCapture }) {
+                            self.agents[idx].isAuthenticated = authResult.authenticated
+                            self.agents[idx].authMessage = authResult.message
+                        }
+                    }
+                }
                 return true
             } else {
                 repository.updateEndpointStatus(endpointId: endpointId, isActive: false)

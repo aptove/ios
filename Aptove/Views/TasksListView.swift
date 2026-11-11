@@ -91,6 +91,7 @@ struct TasksListView: View {
                 TaskRowView(
                     item: item,
                     avatarImage: avatarImages[item.agentId],
+                    statusColor: statusColor(for: item.agentId),
                     searchQuery: searchText
                 ) { enabled in
                     toggleTask(item, enabled: enabled)
@@ -172,6 +173,16 @@ struct TasksListView: View {
         }
     }
 
+    private func statusColor(for agentId: String) -> Color {
+        guard let agent = agentManager.agents.first(where: { $0.id == agentId }) else { return .gray }
+        if agent.isAuthenticated == false { return .orange }
+        switch agent.status {
+        case .connected:    return .green
+        case .disconnected: return .gray
+        case .reconnecting: return .orange
+        }
+    }
+
     // MARK: - Mutations
 
     private func toggleTask(_ item: AgentTask, enabled: Bool) {
@@ -221,6 +232,7 @@ private struct AgentTask: Identifiable {
 private struct TaskRowView: View {
     let item: AgentTask
     var avatarImage: UIImage?
+    var statusColor: Color = .gray
     var searchQuery: String = ""
     var onToggle: ((Bool) -> Void)? = nil
 
@@ -325,13 +337,13 @@ private struct TaskRowView: View {
 
     private var agentAvatar: some View {
         ZStack {
-            Circle()
-                .fill(Color(hue: agentHue(item.agentId), saturation: 0.6, brightness: 0.8))
+            Circle().fill(statusColor)
             if let img = avatarImage {
                 Image(uiImage: img)
                     .resizable()
                     .scaledToFill()
                     .clipShape(Circle())
+                    .padding(3)
             } else {
                 Text(item.agentName.prefix(1).uppercased())
                     .font(.subheadline)
@@ -340,10 +352,5 @@ private struct TaskRowView: View {
             }
         }
         .frame(width: 40, height: 40)
-    }
-
-    private func agentHue(_ agentId: String) -> Double {
-        let hash = agentId.unicodeScalars.reduce(0) { $0 &+ Int($1.value) }
-        return Double(abs(hash) % 360) / 360.0
     }
 }

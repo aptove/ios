@@ -138,6 +138,8 @@
 "no_starred_messages_subtitle" = "Mesajları buraya kaydetmek için yıldızlayın";
 
 /* ChatView */
+"agent_auth_required" = "Kimlik Doğrulama Gerekli";
+"agent_auth_required_subtitle" = "Bu ajan kimlik doğrulaması gerektiriyor. Lütfen bilgisayarınızda oturum açın.";
 "new_messages_separator" = "Yeni Mesajlar";
 "Converting speech to text..." = "Konuşma metne dönüştürülüyor...";
 "Copy" = "Kopyala";

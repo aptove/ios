@@ -153,6 +153,7 @@ struct ContentView: View {
                 Task {
                     try? await Task.sleep(nanoseconds: 500_000_000)
                     agentManager.autoConnectAllAgents()
+                    agentManager.recheckAuthStatusForAllAgents()
                 }
             case .inactive:
                 print("🌄 [push-dbg] App became INACTIVE (transitioning)")

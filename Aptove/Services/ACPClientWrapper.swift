@@ -723,6 +723,18 @@ class ACPClientWrapper: ObservableObject {
         )
     }
 
+    /// Query the agent's authentication status without requiring an active session.
+    /// Returns nil if the agent does not advertise auth/status support.
+    func checkAuthStatus() async throws -> AuthStatusResponse? {
+        guard let proto = rawProto,
+              agentCapabilitiesV1?.auth?.status == true else { return nil }
+        return try await proto.request(
+            method: "auth/status",
+            params: AuthStatusRequest(),
+            responseType: AuthStatusResponse.self
+        )
+    }
+
     /// Called when the WebSocket transport closes unexpectedly (not via `disconnect()`).
     /// Use this to trigger multi-transport reconnect logic in AgentManager.
     var onUnexpectedDisconnect: (() -> Void)?

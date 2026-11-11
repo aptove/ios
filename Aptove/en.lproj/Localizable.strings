@@ -138,6 +138,8 @@
 "no_starred_messages_subtitle" = "Star messages to save them here";
 
 /* ChatView */
+"agent_auth_required" = "Authentication Required";
+"agent_auth_required_subtitle" = "This agent requires authentication. Please sign in on your computer.";
 "new_messages_separator" = "New Messages";
 "Converting speech to text..." = "Converting speech to text...";
 "Copy" = "Copy";

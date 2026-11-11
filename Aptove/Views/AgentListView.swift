@@ -238,6 +238,7 @@ struct AgentRow: View {
                         .resizable()
                         .scaledToFill()
                         .clipShape(Circle())
+                        .padding(3)
                 } else {
                     Text(agent.name.prefix(1).uppercased())
                         .font(.title3)
@@ -297,6 +298,7 @@ struct AgentRow: View {
     }
 
     private var statusColor: Color {
+        if agent.isAuthenticated == false { return .orange }
         switch agent.status {
         case .connected:    return .green
         case .disconnected: return .gray
@@ -304,10 +306,17 @@ struct AgentRow: View {
         }
     }
 
+    @ViewBuilder
     private var statusIndicator: some View {
-        Circle()
-            .fill(statusColor)
-            .frame(width: 8, height: 8)
+        if agent.isAuthenticated == false {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+                .font(.caption)
+        } else {
+            Circle()
+                .fill(statusColor)
+                .frame(width: 8, height: 8)
+        }
     }
 }
 

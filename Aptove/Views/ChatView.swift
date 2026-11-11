@@ -82,6 +82,34 @@ struct ChatView: View {
     }
 
     @ViewBuilder
+    private var authWarningBanner: some View {
+        if let agent = agentManager.agents.first(where: { $0.id == agentId }),
+           agent.isAuthenticated == false {
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("agent_auth_required")
+                        .font(.subheadline).fontWeight(.semibold)
+                    if let msg = agent.authMessage {
+                        Text(msg)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("agent_auth_required_subtitle")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+            }
+            .padding(12)
+            .background(Color.orange.opacity(0.12))
+            .padding(.horizontal)
+        }
+    }
+
+    @ViewBuilder
     private var messageScrollView: some View {
         ScrollViewReader { proxy in
             ScrollView {
@@ -128,6 +156,7 @@ struct ChatView: View {
             chatHeaderView
             Divider()
             bridgeMismatchBanner
+            authWarningBanner
             messageScrollView
             Divider()
             inputPanelView

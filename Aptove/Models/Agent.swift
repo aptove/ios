@@ -47,6 +47,11 @@ struct Agent: Identifiable, Codable, Equatable {
     /// User-selected ACP protocol version mode for this agent.
     var acpVersionMode: ACPVersionMode
 
+    // Auth status — populated after each successful connection if the agent
+    // advertises auth/status support. nil means unknown (agent doesn't support it).
+    var isAuthenticated: Bool? = nil
+    var authMessage: String? = nil
+
     init(
         id: String,
         name: String,
