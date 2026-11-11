@@ -126,14 +126,12 @@ class ChatViewModel: ObservableObject {
                     client.pendingBufferedResponse = nil
                     // Skip voice correction protocol responses — machine-readable JSON that
                     // must never appear in the chat UI.
-                    let trimmed = buffered.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let isVoiceCorrectionResponse: Bool = {
-                        guard trimmed.hasPrefix("{"),
-                              let data = trimmed.data(using: .utf8),
-                              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-                        else { return false }
-                        return json["corrected_text"] != nil && json.count <= 2
-                    }()
+                    // Suppress if any part of the buffer looks like a voice correction response.
+                    // Simple substring check handles single JSON, concatenated JSONs, and mixed
+                    // buffers (voice correction + prose) where JSON parsing would fail.
+                    let isVoiceCorrectionResponse =
+                        buffered.contains("\"corrected_text\":") ||
+                        buffered.contains("\"voice_correction_response\":")
                     if !isVoiceCorrectionResponse {
                         let msg = Message(
                             text: buffered,
@@ -644,39 +642,39 @@ class ChatViewModel: ObservableObject {
         // To add a language: add a case matching the 2-char language code prefix.
         let instructions: String
         switch String(voiceLanguage.prefix(2)) {
-        case "ar": instructions = "صحّح أخطاء النسخ والترقيم والقواعد النحوية. أعد فقط JSON صالحًا بحقل واحد: {\"corrected_text\": \"...\"}"
-        case "ca": instructions = "Corregeix els errors de transcripció, la puntuació i la gramàtica. Retorna NOMÉS JSON vàlid amb un únic camp: {\"corrected_text\": \"...\"}"
-        case "cs": instructions = "Oprav chyby přepisu, interpunkci a gramatiku. Vrať POUZE platný JSON s jedním polem: {\"corrected_text\": \"...\"}"
-        case "da": instructions = "Ret transskriptionsfejl, tegnsætning og grammatik. Returner KUN gyldig JSON med ét felt: {\"corrected_text\": \"...\"}"
-        case "de": instructions = "Korrigiere Transkriptionsfehler, Interpunktion und Grammatik. Gib NUR gültiges JSON mit einem einzigen Feld zurück: {\"corrected_text\": \"...\"}"
-        case "el": instructions = "Διόρθωσε τα σφάλματα μεταγραφής, στίξης και γραμματικής. Επέστρεψε ΜΟΝΟ έγκυρο JSON με ένα μόνο πεδίο: {\"corrected_text\": \"...\"}"
-        case "es": instructions = "Corrige los errores de transcripción, puntuación y gramática. Devuelve SOLO JSON válido con un único campo: {\"corrected_text\": \"...\"}"
-        case "fi": instructions = "Korjaa transkriptiovirheet, välimerkit ja kielioppi. Palauta VAIN kelvollinen JSON yhdellä kentällä: {\"corrected_text\": \"...\"}"
-        case "fr": instructions = "Corrige les erreurs de transcription, la ponctuation et la grammaire. Retourne UNIQUEMENT du JSON valide avec un seul champ : {\"corrected_text\": \"...\"}"
-        case "he": instructions = "תקן שגיאות תמלול, פיסוק ודקדוק. החזר רק JSON תקני עם שדה יחיד: {\"corrected_text\": \"...\"}"
-        case "hi": instructions = "ट्रांसक्रिप्शन त्रुटियाँ, विराम चिह्न और व्याकरण ठीक करें। केवल एक फ़ील्ड के साथ वैध JSON लौटाएँ: {\"corrected_text\": \"...\"}"
-        case "hr": instructions = "Ispravi greške transkripcije, interpunkciju i gramatiku. Vrati SAMO valjani JSON s jednim poljem: {\"corrected_text\": \"...\"}"
-        case "hu": instructions = "Javítsd az átírási hibákat, írásjeleket és nyelvtant. Csak érvényes JSON-t adj vissza egyetlen mezővel: {\"corrected_text\": \"...\"}"
-        case "id": instructions = "Perbaiki kesalahan transkripsi, tanda baca, dan tata bahasa. Kembalikan HANYA JSON yang valid dengan satu bidang: {\"corrected_text\": \"...\"}"
-        case "it": instructions = "Correggi gli errori di trascrizione, punteggiatura e grammatica. Restituisci SOLO JSON valido con un unico campo: {\"corrected_text\": \"...\"}"
-        case "ja": instructions = "文字起こしのエラー、句読点、文法を修正してください。単一フィールドの有効なJSONのみを返してください：{\"corrected_text\": \"...\"}"
-        case "ko": instructions = "전사 오류, 구두점, 문법을 수정하세요. 단일 필드가 있는 유효한 JSON만 반환하세요: {\"corrected_text\": \"...\"}"
-        case "ms": instructions = "Betulkan ralat transkripsi, tanda baca, dan tatabahasa. Kembalikan HANYA JSON yang sah dengan satu medan: {\"corrected_text\": \"...\"}"
-        case "nb", "no": instructions = "Rett transkripsjonsfeil, tegnsetting og grammatikk. Returner KUN gyldig JSON med ett felt: {\"corrected_text\": \"...\"}"
-        case "nl": instructions = "Corrigeer transcriptiefouten, interpunctie en grammatica. Geef ALLEEN geldige JSON terug met één veld: {\"corrected_text\": \"...\"}"
-        case "pl": instructions = "Popraw błędy transkrypcji, interpunkcję i gramatykę. Zwróć TYLKO poprawny JSON z jednym polem: {\"corrected_text\": \"...\"}"
-        case "pt": instructions = "Corrija erros de transcrição, pontuação e gramática. Retorne SOMENTE JSON válido com um único campo: {\"corrected_text\": \"...\"}"
-        case "ro": instructions = "Corectează erorile de transcriere, punctuația și gramatica. Returnează NUMAI JSON valid cu un singur câmp: {\"corrected_text\": \"...\"}"
-        case "ru": instructions = "Исправь ошибки транскрипции, пунктуацию и грамматику. Верни ТОЛЬКО корректный JSON с одним полем: {\"corrected_text\": \"...\"}"
-        case "sk": instructions = "Oprav chyby prepisu, interpunkciu a gramatiku. Vráť IBA platný JSON s jedným poľom: {\"corrected_text\": \"...\"}"
-        case "sv": instructions = "Rätta transkriptionsfel, skiljetecken och grammatik. Returnera BARA giltig JSON med ett enda fält: {\"corrected_text\": \"...\"}"
-        case "ta": instructions = "படியெடுப்பு பிழைகள், நிறுத்தற்குறிகள் மற்றும் இலக்கணத்தை சரிசெய்யுங்கள். ஒரே ஒரு புலத்துடன் சரியான JSONஐ மட்டுமே திருப்பி அனுப்புங்கள்: {\"corrected_text\": \"...\"}"
-        case "th": instructions = "แก้ไขข้อผิดพลาดในการถอดเสียง เครื่องหมายวรรคตอน และไวยากรณ์ ส่งคืนเฉพาะ JSON ที่ถูกต้องพร้อมฟิลด์เดียว: {\"corrected_text\": \"...\"}"
-        case "tr": instructions = "Transkripsiyon hatalarını, noktalama işaretlerini ve dil bilgisini düzelt. Yalnızca tek bir alanlı geçerli JSON döndür: {\"corrected_text\": \"...\"}"
-        case "uk": instructions = "Виправ помилки транскрипції, пунктуацію та граматику. Поверни ЛИШЕ коректний JSON з одним полем: {\"corrected_text\": \"...\"}"
-        case "vi": instructions = "Sửa lỗi phiên âm, dấu câu và ngữ pháp. Chỉ trả về JSON hợp lệ với một trường duy nhất: {\"corrected_text\": \"...\"}"
-        case "zh", "wu": instructions = "修正转录错误、标点符号和语法。仅返回包含单个字段的有效JSON：{\"corrected_text\": \"...\"}"
-        default: instructions = "Fix transcription errors, punctuation, and grammar. Return ONLY valid JSON with a single field: {\"corrected_text\": \"...\"}"
+        case "ar": instructions = "صحّح أخطاء النسخ والترقيم والقواعد النحوية. أعد فقط JSON صالحًا بحقل واحد: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "ca": instructions = "Corregeix els errors de transcripció, la puntuació i la gramàtica. Retorna NOMÉS JSON vàlid amb un únic camp: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "cs": instructions = "Oprav chyby přepisu, interpunkci a gramatiku. Vrať POUZE platný JSON s jedním polem: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "da": instructions = "Ret transskriptionsfejl, tegnsætning og grammatik. Returner KUN gyldig JSON med ét felt: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "de": instructions = "Korrigiere Transkriptionsfehler, Interpunktion und Grammatik. Gib NUR gültiges JSON mit einem einzigen Feld zurück: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "el": instructions = "Διόρθωσε τα σφάλματα μεταγραφής, στίξης και γραμματικής. Επέστρεψε ΜΟΝΟ έγκυρο JSON με ένα μόνο πεδίο: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "es": instructions = "Corrige los errores de transcripción, puntuación y gramática. Devuelve SOLO JSON válido con un único campo: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "fi": instructions = "Korjaa transkriptiovirheet, välimerkit ja kielioppi. Palauta VAIN kelvollinen JSON yhdellä kentällä: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "fr": instructions = "Corrige les erreurs de transcription, la ponctuation et la grammaire. Retourne UNIQUEMENT du JSON valide avec un seul champ : {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "he": instructions = "תקן שגיאות תמלול, פיסוק ודקדוק. החזר רק JSON תקני עם שדה יחיד: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "hi": instructions = "ट्रांसक्रिप्शन त्रुटियाँ, विराम चिह्न और व्याकरण ठीक करें। केवल एक फ़ील्ड के साथ वैध JSON लौटाएँ: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "hr": instructions = "Ispravi greške transkripcije, interpunkciju i gramatiku. Vrati SAMO valjani JSON s jednim poljem: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "hu": instructions = "Javítsd az átírási hibákat, írásjeleket és nyelvtant. Csak érvényes JSON-t adj vissza egyetlen mezővel: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "id": instructions = "Perbaiki kesalahan transkripsi, tanda baca, dan tata bahasa. Kembalikan HANYA JSON yang valid dengan satu bidang: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "it": instructions = "Correggi gli errori di trascrizione, punteggiatura e grammatica. Restituisci SOLO JSON valido con un unico campo: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "ja": instructions = "文字起こしのエラー、句読点、文法を修正してください。単一フィールドの有効なJSONのみを返してください：{\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "ko": instructions = "전사 오류, 구두점, 문법을 수정하세요. 단일 필드가 있는 유효한 JSON만 반환하세요: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "ms": instructions = "Betulkan ralat transkripsi, tanda baca, dan tatabahasa. Kembalikan HANYA JSON yang sah dengan satu medan: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "nb", "no": instructions = "Rett transkripsjonsfeil, tegnsetting og grammatikk. Returner KUN gyldig JSON med ett felt: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "nl": instructions = "Corrigeer transcriptiefouten, interpunctie en grammatica. Geef ALLEEN geldige JSON terug met één veld: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "pl": instructions = "Popraw błędy transkrypcji, interpunkcję i gramatykę. Zwróć TYLKO poprawny JSON z jednym polem: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "pt": instructions = "Corrija erros de transcrição, pontuação e gramática. Retorne SOMENTE JSON válido com um único campo: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "ro": instructions = "Corectează erorile de transcriere, punctuația și gramatica. Returnează NUMAI JSON valid cu un singur câmp: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "ru": instructions = "Исправь ошибки транскрипции, пунктуацию и грамматику. Верни ТОЛЬКО корректный JSON с одним полем: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "sk": instructions = "Oprav chyby prepisu, interpunkciu a gramatiku. Vráť IBA platný JSON s jedným poľom: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "sv": instructions = "Rätta transkriptionsfel, skiljetecken och grammatik. Returnera BARA giltig JSON med ett enda fält: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "ta": instructions = "படியெடுப்பு பிழைகள், நிறுத்தற்குறிகள் மற்றும் இலக்கணத்தை சரிசெய்யுங்கள். ஒரே ஒரு புலத்துடன் சரியான JSONஐ மட்டுமே திருப்பி அனுப்புங்கள்: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "th": instructions = "แก้ไขข้อผิดพลาดในการถอดเสียง เครื่องหมายวรรคตอน และไวยากรณ์ ส่งคืนเฉพาะ JSON ที่ถูกต้องพร้อมฟิลด์เดียว: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "tr": instructions = "Transkripsiyon hatalarını, noktalama işaretlerini ve dil bilgisini düzelt. Yalnızca tek bir alanlı geçerli JSON döndür: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "uk": instructions = "Виправ помилки транскрипції, пунктуацію та граматику. Поверни ЛИШЕ коректний JSON з одним полем: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "vi": instructions = "Sửa lỗi phiên âm, dấu câu và ngữ pháp. Chỉ trả về JSON hợp lệ với một trường duy nhất: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        case "zh", "wu": instructions = "修正转录错误、标点符号和语法。仅返回包含单个字段的有效JSON：{\"corrected_text\": \"...\", \"voice_correction_response\": true}"
+        default: instructions = "Fix transcription errors, punctuation, and grammar. Return ONLY valid JSON with a single field: {\"corrected_text\": \"...\", \"voice_correction_response\": true}"
         }
 
         let correctionJson = """

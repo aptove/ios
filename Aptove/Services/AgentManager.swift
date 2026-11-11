@@ -544,11 +544,11 @@ class AgentManager: ObservableObject {
                 Task { @MainActor in
                     // Skip voice correction protocol responses — these are machine-readable JSON
                     // returned by the LLM for speech enhancement and must never show in chat.
-                    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if trimmed.hasPrefix("{"),
-                       let data = trimmed.data(using: .utf8),
-                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       json["corrected_text"] != nil, json.count <= 2 {
+                    // Suppress if any part of the buffer looks like a voice correction response.
+                    // Simple substring check handles single JSON, concatenated JSONs, and mixed
+                    // buffers (voice correction + prose) where JSON parsing would fail.
+                    if text.contains("\"corrected_text\":") ||
+                       text.contains("\"voice_correction_response\":") {
                         client?.pendingBufferedResponse = nil
                         return
                     }
