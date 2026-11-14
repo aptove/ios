@@ -339,27 +339,8 @@ struct ChatView: View {
 
     var body: some View {
         chatLifecycleView
-            .toolbar(scrollToMessageId != nil ? .visible : .hidden, for: .navigationBar)
-            .toolbarBackground(.hidden, for: .navigationBar)
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationTitle("")
+            .toolbar(.hidden, for: .navigationBar)
             .navigationBarBackButtonHidden(true)
-            .toolbar {
-                if scrollToMessageId != nil {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button {
-                            dismiss()
-                            onDismiss?()
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "chevron.left")
-                                Text(onDismiss != nil ? "back_to_starred" : "back_to_search")
-                                    .font(.subheadline)
-                            }
-                        }
-                    }
-                }
-            }
             .navigationDestination(isPresented: $showingAgentConfig) {
                 AgentConfigurationView(agentId: agentId)
             }
@@ -427,7 +408,7 @@ struct ChatView: View {
 
     private var chatHeaderView: some View {
         HStack(spacing: 4) {
-            Button { dismiss() } label: {
+            Button { dismiss(); onDismiss?() } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(.accentColor)
