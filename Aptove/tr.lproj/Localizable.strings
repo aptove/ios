@@ -196,8 +196,8 @@
 "task_next_run %@" = "Sonraki: %@";
 "task_last_run %@" = "Son: %@";
 "task_saved" = "Görev kaydedildi";
-"attachment_task" = "Görev Planla";
-"attachment_clear_session" = "Oturumu Temizle";
+"attachment_task" = "Görev";
+"attachment_clear_session" = "Oturum";
 "task_type_once" = "Tek Seferlik";
 "task_type_repeating" = "Tekrarlayan";
 "task_schedule_once" = "Bir Kez";
