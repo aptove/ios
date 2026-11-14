@@ -417,3 +417,19 @@ Priority determines which endpoint is preferred for auto-connect. Computed dynam
 | 1 | `tailscale-ip` |
 | 2 | Enterprise plugins (anything registered in `FeatureRegistry`) |
 | 3 | `local` (fallback) |
+
+
+---
+
+## Encryption Export Compliance
+
+The app declares `ITSAppUsesNonExemptEncryption = NO`. This is correct as of November 2026 — all dependencies use only OS-provided encryption (TLS via URLSession, Keychain).
+
+**When adding a new Swift package dependency**, check whether it implements any cryptographic algorithms itself (e.g. custom TLS, AES/RSA outside of Apple's frameworks, password hashing, JWT signing, etc.). If it does:
+
+1. **Flag it to the developer immediately** before merging — say: "This package (`<name>`) implements `<algorithm>` — this may require updating the encryption export declaration (`ITSAppUsesNonExemptEncryption`) and potentially filing documentation with Apple."
+2. Update the dependency audit table in `README.md` with the new package and its encryption status.
+
+Packages that are **always safe** (no disclosure needed): UI libraries, layout helpers, logging, data structures, image loading via standard HTTPS, Markdown renderers, syntax highlighters.
+
+Packages that **need scrutiny**: anything that imports `CryptoKit`, `CommonCrypto`, `Security` directly, links OpenSSL/BoringSSL/libsodium, or has "crypto", "JWT", "TLS", "cipher", "hash" in its description.

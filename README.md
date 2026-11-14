@@ -257,6 +257,28 @@ This is useful when Aptove Router restarts and generates new credentials.
 - [ ] Session management (fork, resume)
 - [ ] Widget support
 
+## 🔐 Encryption Export Compliance
+
+This app is distributed via the Apple App Store and is subject to U.S. export regulations. The app declares `ITSAppUsesNonExemptEncryption = NO` in its build settings, which is accurate because:
+
+- All network communication uses TLS via Apple's `URLSession` / `URLSessionWebSocketTask` (OS-provided encryption)
+- Credentials are stored in the iOS Keychain (OS-provided encryption)
+- No custom or third-party cryptographic algorithms are implemented
+
+### Dependencies audit (verified November 2026)
+
+| Package | Purpose | Encryption |
+|---------|---------|-----------|
+| `aptove/swift-sdk` | ACP WebSocket protocol | None — delegates to `URLSession` |
+| `apple/swift-log` | Logging | None |
+| `apple/swift-collections` | Data structures | None |
+| `gonzalezreal/NetworkImage` | Async image loading | None — uses `URLCache` + HTTPS |
+| `gonzalezreal/swift-markdown-ui` | Markdown rendering | None |
+| `swiftlang/swift-cmark` | Markdown parser | None |
+| `JohnSundell/Splash` | Syntax highlighting | None |
+
+---
+
 ## ⚖️ License & Trademarks
 
 ### Software License
