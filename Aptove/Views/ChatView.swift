@@ -162,6 +162,7 @@ struct ChatView: View {
             Divider()
             inputPanelView
         }
+        .background(Color(.systemBackground).ignoresSafeArea(.container, edges: .bottom))
         .onChange(of: messageText) { _, text in
             if !text.isEmpty { showAttachmentPanel = false }
             if text.hasPrefix("/"), !text.contains(" ") {
