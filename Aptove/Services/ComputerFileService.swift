@@ -31,7 +31,7 @@ enum FileContentResult {
 /// routes the bridge responses back to callers via async/await continuations.
 @MainActor
 class ComputerFileService: ObservableObject {
-    weak var client: ACPClientWrapper?
+    var client: ACPClientWrapper?
 
     // Pending continuations keyed by normalised path.
     // Only one outstanding request per path at a time is supported.
@@ -47,12 +47,23 @@ class ComputerFileService: ObservableObject {
             throw FileServiceError.notConnected
         }
         let key = path
-        return try await withCheckedThrowingContinuation { cont in
-            pendingList[key] = cont
-            Task {
-                let params: JsonValue = .object(["path": .string(path)])
-                await client.sendBridgeMessage(method: "bridge/files/list", params: params)
+        return try await withThrowingTaskGroup(of: FileListResult.self) { group in
+            group.addTask {
+                try await withCheckedThrowingContinuation { cont in
+                    self.pendingList[key] = cont
+                    Task {
+                        let params: JsonValue = .object(["path": .string(path)])
+                        await client.sendBridgeMessage(method: "bridge/files/list", params: params)
+                    }
+                }
             }
+            group.addTask {
+                try await Task.sleep(nanoseconds: 10_000_000_000) // 10s timeout
+                throw FileServiceError.timeout
+            }
+            let result = try await group.next()!
+            group.cancelAll()
+            return result
         }
     }
 
@@ -137,11 +148,13 @@ class ComputerFileService: ObservableObject {
 enum FileServiceError: LocalizedError {
     case notConnected
     case bridgeError(String)
+    case timeout
 
     var errorDescription: String? {
         switch self {
         case .notConnected: return "Not connected to Aptove"
         case .bridgeError(let msg): return "Bridge error: \(msg)"
+        case .timeout: return "Request timed out"
         }
     }
 }

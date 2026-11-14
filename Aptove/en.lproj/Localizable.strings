@@ -120,6 +120,7 @@
 "computer_files_empty" = "This folder is empty";
 "computer_files_error" = "Could not load files";
 "computer_files_forbidden" = "Access denied";
+"retry_button" = "Retry";
 "close_button" = "Close";
 
 /* File viewer */

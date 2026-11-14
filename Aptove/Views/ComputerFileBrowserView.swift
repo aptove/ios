@@ -17,7 +17,7 @@ struct ComputerFileBrowserView: View {
     @State private var navigationPath: [String] = []
     @State private var entries: [String: [FileEntry]] = [:] // path → entries
     @State private var loadingPaths: Set<String> = []
-    @State private var errorPaths: Set<String> = []
+    @State private var errorPaths: [String: String] = [:] // path → error message
 
     // Thumbnail cache: relative path → UIImage
     @State private var thumbnails: [String: UIImage] = [:]
@@ -44,7 +44,8 @@ struct ComputerFileBrowserView: View {
     private func directoryView(path: String) -> some View {
         let pathEntries = entries[path] ?? []
         let isLoading = loadingPaths.contains(path)
-        let hasError = errorPaths.contains(path)
+        let errorMessage = errorPaths[path]
+        let hasError = errorMessage != nil
         let title = path.isEmpty ? Bundle.localized("computer_files_title", language: appLanguage)
                                  : URL(fileURLWithPath: path).lastPathComponent
 
@@ -53,11 +54,23 @@ struct ComputerFileBrowserView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if hasError {
-                VStack(spacing: 12) {
+                VStack(spacing: 16) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.largeTitle).foregroundColor(.orange)
                     Text("computer_files_error")
                         .foregroundColor(.secondary)
+                    if let msg = errorMessage {
+                        Text(msg)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+                    Button("retry_button") {
+                        errorPaths.removeValue(forKey: path)
+                        entries.removeValue(forKey: path)
+                    }
+                    .buttonStyle(.bordered)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if pathEntries.isEmpty && !isLoading {
@@ -204,14 +217,13 @@ struct ComputerFileBrowserView: View {
     // MARK: - Data Loading
 
     private func loadDirectory(path: String) async {
-        guard entries[path] == nil else { return }
+        guard entries[path] == nil, errorPaths[path] == nil else { return }
         loadingPaths.insert(path)
-        errorPaths.remove(path)
         do {
             let result = try await fileService.listFiles(path: path)
             entries[path] = result.entries
         } catch {
-            errorPaths.insert(path)
+            errorPaths[path] = error.localizedDescription
         }
         loadingPaths.remove(path)
     }

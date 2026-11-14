@@ -120,6 +120,7 @@
 "computer_files_empty" = "Bu klasör boş";
 "computer_files_error" = "Dosyalar yüklenemedi";
 "computer_files_forbidden" = "Erişim reddedildi";
+"retry_button" = "Tekrar Dene";
 "close_button" = "Kapat";
 
 /* File viewer */
