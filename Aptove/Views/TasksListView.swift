@@ -10,9 +10,11 @@ struct TasksListView: View {
 
     @State private var allTasks: [AgentTask] = []
     @State private var isLoading = false
+    @State private var hasLoadedOnce = false
     @State private var searchText = ""
     @State private var avatarImages: [String: UIImage] = [:]
     @State private var editingTask: AgentTask?
+    @State private var lastConnectedIds: Set<String> = []
 
     // Show all tasks — one-time tasks are always enabled; recurring tasks can be enabled/disabled.
     // Disabled recurring tasks are not executed but are not deleted; they remain visible here.
@@ -31,7 +33,7 @@ struct TasksListView: View {
             Group {
                 if agentManager.agents.isEmpty {
                     emptyAgentsView
-                } else if isLoading && allTasks.isEmpty {
+                } else if !hasLoadedOnce || (isLoading && allTasks.isEmpty) {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if allTasks.isEmpty {
@@ -53,6 +55,15 @@ struct TasksListView: View {
             .onAppear { loadTasks() }
             .onChange(of: selectedTab) { _, tab in
                 if tab == .tasks { loadTasks() }
+            }
+            .onChange(of: agentManager.agents) { _, agents in
+                // Reload when a new agent connects (status changes to .connected)
+                let connectedIds = Set(agents.filter { $0.status == .connected }.map(\.id))
+                let newlyConnected = connectedIds.subtracting(lastConnectedIds)
+                lastConnectedIds = connectedIds
+                if !newlyConnected.isEmpty && selectedTab == .tasks {
+                    loadTasks()
+                }
             }
             .refreshable { await refreshTasks() }
         }
@@ -121,33 +132,35 @@ struct TasksListView: View {
 
     // MARK: - Data loading
 
+    /// Fetch tasks only from already-connected agents.
+    /// Querying disconnected agents blocks for 9+ seconds (connection retries)
+    /// which stalls the entire load. The `.onChange(of: agentManager.agents)` observer
+    /// triggers a reload when a disconnected agent reconnects.
     private func loadTasks() {
         isLoading = true
-        let agents = agentManager.agents
+        let connectedAgents = agentManager.agents.filter { $0.status == .connected }
         Task {
-            var result: [AgentTask] = []
-            await withTaskGroup(of: [AgentTask].self) { group in
-                for agent in agents {
-                    group.addTask {
-                        guard let tasks = try? await agentManager.listTasks(for: agent.id) else { return [] }
-                        return tasks.map { AgentTask(task: $0, agentId: agent.id, agentName: agent.name) }
-                    }
-                }
-                for await agentTasks in group {
-                    result.append(contentsOf: agentTasks)
-                }
-            }
-            let sorted = result.sorted { ($0.task.nextRunAt ?? "") < ($1.task.nextRunAt ?? "") }
+            let result = await fetchTasks(from: connectedAgents)
             await MainActor.run {
-                allTasks = sorted
+                allTasks = result
                 isLoading = false
+                hasLoadedOnce = true
                 loadAvatars()
             }
         }
     }
 
+    /// Pull-to-refresh queries all connected agents.
     private func refreshTasks() async {
-        let agents = agentManager.agents
+        let connectedAgents = agentManager.agents.filter { $0.status == .connected }
+        let result = await fetchTasks(from: connectedAgents)
+        await MainActor.run {
+            allTasks = result
+            loadAvatars()
+        }
+    }
+
+    private func fetchTasks(from agents: [Agent]) async -> [AgentTask] {
         var result: [AgentTask] = []
         await withTaskGroup(of: [AgentTask].self) { group in
             for agent in agents {
@@ -160,11 +173,7 @@ struct TasksListView: View {
                 result.append(contentsOf: agentTasks)
             }
         }
-        let sorted = result.sorted { ($0.task.nextRunAt ?? "") < ($1.task.nextRunAt ?? "") }
-        await MainActor.run {
-            allTasks = sorted
-            loadAvatars()
-        }
+        return result.sorted { ($0.task.nextRunAt ?? "") < ($1.task.nextRunAt ?? "") }
     }
 
     private func loadAvatars() {
