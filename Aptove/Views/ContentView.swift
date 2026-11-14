@@ -1,16 +1,9 @@
 import SwiftUI
 import UIKit
 
-enum BottomTab { case chat, starred, tasks, settings }
+enum BottomTab: Hashable { case chat, starred, tasks, settings }
 
-// MARK: - Tab bar height propagation
-
-private struct TabBarHeightPreference: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
-    }
-}
+// MARK: - Tab bar height (kept for sub-views that add bottom padding)
 
 private struct TabBarHeightKey: EnvironmentKey {
     static let defaultValue: CGFloat = 0
@@ -52,7 +45,6 @@ struct ContentView: View {
     @State private var showingQRScanner = false
     @State private var navigationPath = NavigationPath()
     @State private var hasGoneToBackground = false
-    @State private var tabBarHeight: CGFloat = 0
     @State private var searchText = ""
     @State private var isSearchActive = false
 
@@ -61,8 +53,8 @@ struct ContentView: View {
     }
 
     var body: some View {
-        ZStack {
-            // Chat tab — always rendered so NavigationStack state is preserved
+        TabView(selection: $selectedTab) {
+            // Chat tab — NavigationStack persists while tab is active
             NavigationStack(path: $navigationPath) {
                 Group {
                     if agentManager.agents.isEmpty {
@@ -78,7 +70,9 @@ struct ContentView: View {
                         isInChat: $isInChat,
                         onDismiss: dest.returnsToStarred ? { selectedTab = .starred } : nil
                     )
+                    .toolbar(.hidden, for: .tabBar)
                 }
+                .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
                 .navigationTitle(Bundle.localized("Agents", language: appLanguage))
                 .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: Text("search_conversations_prompt"))
                 .toolbar {
@@ -94,38 +88,30 @@ struct ContentView: View {
                     QRScannerView(isPresented: $showingQRScanner)
                 }
             }
-            .opacity(selectedTab == .chat ? 1 : 0)
-            .allowsHitTesting(selectedTab == .chat)
-
-            // Starred tab
-            StarredMessagesView(selectedTab: $selectedTab, navigationPath: $navigationPath)
-                .opacity(selectedTab == .starred ? 1 : 0)
-                .allowsHitTesting(selectedTab == .starred)
-
-            // Tasks tab
-            TasksListView(selectedTab: $selectedTab)
-                .opacity(selectedTab == .tasks ? 1 : 0)
-                .allowsHitTesting(selectedTab == .tasks)
-
-            // Settings tab — full screen, not a sheet
-            SettingsView()
-                .opacity(selectedTab == .settings ? 1 : 0)
-                .allowsHitTesting(selectedTab == .settings)
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if navigationPath.isEmpty && !isSearchActive {
-                BottomTabBar(selectedTab: $selectedTab)
-                    .padding(.bottom, 8)
-                    .background(GeometryReader { geo in
-                        Color.clear.preference(
-                            key: TabBarHeightPreference.self,
-                            value: geo.size.height
-                        )
-                    })
+            .toolbar(isSearchActive ? .hidden : .visible, for: .tabBar)
+            .tabItem {
+                Label(Bundle.localized("Chat", language: appLanguage), systemImage: "bubble.left.and.bubble.right.fill")
             }
+            .tag(BottomTab.chat)
+
+            StarredMessagesView(selectedTab: $selectedTab, navigationPath: $navigationPath)
+                .tabItem {
+                    Label(Bundle.localized("Starred", language: appLanguage), systemImage: "star.fill")
+                }
+                .tag(BottomTab.starred)
+
+            TasksListView(selectedTab: $selectedTab)
+                .tabItem {
+                    Label(Bundle.localized("Tasks", language: appLanguage), systemImage: "clock.fill")
+                }
+                .tag(BottomTab.tasks)
+
+            SettingsView()
+                .tabItem {
+                    Label(Bundle.localized("Settings", language: appLanguage), systemImage: "gearshape.fill")
+                }
+                .tag(BottomTab.settings)
         }
-        .onPreferenceChange(TabBarHeightPreference.self) { tabBarHeight = $0 }
-        .environment(\.tabBarHeight, tabBarHeight)
         .onAppear {
             print("🖥️  ContentView: View appeared and rendered")
         }
@@ -197,7 +183,7 @@ struct ContentView: View {
             // Ensure we're on the chat tab and pop to root before pushing
             selectedTab = .chat
             navigationPath = NavigationPath()
-            // Small delay so NavigationStack resets before pushing
+            // Known SwiftUI constraint: NavigationStack needs a frame to reset before push.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 navigationPath.append(ChatDestination(agentId: agent.id, scrollToMessageId: nil))
             }
@@ -211,61 +197,6 @@ struct ContentView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 navigationPath.append(ChatDestination(agentId: agentId, scrollToMessageId: nil))
             }
-        }
-    }
-}
-
-private struct BottomTabBar: View {
-    @Binding var selectedTab: BottomTab
-
-    var body: some View {
-        HStack(spacing: 0) {
-            TabBarButton(icon: "bubble.left.and.bubble.right.fill", label: "Chat", selected: selectedTab == .chat) {
-                selectedTab = .chat
-            }
-            TabBarButton(icon: "star.fill", label: "Starred", selected: selectedTab == .starred) {
-                selectedTab = .starred
-            }
-            TabBarButton(icon: "clock.fill", label: "Tasks", selected: selectedTab == .tasks) {
-                selectedTab = .tasks
-            }
-            TabBarButton(icon: "gearshape.fill", label: "Settings", selected: selectedTab == .settings) {
-                selectedTab = .settings
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 24)
-                .fill(.bar)
-                .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
-        )
-        .padding(.horizontal, 24)
-    }
-}
-
-private struct TabBarButton: View {
-    let icon: String
-    let label: LocalizedStringKey
-    let selected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 22))
-                Text(label)
-                    .font(.caption2)
-                    .fontWeight(.medium)
-            }
-            .foregroundColor(selected ? .blue : .secondary)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(selected ? Color.blue.opacity(0.12) : Color.clear)
-            )
         }
     }
 }

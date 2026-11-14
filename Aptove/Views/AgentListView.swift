@@ -86,6 +86,7 @@ struct AgentListView: View {
                 }
             }
         }
+        .listStyle(.plain)
         .onChange(of: isSearching) { _, active in isSearchActive = active }
         .onAppear { loadAvatars() }
         .sheet(isPresented: Binding(
