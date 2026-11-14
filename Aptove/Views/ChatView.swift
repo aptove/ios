@@ -295,8 +295,8 @@ struct ChatView: View {
                 // Do NOT clear activeChatAgentId here — onDisappear fires when the app
                 // backgrounds (not just on navigation). Keeping it set lets
                 // onColdStartReplayComplete place the separator correctly on foreground.
-                // activeChatAgentId is cleared in ContentView when navigationPath becomes
-                // empty (user actually navigated back to the agent list).
+                // activeChatAgentId is cleared in ContentView when activeChatDestination
+                // becomes nil (user actually navigated back to the agent list).
                 agentManager.newMessageStartIds.removeValue(forKey: agentId)
             }
     }
@@ -411,7 +411,7 @@ struct ChatView: View {
 
     private var chatHeaderView: some View {
         HStack(spacing: 4) {
-            Button { dismiss(); onDismiss?() } label: {
+            Button { if let onDismiss { onDismiss() } else { dismiss() } } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(.accentColor)

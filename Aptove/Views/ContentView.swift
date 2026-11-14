@@ -43,92 +43,106 @@ struct ContentView: View {
     @State private var selectedTab: BottomTab = .chat
     @State private var isInChat = false
     @State private var showingQRScanner = false
-    @State private var navigationPath = NavigationPath()
     @State private var hasGoneToBackground = false
     @State private var searchText = ""
     @State private var isSearchActive = false
+    @State private var activeChatDestination: ChatDestination?
 
     init() {
         print("🖥️  ContentView: Initializing...")
     }
 
+    private var isChatOpen: Bool { activeChatDestination != nil }
+
     var body: some View {
-        TabView(selection: $selectedTab) {
-            // Chat tab — NavigationStack persists while tab is active
-            NavigationStack(path: $navigationPath) {
-                Group {
-                    if agentManager.agents.isEmpty {
-                        EmptyStateView()
-                    } else {
-                        AgentListView(isInChat: $isInChat, searchText: searchText, isSearchActive: $isSearchActive)
+        ZStack {
+            TabView(selection: $selectedTab) {
+                NavigationStack {
+                    Group {
+                        if agentManager.agents.isEmpty {
+                            EmptyStateView()
+                        } else {
+                            AgentListView(
+                                isInChat: $isInChat,
+                                searchText: searchText,
+                                isSearchActive: $isSearchActive,
+                                activeChatDestination: $activeChatDestination
+                            )
+                        }
+                    }
+                    .navigationTitle(Bundle.localized("Agents", language: appLanguage))
+                    .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: Text("search_conversations_prompt"))
+                    .toolbar {
+                        ToolbarItem(placement: .primaryAction) {
+                            Button {
+                                showingQRScanner = true
+                            } label: {
+                                Image(systemName: "plus")
+                            }
+                        }
+                    }
+                    .sheet(isPresented: $showingQRScanner) {
+                        QRScannerView(isPresented: $showingQRScanner)
                     }
                 }
-                .navigationDestination(for: ChatDestination.self) { dest in
+                .toolbar(isSearchActive ? .hidden : .visible, for: .tabBar)
+                .tabItem {
+                    Label(Bundle.localized("Chat", language: appLanguage), systemImage: "bubble.left.and.bubble.right.fill")
+                }
+                .tag(BottomTab.chat)
+
+                StarredMessagesView(selectedTab: $selectedTab, activeChatDestination: $activeChatDestination)
+                    .tabItem {
+                        Label(Bundle.localized("Starred", language: appLanguage), systemImage: "star.fill")
+                    }
+                    .tag(BottomTab.starred)
+
+                TasksListView(selectedTab: $selectedTab)
+                    .tabItem {
+                        Label(Bundle.localized("Tasks", language: appLanguage), systemImage: "clock.fill")
+                    }
+                    .tag(BottomTab.tasks)
+
+                SettingsView()
+                    .tabItem {
+                        Label(Bundle.localized("Settings", language: appLanguage), systemImage: "gearshape.fill")
+                    }
+                    .tag(BottomTab.settings)
+            }
+
+            // Full-screen chat overlay — sits above the TabView, completely hides tab bar
+            if let dest = activeChatDestination {
+                NavigationStack {
                     ChatView(
                         agentId: dest.agentId,
                         scrollToMessageId: dest.scrollToMessageId,
                         isInChat: $isInChat,
-                        onDismiss: dest.returnsToStarred ? { selectedTab = .starred } : nil
-                    )
-                    .toolbar(.hidden, for: .tabBar)
-                }
-                .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
-                .navigationTitle(Bundle.localized("Agents", language: appLanguage))
-                .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: Text("search_conversations_prompt"))
-                .toolbar {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button {
-                            showingQRScanner = true
-                        } label: {
-                            Image(systemName: "plus")
+                        onDismiss: {
+                            activeChatDestination = nil
+                            if dest.returnsToStarred {
+                                selectedTab = .starred
+                            }
                         }
-                    }
+                    )
+                    .toolbar(.hidden, for: .navigationBar)
+                    .navigationBarBackButtonHidden(true)
                 }
-                .sheet(isPresented: $showingQRScanner) {
-                    QRScannerView(isPresented: $showingQRScanner)
-                }
+                .transition(.move(edge: .trailing))
             }
-            .toolbar(isSearchActive ? .hidden : .visible, for: .tabBar)
-            .tabItem {
-                Label(Bundle.localized("Chat", language: appLanguage), systemImage: "bubble.left.and.bubble.right.fill")
-            }
-            .tag(BottomTab.chat)
-
-            StarredMessagesView(selectedTab: $selectedTab, navigationPath: $navigationPath)
-                .tabItem {
-                    Label(Bundle.localized("Starred", language: appLanguage), systemImage: "star.fill")
-                }
-                .tag(BottomTab.starred)
-
-            TasksListView(selectedTab: $selectedTab)
-                .tabItem {
-                    Label(Bundle.localized("Tasks", language: appLanguage), systemImage: "clock.fill")
-                }
-                .tag(BottomTab.tasks)
-
-            SettingsView()
-                .tabItem {
-                    Label(Bundle.localized("Settings", language: appLanguage), systemImage: "gearshape.fill")
-                }
-                .tag(BottomTab.settings)
         }
+        .animation(.easeInOut(duration: 0.3), value: isChatOpen)
         .onAppear {
             print("🖥️  ContentView: View appeared and rendered")
         }
-        .onChange(of: navigationPath.isEmpty) { _, isEmpty in
-            // When the user pops back to the agent list, clear activeChatAgentId so
-            // unread increments and separators are not suppressed for future chats.
-            if isEmpty {
+        .onChange(of: activeChatDestination) { _, dest in
+            if dest == nil {
                 agentManager.activeChatAgentId = nil
             }
         }
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
             case .active:
-                // SwiftUI fires onDisappear on ChatView when app backgrounds, setting
-                // isInChat = false. onAppear may not reliably re-fire on foreground.
-                // Restore isInChat if the navigation stack still has items (we're in a chat).
-                if !navigationPath.isEmpty {
+                if activeChatDestination != nil {
                     isInChat = true
                 }
                 guard hasGoneToBackground else {
@@ -163,8 +177,6 @@ struct ContentView: View {
             guard let agentName else { return }
             Task { @MainActor in pushManager.backgroundPushAgentName = nil }
             guard let agent = agentManager.agents.first(where: { $0.name == agentName }) else { return }
-            // Reconnect so the bridge replays buffered messages → onColdStartReplayComplete
-            // fires → badge + preview update without user opening the chat.
             Task {
                 _ = await agentManager.connectAgent(agentId: agent.id)
             }
@@ -174,29 +186,19 @@ struct ContentView: View {
             Task { @MainActor in pushManager.tappedAgentName = nil }
             print("🔔 [push-dbg] Navigating to agent: \(agentName)")
 
-            // Match by name (push payload carries agent name, not internal ID)
             guard let agent = agentManager.agents.first(where: { $0.name == agentName }) else {
                 print("🔔 [push-dbg] No agent found with name '\(agentName)'")
                 return
             }
 
-            // Ensure we're on the chat tab and pop to root before pushing
             selectedTab = .chat
-            navigationPath = NavigationPath()
-            // Known SwiftUI constraint: NavigationStack needs a frame to reset before push.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                navigationPath.append(ChatDestination(agentId: agent.id, scrollToMessageId: nil))
-            }
+            activeChatDestination = ChatDestination(agentId: agent.id, scrollToMessageId: nil)
         }
         .onChange(of: agentManager.forwardNavigationRequest) { _, agentId in
             guard let agentId else { return }
             Task { @MainActor in agentManager.forwardNavigationRequest = nil }
             selectedTab = .chat
-            navigationPath = NavigationPath()
-            // Known SwiftUI constraint: NavigationStack needs a frame to reset before push.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                navigationPath.append(ChatDestination(agentId: agentId, scrollToMessageId: nil))
-            }
+            activeChatDestination = ChatDestination(agentId: agentId, scrollToMessageId: nil)
         }
     }
 }

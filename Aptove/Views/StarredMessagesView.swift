@@ -4,7 +4,7 @@ struct StarredMessagesView: View {
     @EnvironmentObject private var agentManager: AgentManager
     @AppStorage("appLanguage") private var appLanguage: String = ""
     @Binding var selectedTab: BottomTab
-    @Binding var navigationPath: NavigationPath
+    @Binding var activeChatDestination: ChatDestination?
     @State private var hasBeenSelected = false
     @State private var searchText = ""
     @State private var avatarImages: [String: UIImage] = [:]
@@ -42,11 +42,7 @@ struct StarredMessagesView: View {
                             )
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                selectedTab = .chat
-                                navigationPath = NavigationPath()
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                    navigationPath.append(ChatDestination(agentId: item.agentId, scrollToMessageId: item.message.id, returnsToStarred: true))
-                                }
+                                activeChatDestination = ChatDestination(agentId: item.agentId, scrollToMessageId: item.message.id, returnsToStarred: true)
                             }
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 Button(role: .destructive) {

@@ -17,6 +17,7 @@ struct AgentListView: View {
     @Binding var isInChat: Bool
     var searchText: String = ""
     @Binding var isSearchActive: Bool
+    @Binding var activeChatDestination: ChatDestination?
     @Environment(\.isSearching) private var isSearching
     @State private var agentToDelete: Agent?
     @State private var showingDeleteConfirmation = false
@@ -39,9 +40,12 @@ struct AgentListView: View {
         List {
             if searchText.isEmpty {
                 ForEach(agentManager.agents) { agent in
-                    NavigationLink(value: ChatDestination(agentId: agent.id, scrollToMessageId: nil)) {
+                    Button {
+                        activeChatDestination = ChatDestination(agentId: agent.id, scrollToMessageId: nil)
+                    } label: {
                         AgentRow(agent: agent, avatarImage: avatarImages[agent.id])
                     }
+                    .tint(.primary)
                     .contextMenu {
                         Button {
                             agentToConfigureId = agent.id
@@ -79,9 +83,12 @@ struct AgentListView: View {
                         .listRowSeparator(.hidden)
                 } else {
                     ForEach(searchResults) { result in
-                        NavigationLink(value: ChatDestination(agentId: result.agentId, scrollToMessageId: result.id)) {
+                        Button {
+                            activeChatDestination = ChatDestination(agentId: result.agentId, scrollToMessageId: result.id)
+                        } label: {
                             SearchResultRow(result: result, query: searchText)
                         }
+                        .tint(.primary)
                     }
                 }
             }
@@ -323,7 +330,7 @@ struct AgentRow: View {
 
 #Preview {
     NavigationStack {
-        AgentListView(isInChat: .constant(false), isSearchActive: .constant(false))
+        AgentListView(isInChat: .constant(false), isSearchActive: .constant(false), activeChatDestination: .constant(nil))
             .environmentObject(AgentManager())
     }
 }
