@@ -207,6 +207,9 @@ struct TaskCreateView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .topBarLeading) {
                     if isEditMode {
                         Button(role: .destructive) {
                             showDeleteConfirm = true
@@ -215,8 +218,6 @@ struct TaskCreateView: View {
                                 .foregroundStyle(.red)
                         }
                         .disabled(isDeleting || isSaving)
-                    } else {
-                        Button("Cancel") { dismiss() }
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
