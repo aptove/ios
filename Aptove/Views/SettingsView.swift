@@ -126,9 +126,11 @@ struct SettingsView: View {
                         HStack {
                             Spacer()
                             Image("AptoveLockup")
+                                .renderingMode(.template)
                                 .resizable()
                                 .scaledToFit()
                                 .frame(height: 36)
+                                .foregroundStyle(.primary)
                                 .opacity(0.7)
                             Spacer()
                         }
