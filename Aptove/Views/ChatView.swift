@@ -340,6 +340,9 @@ struct ChatView: View {
     var body: some View {
         chatLifecycleView
             .toolbar(.hidden, for: .navigationBar)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("")
             .navigationBarBackButtonHidden(true)
             .navigationDestination(isPresented: $showingAgentConfig) {
                 AgentConfigurationView(agentId: agentId)
