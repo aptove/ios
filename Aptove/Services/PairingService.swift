@@ -179,7 +179,7 @@ enum PairingError: LocalizedError {
         case .invalidCode:
             return "Invalid or expired pairing code"
         case .rateLimited:
-            return "Too many attempts. Please restart Aptove Router for a new code."
+            return "Too many attempts. Type /qr in Aptove Router to get a new code — no restart needed."
         case .fingerprintMismatch(let expected, let actual):
             return String(format: NSLocalizedString("pairing_fingerprint_mismatch_format", comment: ""), expected, actual)
         case .networkError(let error):
@@ -221,7 +221,7 @@ actor PairingService {
             throw PairingError.missingFingerprint
         }
         
-        Logger.pairing.debug("Starting local pairing, URL: \(pairingURL.fullURL), fingerprint: \(expectedFingerprint)")
+        Logger.pairing.debug("Starting local pairing, URL: \(pairingURL.fullURL, privacy: .private), fingerprint: \(expectedFingerprint, privacy: .private)")
         
         // Create delegate for certificate pinning
         let delegate = PairingCertificateDelegate(expectedFingerprint: expectedFingerprint)
@@ -299,7 +299,7 @@ actor PairingService {
     /// - `serve` mode (no fingerprint): Tailscale provides a valid Let's Encrypt cert → standard TLS.
     /// - `ip` mode (fingerprint present): self-signed cert → cert pinning, same as local pairing.
     private func pairTailscale(pairingURL: PairingURL) async throws -> PairingResult {
-        Logger.pairing.debug("Starting Tailscale pairing, URL: \(pairingURL.fullURL)")
+        Logger.pairing.debug("Starting Tailscale pairing, URL: \(pairingURL.fullURL, privacy: .private)")
 
         if pairingURL.fingerprint != nil {
             // ip mode: fingerprint is present — reuse cert-pinning logic from pairLocal
