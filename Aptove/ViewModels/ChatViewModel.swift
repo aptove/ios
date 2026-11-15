@@ -101,7 +101,7 @@ class ChatViewModel: ObservableObject {
             self.isClientReady = client != nil
 
             if let client = client {
-                Logger.chat.debug("ChatViewModel: Pre-warm complete, client cached, state: \(client.connectionState)")
+                Logger.chat.debug("ChatViewModel: Pre-warm complete, client cached, state: \(String(describing: client.connectionState))")
                 
                 // Only show session indicator on fresh connections, not when returning to an already-connected session
                 // sessionWasResumed is nil until the first connect() call completes

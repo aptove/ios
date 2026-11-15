@@ -80,7 +80,7 @@ private class AptoveClient: @preconcurrency Client, ClientSessionOperations {
     }
     
     func notify(notification: SessionUpdate, meta: MetaField?) async {
-        Logger.push.debug("AptoveClient.notify() onUpdate=\(onUpdate != nil ? "SET" : "NIL") — \(String(describing: notification).prefix(120))")
+        Logger.push.debug("AptoveClient.notify() onUpdate=\(self.onUpdate != nil ? "SET" : "NIL") — \(String(describing: notification).prefix(120))")
         await onSessionUpdate(notification)
     }
     
@@ -198,7 +198,8 @@ class ACPClientWrapper: ObservableObject {
         self.maxRetries = maxRetries
         self.maxReconnectAttempts = maxReconnectAttempts
         self.cwd = config.cwd
-        Logger.connection.debug("ACPClientWrapper: Init complete (cwd: \(self.cwd), versionMode: \(versionMode.rawValue))")
+        let cwdSnapshot = self.cwd
+        Logger.connection.debug("ACPClientWrapper: Init complete (cwd: \(cwdSnapshot), versionMode: \(versionMode.rawValue))")
     }
     
     func connect() async {
@@ -847,7 +848,7 @@ class ACPClientWrapper: ObservableObject {
                         Logger.connection.debug("Tool output: \(textContent)")
                         capturedOnToolUpdate?(toolUpdate.toolCallId.value, textContent)
                     } else if let status = toolUpdate.status {
-                        Logger.connection.debug("Tool status change (suppressed from UI): \(status)")
+                        Logger.connection.debug("Tool status change (suppressed from UI): \(String(describing: status))")
                     }
                 default:
                     Logger.connection.debug("Other update: \(String(describing: update))")
@@ -922,7 +923,7 @@ class ACPClientWrapper: ObservableObject {
                         params: promptRequest,
                         responseType: PromptResponse.self
                     )
-                    Logger.connection.debug("Prompt completed: \(response.stopReason)")
+                    Logger.connection.debug("Prompt completed: \(String(describing: response.stopReason))")
                     stopReason = response.stopReason
                 }
 
@@ -1051,7 +1052,7 @@ class ACPClientWrapper: ObservableObject {
                                 params: retryRequest,
                                 responseType: PromptResponse.self
                             )
-                            Logger.connection.debug("Retry prompt completed: \(retryResponse.stopReason)")
+                            Logger.connection.debug("Retry prompt completed: \(String(describing: retryResponse.stopReason))")
                             retryStopReason = retryResponse.stopReason
                         }
                         try? await Task.sleep(nanoseconds: 100_000_000)

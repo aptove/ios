@@ -390,7 +390,7 @@ private class PairingCertificateDelegate: NSObject, URLSessionDelegate {
             let fingerprint = sha256Fingerprint(of: certData)
             receivedFingerprint = fingerprint
             
-            Logger.pairing.debug("Server fingerprint: \(fingerprint), expected: \(expectedFingerprint)")
+            Logger.pairing.debug("Server fingerprint: \(fingerprint), expected: \(self.expectedFingerprint)")
             
             // Normalize fingerprints for comparison
             // Bridge may send "SHA256:XX:XX:XX" or just "XX:XX:XX"
