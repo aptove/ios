@@ -98,6 +98,14 @@ struct TasksListView: View {
 
     private var taskList: some View {
         List {
+            Section {
+                Text("tasks_connected_only_note")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+            }
             ForEach(filtered) { item in
                 TaskRowView(
                     item: item,

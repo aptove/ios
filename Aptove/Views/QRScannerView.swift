@@ -8,18 +8,28 @@ struct QRScannerView: View {
     @AppStorage("appLanguage") private var appLanguage: String = ""
     @State private var showingPairingEntry = false
     @State private var isConnecting = false
-    @State private var isScannerActive = true
-    @State private var scannerID = UUID() // Force recreation of scanner
+    @State private var isScannerActive = false
+    @State private var scannerID = UUID()
     @State private var showingPermissionDenied = false
-    
+
+    private enum ScannerMode { case native, software }
+    @State private var scannerMode: ScannerMode = .native
+
     @ViewBuilder
     private var scannerLayer: some View {
         if isScannerActive && !isConnecting {
-            NativeQRScannerRepresentable(
-                simulatedData: "https://192.168.1.100:8080/pair/local?code=123456&fp=SHA256:ABC123",
-                completion: handleScan
-            )
-            .id(scannerID)
+            Group {
+                if scannerMode == .native {
+                    NativeQRScannerRepresentable(
+                        simulatedData: "https://192.168.1.100:8080/pair/local?code=123456&fp=SHA256:ABC123",
+                        completion: handleScan
+                    )
+                    .id(scannerID)
+                } else {
+                    SoftwareQRScannerRepresentable(completion: handleScan)
+                        .id(scannerID)
+                }
+            }
         } else {
             Color.black
                 .ignoresSafeArea()
@@ -158,13 +168,20 @@ struct QRScannerView: View {
             }
             .onAppear {
                 viewModel.setAgentManager(agentManager)
+                #if DEBUG
+                print("[QRScannerView] onAppear: scannerMode=\(scannerMode), isScannerActive=\(isScannerActive)")
+                #endif
                 let status = AVCaptureDevice.authorizationStatus(for: .video)
+                #if DEBUG
+                print("[QRScannerView] Camera auth status: \(status.rawValue)")
+                #endif
                 if status == .denied || status == .restricted {
                     showingPermissionDenied = true
-                    isScannerActive = false
                 } else {
+                    #if DEBUG
+                    print("[QRScannerView] Activating scanner in mode: \(scannerMode)")
+                    #endif
                     isScannerActive = true
-                    scannerID = UUID() // Force new scanner instance
                 }
             }
             .alert("camera_permission_denied_title", isPresented: $showingPermissionDenied) {
@@ -191,11 +208,17 @@ struct QRScannerView: View {
     }
     
     private func handleScan(result: Result<ScanResult, ScanError>) {
+        #if DEBUG
+        print("[QRScannerView] handleScan: mode=\(scannerMode), result=\(result)")
+        #endif
         // Deactivate scanner immediately to release camera
         isScannerActive = false
-        
+
         switch result {
         case .success(let result):
+            #if DEBUG
+            print("[QRScannerView] Scan success via \(scannerMode), string length=\(result.string.count)")
+            #endif
             isConnecting = true
             Task {
                 await viewModel.handleQRCode(result.string)
@@ -205,11 +228,26 @@ struct QRScannerView: View {
             }
         case .failure(let error):
             if case .permissionDenied = error {
+                #if DEBUG
+                print("[QRScannerView] Permission denied")
+                #endif
                 showingPermissionDenied = true
                 isScannerActive = false
+            } else if scannerMode == .native {
+                // Native scanner failed (hardware QR unavailable) — try software fallback
+                #if DEBUG
+                print("[QRScannerView] Native scanner failed with .badOutput — switching to software fallback")
+                #endif
+                scannerMode = .software
+                scannerID = UUID()
+                isScannerActive = true
             } else {
-                viewModel.errorMessage = error.localizedDescription
-                viewModel.showingError = true
+                // Software scanner also failed (no camera at all) — open manual pairing
+                #if DEBUG
+                print("[QRScannerView] Software scanner also failed — opening manual pairing")
+                #endif
+                isScannerActive = false
+                showingPairingEntry = true
             }
             // Scanner will be reactivated by onChange handler
         }

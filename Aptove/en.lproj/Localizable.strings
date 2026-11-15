@@ -210,3 +210,4 @@
 "schedule_summary_daily" = "Daily at %@";
 "schedule_summary_weekly" = "Weekly on %1$@ at %2$@";
 "schedule_summary_monthly" = "Monthly at %@";
+"tasks_connected_only_note" = "Only tasks from connected agents are shown";

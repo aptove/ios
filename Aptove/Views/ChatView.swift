@@ -503,32 +503,35 @@ struct ChatView: View {
     private var commandPickerView: some View {
         let suggestions = viewModel.filteredCommands(for: commandQuery ?? "")
         if commandQuery != nil && !suggestions.isEmpty {
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(suggestions, id: \.name) { command in
-                    Button {
-                        applyCommand(command)
-                    } label: {
-                        HStack(spacing: 8) {
-                            Text("/")
-                                .font(.system(.body, design: .monospaced))
-                                .foregroundColor(.blue)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(command.name)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(suggestions, id: \.name) { command in
+                        Button {
+                            applyCommand(command)
+                        } label: {
+                            HStack(spacing: 8) {
+                                Text("/")
                                     .font(.system(.body, design: .monospaced))
-                                    .foregroundColor(.primary)
-                                Text(command.description)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .lineLimit(1)
+                                    .foregroundColor(.blue)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(command.name)
+                                        .font(.system(.body, design: .monospaced))
+                                        .foregroundColor(.primary)
+                                    Text(command.description)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(1)
+                                }
+                                Spacer()
                             }
-                            Spacer()
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
+                        Divider()
                     }
-                    Divider()
                 }
             }
+            .frame(maxHeight: 280)
             .background(Color(.systemBackground))
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
@@ -741,7 +744,7 @@ struct ChatView: View {
             }
             attachmentItem(icon: nil, slashLabel: "/", label: "attachment_commands", color: .purple) {
                 guard isAgentConnected else { showNotConnectedAlert = true; return }
-                showAttachmentPanel = false; commandQuery = ""; isInputFocused = true
+                showAttachmentPanel = false; commandQuery = ""
             }
             attachmentItem(icon: "brain", label: "attachment_memory", color: .orange) {
                 guard isAgentConnected else { showNotConnectedAlert = true; return }
