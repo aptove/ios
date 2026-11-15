@@ -210,7 +210,7 @@ struct NativeQRScannerRepresentable: UIViewControllerRepresentable {
                     self.view.layer.insertSublayer(preview, at: 0)
                     self.previewLayer = preview
                     self.addViewfinder()
-                    Logger.scanner.debug("[NativeQR] Preview layer added, bounds=\(self.view.bounds)")
+                    Logger.scanner.debug("[NativeQR] Preview layer added, bounds=\(String(describing: self.view.bounds))")
                     #if targetEnvironment(simulator)
                     self.coordinator.fireSimulated(after: 1.0)
                     #endif
@@ -433,7 +433,7 @@ struct SoftwareQRScannerRepresentable: UIViewControllerRepresentable {
                     self.view.layer.insertSublayer(preview, at: 0)
                     self.previewLayer = preview
                     self.addViewfinder()
-                    Logger.scanner.debug("[SoftwareQR] Preview layer added, bounds=\(self.view.bounds)")
+                    Logger.scanner.debug("[SoftwareQR] Preview layer added, bounds=\(String(describing: self.view.bounds))")
                 }
 
                 self.session.startRunning()

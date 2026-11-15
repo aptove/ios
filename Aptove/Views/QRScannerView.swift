@@ -37,14 +37,56 @@ struct QRScannerView: View {
         }
     }
 
+    @ViewBuilder
+    private var connectingOverlay: some View {
+        if isConnecting {
+            Color.black.opacity(0.7)
+                .ignoresSafeArea()
+
+            VStack(spacing: 20) {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .scaleEffect(1.5)
+
+                let statusText = viewModel.pairingStatus.isEmpty ? String(localized: "Connecting...") : viewModel.pairingStatus
+                Text(statusText)
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .padding()
+
+                Text("Please wait...")
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.8))
+
+                Button {
+                    isConnecting = false
+                    isScannerActive = true
+                    scannerID = UUID()
+                } label: {
+                    Text("Cancel")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 32)
+                        .padding(.vertical, 12)
+                        .background(Color.red.opacity(0.8))
+                        .cornerRadius(10)
+                }
+                .padding(.top, 8)
+            }
+            .padding(40)
+            .background(.ultraThinMaterial)
+            .cornerRadius(20)
+        }
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
                 scannerLayer
-                
+
                 VStack {
                     Spacer()
-                    
                     Text("Point camera at QR code")
                         .font(.headline)
                         .padding()
@@ -52,47 +94,8 @@ struct QRScannerView: View {
                         .cornerRadius(10)
                         .padding(.bottom, 100)
                 }
-                
-                // Connection progress overlay
-                if isConnecting {
-                    Color.black.opacity(0.7)
-                        .ignoresSafeArea()
-                    
-                    VStack(spacing: 20) {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .scaleEffect(1.5)
-                        
-                        Text(viewModel.pairingStatus.isEmpty ? String(localized: "Connecting...") : viewModel.pairingStatus)
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .multilineTextAlignment(.center)
-                            .padding()
-                        
-                        Text("Please wait...")
-                            .font(.subheadline)
-                            .foregroundColor(.white.opacity(0.8))
-                        
-                        Button {
-                            // Cancel connection
-                            isConnecting = false
-                            isScannerActive = true
-                            scannerID = UUID() // Create fresh scanner
-                        } label: {
-                            Text("Cancel")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 32)
-                                .padding(.vertical, 12)
-                                .background(Color.red.opacity(0.8))
-                                .cornerRadius(10)
-                        }
-                        .padding(.top, 8)
-                    }
-                    .padding(40)
-                    .background(.ultraThinMaterial)
-                    .cornerRadius(20)
-                }
+
+                connectingOverlay
             }
             .navigationTitle(Bundle.localized("Scan QR Code", language: appLanguage))
             .navigationBarTitleDisplayMode(.inline)
@@ -169,13 +172,13 @@ struct QRScannerView: View {
             }
             .onAppear {
                 viewModel.setAgentManager(agentManager)
-                Logger.scanner.debug("[QRScannerView] onAppear: scannerMode=\(scannerMode), isScannerActive=\(isScannerActive)")
+                Logger.scanner.debug("[QRScannerView] onAppear: scannerMode=\(String(describing: scannerMode)), isScannerActive=\(isScannerActive)")
                 let status = AVCaptureDevice.authorizationStatus(for: .video)
                 Logger.scanner.debug("[QRScannerView] Camera auth status: \(status.rawValue)")
                 if status == .denied || status == .restricted {
                     showingPermissionDenied = true
                 } else {
-                    Logger.scanner.debug("[QRScannerView] Activating scanner in mode: \(scannerMode)")
+                    Logger.scanner.debug("[QRScannerView] Activating scanner in mode: \(String(describing: scannerMode))")
                     isScannerActive = true
                 }
             }
@@ -203,13 +206,13 @@ struct QRScannerView: View {
     }
     
     private func handleScan(result: Result<ScanResult, ScanError>) {
-        Logger.scanner.debug("[QRScannerView] handleScan: mode=\(scannerMode), result=\(result)")
+        Logger.scanner.debug("[QRScannerView] handleScan: mode=\(String(describing: scannerMode)), result=\(String(describing: result))")
         // Deactivate scanner immediately to release camera
         isScannerActive = false
 
         switch result {
         case .success(let result):
-            Logger.scanner.debug("[QRScannerView] Scan success via \(scannerMode), string length=\(result.string.count)")
+            Logger.scanner.debug("[QRScannerView] Scan success via \(String(describing: scannerMode)), string length=\(result.string.count)")
             isConnecting = true
             Task {
                 await viewModel.handleQRCode(result.string)
