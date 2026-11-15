@@ -1,5 +1,6 @@
 import Foundation
 import CommonCrypto
+import os
 
 /// Represents different pairing endpoint types based on URL path
 enum PairingType {
@@ -220,9 +221,7 @@ actor PairingService {
             throw PairingError.missingFingerprint
         }
         
-        print("🔐 PairingService: Starting local pairing")
-        print("🔐 PairingService: URL: \(pairingURL.fullURL)")
-        print("🔐 PairingService: Expected fingerprint: \(expectedFingerprint)")
+        Logger.pairing.debug("Starting local pairing, URL: \(pairingURL.fullURL), fingerprint: \(expectedFingerprint)")
         
         // Create delegate for certificate pinning
         let delegate = PairingCertificateDelegate(expectedFingerprint: expectedFingerprint)
@@ -261,16 +260,15 @@ actor PairingService {
             throw PairingError.invalidResponse("Not an HTTP response")
         }
         
-        print("🔐 PairingService: HTTP status: \(httpResponse.statusCode)")
-        
+        Logger.pairing.debug("HTTP status: \(httpResponse.statusCode)")
+
         switch httpResponse.statusCode {
         case 200:
             // Success - parse response
             let decoder = JSONDecoder()
             do {
                 let pairingResponse = try decoder.decode(LocalPairingResponse.self, from: data)
-                print("✅ PairingService: Pairing successful!")
-                print("✅ PairingService: WebSocket URL: \(pairingResponse.url)")
+                Logger.pairing.debug("Pairing successful! WebSocket URL: \(pairingResponse.url)")
                 let pr = PairingResponse.local(pairingResponse)
                 return PairingResult(config: pr.toConnectionConfig(), bridgeAgentId: pr.agentId, transport: "local")
             } catch {
@@ -301,18 +299,17 @@ actor PairingService {
     /// - `serve` mode (no fingerprint): Tailscale provides a valid Let's Encrypt cert → standard TLS.
     /// - `ip` mode (fingerprint present): self-signed cert → cert pinning, same as local pairing.
     private func pairTailscale(pairingURL: PairingURL) async throws -> PairingResult {
-        print("🔐 PairingService: Starting Tailscale pairing")
-        print("🔐 PairingService: URL: \(pairingURL.fullURL)")
+        Logger.pairing.debug("Starting Tailscale pairing, URL: \(pairingURL.fullURL)")
 
         if pairingURL.fingerprint != nil {
             // ip mode: fingerprint is present — reuse cert-pinning logic from pairLocal
-            print("🔐 PairingService: Tailscale ip mode — using cert pinning")
+            Logger.pairing.debug("Tailscale ip mode — using cert pinning")
             let result = try await pairLocal(pairingURL: pairingURL)
             return PairingResult(config: result.config, bridgeAgentId: result.bridgeAgentId, transport: "tailscale-ip")
         }
 
         // serve mode: Tailscale CA cert is trusted by iOS — use standard TLS
-        print("🔐 PairingService: Tailscale serve mode — using standard TLS")
+        Logger.pairing.debug("Tailscale serve mode — using standard TLS")
         let session = URLSession.shared
 
         var request = URLRequest(url: pairingURL.fullURL)
@@ -330,14 +327,14 @@ actor PairingService {
             throw PairingError.invalidResponse("Not an HTTP response")
         }
 
-        print("🔐 PairingService: HTTP status: \(httpResponse.statusCode)")
+        Logger.pairing.debug("Tailscale HTTP status: \(httpResponse.statusCode)")
 
         switch httpResponse.statusCode {
         case 200:
             let decoder = JSONDecoder()
             do {
                 let pairingResponse = try decoder.decode(LocalPairingResponse.self, from: data)
-                print("✅ PairingService: Tailscale pairing successful!")
+                Logger.pairing.debug("Tailscale pairing successful!")
                 let pr = PairingResponse.local(pairingResponse)
                 return PairingResult(config: pr.toConnectionConfig(), bridgeAgentId: pr.agentId, transport: "tailscale-serve")
             } catch {
@@ -383,7 +380,7 @@ private class PairingCertificateDelegate: NSObject, URLSessionDelegate {
         if #available(iOS 15.0, *) {
             guard let certificates = SecTrustCopyCertificateChain(serverTrust) as? [SecCertificate],
                   let serverCert = certificates.first else {
-                print("🔐 PairingCertificateDelegate: Failed to get server certificate")
+                Logger.pairing.debug("Failed to get server certificate")
                 completionHandler(.cancelAuthenticationChallenge, nil)
                 return
             }
@@ -393,8 +390,7 @@ private class PairingCertificateDelegate: NSObject, URLSessionDelegate {
             let fingerprint = sha256Fingerprint(of: certData)
             receivedFingerprint = fingerprint
             
-            print("🔐 PairingCertificateDelegate: Server fingerprint: \(fingerprint)")
-            print("🔐 PairingCertificateDelegate: Expected fingerprint: \(expectedFingerprint)")
+            Logger.pairing.debug("Server fingerprint: \(fingerprint), expected: \(expectedFingerprint)")
             
             // Normalize fingerprints for comparison
             // Bridge may send "SHA256:XX:XX:XX" or just "XX:XX:XX"
@@ -402,16 +398,16 @@ private class PairingCertificateDelegate: NSObject, URLSessionDelegate {
             let normalizedReceived = normalizeFingerprint(fingerprint)
             
             if normalizedReceived.lowercased() == normalizedExpected.lowercased() {
-                print("🔐 PairingCertificateDelegate: ✅ Fingerprint matches!")
+                Logger.pairing.debug("Fingerprint matches!")
                 let credential = URLCredential(trust: serverTrust)
                 completionHandler(.useCredential, credential)
             } else {
-                print("🔐 PairingCertificateDelegate: ❌ Fingerprint MISMATCH!")
+                Logger.pairing.error("Fingerprint MISMATCH!")
                 completionHandler(.cancelAuthenticationChallenge, nil)
             }
         } else {
             // iOS 14 fallback
-            print("🔐 PairingCertificateDelegate: iOS 14 - trusting with fingerprint")
+            Logger.pairing.debug("iOS 14 fallback — trusting with fingerprint")
             let credential = URLCredential(trust: serverTrust)
             completionHandler(.useCredential, credential)
         }

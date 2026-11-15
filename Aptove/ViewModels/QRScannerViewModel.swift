@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import os
 
 @MainActor
 class QRScannerViewModel: ObservableObject {
@@ -16,43 +17,41 @@ class QRScannerViewModel: ObservableObject {
     }
     
     func handleQRCode(_ qrString: String) async {
-        print("📷 QRScannerViewModel.handleQRCode(): Starting QR processing...")
-        print("📷 QRScannerViewModel.handleQRCode(): QR string length: \(qrString.count)")
-        print("📷 QRScannerViewModel.handleQRCode(): Content preview: \(String(qrString.prefix(100)))")
+        Logger.pairing.debug("handleQRCode: length=\(qrString.count), preview=\(qrString.prefix(100))")
         
         do {
             // Determine if this is a pairing URL or legacy JSON format
             if qrString.hasPrefix("https://") || qrString.hasPrefix("http://") {
                 // New pairing URL format — multi-transport aware
-                print("📷 QRScannerViewModel.handleQRCode(): Detected pairing URL format")
+                Logger.pairing.debug("Detected pairing URL format")
                 try await handlePairingURLFull(qrString)
             } else {
                 // Legacy JSON format (for backwards compatibility)
-                print("📷 QRScannerViewModel.handleQRCode(): Detected legacy JSON format")
+                Logger.pairing.debug("Detected legacy JSON format")
                 let config = try handleLegacyJSON(qrString)
                 try await connectWithConfig(config, bridgeAgentId: config.agentId, transport: nil)
             }
             
         } catch let error as PairingError {
-            print("❌ QRScannerViewModel.handleQRCode(): Pairing error: \(error)")
+            Logger.pairing.error("Pairing error: \(error.localizedDescription)")
             errorMessage = error.localizedDescription
             showingError = true
         } catch let error as ConnectionConfig.ValidationError {
-            print("❌ QRScannerViewModel.handleQRCode(): Validation error: \(error)")
+            Logger.pairing.error("Validation error: \(error.localizedDescription)")
             errorMessage = error.localizedDescription
             showingError = true
         } catch let error as ScanError {
-            print("❌ QRScannerViewModel.handleQRCode(): Scan error: \(error)")
+            Logger.pairing.error("Scan error: \(error.localizedDescription)")
             errorMessage = error.localizedDescription
             showingError = true
         } catch {
-            print("❌ QRScannerViewModel.handleQRCode(): Unexpected error: \(error)")
+            Logger.pairing.error("Unexpected error: \(error.localizedDescription)")
             errorMessage = "Failed to process QR code: \(error.localizedDescription)"
             showingError = true
         }
         
         pairingStatus = ""
-        print("📷 QRScannerViewModel.handleQRCode(): Method complete")
+        Logger.pairing.debug("handleQRCode complete")
     }
     
     /// Handle new pairing URL format (https://IP:PORT/pair/local?code=XXXX&fp=SHA256:...)
@@ -60,7 +59,7 @@ class QRScannerViewModel: ObservableObject {
         pairingStatus = "Parsing pairing URL..."
         let pairingURL = try PairingURL.parse(urlString)
 
-        print("📷 QRScannerViewModel: Pairing type: \(pairingURL.pairingType.description)")
+        Logger.pairing.debug("Pairing type: \(pairingURL.pairingType.description)")
         switch pairingURL.pairingType {
         case .local:      pairingStatus = "Connecting to local bridge...\nValidating certificate..."
         case .tailscale:  pairingStatus = "Connecting via Tailscale..."
@@ -70,8 +69,7 @@ class QRScannerViewModel: ObservableObject {
         }
 
         let result = try await pairingService.pair(with: pairingURL)
-        print("✅ QRScannerViewModel: Pairing successful!")
-        print("📷 QRScannerViewModel: Bridge agent ID: \(result.bridgeAgentId ?? "none")")
+        Logger.pairing.debug("Pairing successful! bridgeAgentId=\(result.bridgeAgentId ?? "none")")
 
         // Multi-transport dedup: if bridgeAgentId + cwd match an existing agent, add transport.
         // cwd is used as a secondary key so two bridges with the same agent_id but different
@@ -101,7 +99,7 @@ class QRScannerViewModel: ObservableObject {
             // not to guarantee the connection is immediately live. The agent manager's retry
             // loop handles reconnection if the first attempt fails.
             Task { await manager.connectAgent(agentId: existingAgent.id) }
-            print("✅ QRScannerViewModel: \(message)")
+            Logger.pairing.debug("Transport added: \(message)")
             pairingStatus = message
             showingSuccess = true
             pairingStatus = ""
@@ -130,18 +128,17 @@ class QRScannerViewModel: ObservableObject {
     
     /// Handle legacy JSON format for backwards compatibility
     private func handleLegacyJSON(_ jsonString: String) throws -> ConnectionConfig {
-        print("📷 QRScannerViewModel: Parsing legacy JSON...")
-        
+        Logger.pairing.debug("Parsing legacy JSON...")
+
         guard let data = jsonString.data(using: .utf8) else {
-            print("❌ QRScannerViewModel: Failed to convert to UTF8")
+            Logger.pairing.error("Failed to convert QR string to UTF8")
             throw ScanError.invalidData
         }
         
         let decoder = JSONDecoder()
         let config = try decoder.decode(ConnectionConfig.self, from: data)
         
-        print("✅ QRScannerViewModel: Legacy config decoded")
-        print("📷 QRScannerViewModel: URL: \(config.url)")
+        Logger.pairing.debug("Legacy config decoded, URL: \(config.url)")
         
         return config
     }
@@ -150,17 +147,17 @@ class QRScannerViewModel: ObservableObject {
     private func connectWithConfig(_ config: ConnectionConfig, bridgeAgentId: String?, transport: String?) async throws {
         pairingStatus = "Validating configuration..."
         
-        print("📷 QRScannerViewModel.connectWithConfig(): Validating config...")
+        Logger.pairing.debug("connectWithConfig: validating...")
         try config.validate()
-        print("✅ QRScannerViewModel.connectWithConfig(): Config validated")
+        Logger.pairing.debug("Config validated")
         
         guard config.protocolVersion == "acp" else {
-            print("❌ QRScannerViewModel.connectWithConfig(): Unsupported protocol: \(config.protocolVersion)")
+            Logger.pairing.error("Unsupported protocol: \(config.protocolVersion)")
             throw ScanError.unsupportedProtocol(config.protocolVersion)
         }
         
         guard let manager = agentManager else {
-            print("❌ QRScannerViewModel.connectWithConfig(): No agent manager!")
+            Logger.pairing.error("No agent manager!")
             throw ScanError.noAgentManager
         }
 
@@ -169,7 +166,7 @@ class QRScannerViewModel: ObservableObject {
         // (e.g., first local, then Cloudflare — different URLs, same agent).
         if let bridgeAgentId = bridgeAgentId,
            let existingAgent = manager.findAgent(byBridgeAgentId: bridgeAgentId, cwd: config.cwd) {
-            print("📷 QRScannerViewModel.connectWithConfig(): Found existing agent by bridgeAgentId \(bridgeAgentId), adding transport")
+            Logger.pairing.debug("Found existing agent by bridgeAgentId \(bridgeAgentId), adding transport")
             pairingStatus = "Adding transport to existing agent..."
             let message = try await manager.addOrUpdateTransportEndpoint(
                 agentId: existingAgent.id,
@@ -184,7 +181,7 @@ class QRScannerViewModel: ObservableObject {
             // not to guarantee the connection is immediately live. The agent manager's retry
             // loop handles reconnection if the first attempt fails.
             Task { await manager.connectAgent(agentId: existingAgent.id) }
-            print("✅ QRScannerViewModel.connectWithConfig(): \(message)")
+            Logger.pairing.debug("connectWithConfig: \(message)")
             showingSuccess = true
             return
         }
@@ -203,7 +200,7 @@ class QRScannerViewModel: ObservableObject {
             }
 
             if isSameBridge {
-                print("📷 QRScannerViewModel.connectWithConfig(): Agent exists, updating credentials for \(existingAgent.id)")
+                Logger.pairing.debug("Agent exists, updating credentials for \(existingAgent.id)")
                 pairingStatus = "Updating existing agent credentials..."
 
                 try await manager.updateAgentCredentials(agentId: existingAgent.id, config: config)
@@ -212,33 +209,33 @@ class QRScannerViewModel: ObservableObject {
                 let (success, _) = await testConnectionWithName(config: config)
 
                 if success {
-                    print("✅ QRScannerViewModel.connectWithConfig(): Credentials updated and connection verified")
+                    Logger.pairing.debug("Credentials updated and connection verified")
                     await manager.disconnectAgent(agentId: existingAgent.id)
                     Task { await manager.connectAgent(agentId: existingAgent.id) }
                     showingSuccess = true
                 } else {
-                    print("❌ QRScannerViewModel.connectWithConfig(): Connection test failed after update")
+                    Logger.pairing.error("Connection test failed after credential update")
                     throw ScanError.connectionFailed
                 }
                 return
             }
-            print("📷 QRScannerViewModel.connectWithConfig(): URL matches existing agent but bridgeAgentId differs — creating new agent")
+            Logger.pairing.debug("URL matches existing agent but bridgeAgentId differs — creating new agent")
         }
         
         pairingStatus = "Testing connection to agent..."
-        print("📷 QRScannerViewModel.connectWithConfig(): Testing connection...")
+        Logger.pairing.debug("Testing connection...")
         let (success, agentName) = await testConnectionWithName(config: config)
-        print("📷 QRScannerViewModel.connectWithConfig(): Connection test result: \(success), name: \(agentName ?? "nil")")
+        Logger.pairing.debug("Connection test result: \(success), name: \(agentName ?? "nil")")
         
         if success {
             pairingStatus = "Adding agent..."
-            print("✅ QRScannerViewModel.connectWithConfig(): Connection successful, adding agent...")
+            Logger.pairing.debug("Connection successful, adding agent...")
             let agentId = UUID().uuidString
             let folderName = URL(fileURLWithPath: config.cwd).lastPathComponent
             let finalName = (!folderName.isEmpty && folderName != "/") ? folderName : (agentName ?? extractAgentName(from: config.url))
-            print("📷 QRScannerViewModel.connectWithConfig(): Agent ID: \(agentId), Name: \(finalName)")
+            Logger.pairing.debug("Agent ID: \(agentId), Name: \(finalName)")
             
-            print("📷 QRScannerViewModel.connectWithConfig(): Calling manager.addAgent()...")
+            Logger.pairing.debug("Calling manager.addAgent()...")
             try await manager.addAgent(
                 config: config,
                 agentId: agentId,
@@ -251,48 +248,48 @@ class QRScannerViewModel: ObservableObject {
                 _ = try? await manager.addOrUpdateTransportEndpoint(agentId: agentId, transport: transport, config: config)
                 manager.setPreferredTransport(agentId: agentId, transport: transport)
             }
-            print("✅ QRScannerViewModel.connectWithConfig(): Agent added successfully")
+            Logger.pairing.debug("Agent added successfully")
             
             showingSuccess = true
         } else {
-            print("❌ QRScannerViewModel.connectWithConfig(): Connection test failed")
+            Logger.pairing.error("Connection test failed")
             throw ScanError.connectionFailed
         }
     }
     
     /// Test connection and return both success status and agent's self-reported name
     private func testConnectionWithName(config: ConnectionConfig) async -> (success: Bool, agentName: String?) {
-        print("🧪 QRScannerViewModel.testConnectionWithName(): Creating test wrapper...")
+        Logger.pairing.debug("testConnectionWithName: creating test wrapper...")
         // Use unique agent ID for each test to avoid reusing session IDs
         let wrapper = ACPClientWrapper(config: config, agentId: "test-\(UUID().uuidString)", connectionTimeout: 300, maxRetries: 2)
-        print("🧪 QRScannerViewModel.testConnectionWithName(): Test wrapper created, calling connect()...")
+        Logger.pairing.debug("Test wrapper created, calling connect()...")
         
         await wrapper.connect()
-        print("🧪 QRScannerViewModel.testConnectionWithName(): Connect() returned, checking state...")
+        Logger.pairing.debug("Connect returned, checking state...")
         
         let isConnected: Bool
         let agentName: String?
         
         switch wrapper.connectionState {
         case .connected:
-            print("✅ QRScannerViewModel.testConnectionWithName(): Connection successful")
+            Logger.pairing.debug("Test connection successful")
             isConnected = true
             agentName = wrapper.connectedAgentName
-            print("🤖 QRScannerViewModel.testConnectionWithName(): Agent name: \(agentName ?? "nil")")
+            Logger.pairing.debug("Agent name: \(agentName ?? "nil")")
         case .error(let message):
-            print("❌ QRScannerViewModel.testConnectionWithName(): Connection error: \(message)")
+            Logger.pairing.error("Test connection error: \(message)")
             self.errorMessage = message
             isConnected = false
             agentName = nil
         default:
-            print("❌ QRScannerViewModel.testConnectionWithName(): Unexpected state: \(wrapper.connectionState)")
+            Logger.pairing.error("Test connection unexpected state: \(String(describing: wrapper.connectionState))")
             isConnected = false
             agentName = nil
         }
         
-        print("🧪 QRScannerViewModel.testConnectionWithName(): Disconnecting test wrapper...")
+        Logger.pairing.debug("Disconnecting test wrapper...")
         await wrapper.disconnect()
-        print("🧪 QRScannerViewModel.testConnectionWithName(): Test complete")
+        Logger.pairing.debug("Test complete")
         
         return (isConnected, agentName)
     }
@@ -301,29 +298,29 @@ class QRScannerViewModel: ObservableObject {
     private func testConnection(config: ConnectionConfig) async -> Bool {
         // Use unique agent ID for each test to avoid reusing session IDs
         let wrapper = ACPClientWrapper(config: config, agentId: "test-\(UUID().uuidString)", connectionTimeout: 300, maxRetries: 2)
-        print("🧪 QRScannerViewModel.testConnection(): Test wrapper created, calling connect()...")
+        Logger.pairing.debug("testConnection: calling connect()...")
         
         await wrapper.connect()
-        print("🧪 QRScannerViewModel.testConnection(): Connect() returned, checking state...")
+        Logger.pairing.debug("testConnection: checking state...")
         
         let isConnected: Bool
         switch wrapper.connectionState {
         case .connected:
-            print("✅ QRScannerViewModel.testConnection(): Connection successful")
+            Logger.pairing.debug("testConnection: successful")
             isConnected = true
         case .error(let message):
-            print("❌ QRScannerViewModel.testConnection(): Connection error: \(message)")
+            Logger.pairing.error("testConnection error: \(message)")
             // Store detailed error message
             self.errorMessage = message
             isConnected = false
         default:
-            print("❌ QRScannerViewModel.testConnection(): Unexpected state: \(wrapper.connectionState)")
+            Logger.pairing.error("testConnection unexpected state: \(String(describing: wrapper.connectionState))")
             isConnected = false
         }
         
-        print("🧪 QRScannerViewModel.testConnection(): Disconnecting test wrapper...")
+        Logger.pairing.debug("testConnection: disconnecting...")
         await wrapper.disconnect()
-        print("🧪 QRScannerViewModel.testConnection(): Test complete, result: \(isConnected)")
+        Logger.pairing.debug("testConnection complete, result: \(isConnected)")
         
         return isConnected
     }

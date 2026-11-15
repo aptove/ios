@@ -1,6 +1,7 @@
 import SwiftUI
 import UserNotifications
 import UIKit
+import os
 
 /// AppDelegate for handling push notification registration
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
@@ -41,11 +42,11 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     // Handle notification tap — extract agent name for deep-link navigation
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         let userInfo = response.notification.request.content.userInfo
-        print("🔔 [push-dbg] Notification tapped, userInfo: \(userInfo)")
+        Logger.push.debug("Notification tapped, userInfo: \(userInfo)")
 
         if let data = userInfo["data"] as? [String: Any],
            let agentName = data["agentName"] as? String {
-            print("🔔 [push-dbg] Extracted agentName from push: \(agentName)")
+            Logger.push.debug("Extracted agentName from push: \(agentName)")
             Task { @MainActor in
                 PushNotificationManager.shared.tappedAgentName = agentName
             }
@@ -65,7 +66,7 @@ struct AptoveApp: App {
     private let agentManager: AgentManager
 
     init() {
-        print("🚀 AptoveApp: Application starting...")
+        Logger.app.debug("Application starting...")
 
         let repository = AgentRepository()
 
@@ -74,12 +75,12 @@ struct AptoveApp: App {
             do {
                 try migrator.migrate()
             } catch {
-                print("⚠️ AptoveApp: Migration failed (non-fatal): \(error.localizedDescription)")
+                Logger.app.error("Migration failed (non-fatal): \(error.localizedDescription)")
             }
         }
 
         agentManager = AgentManager(repository: repository)
-        print("🚀 AptoveApp: Main app initialized")
+        Logger.app.debug("Main app initialized")
     }
 
     var body: some Scene {
@@ -91,7 +92,7 @@ struct AptoveApp: App {
                     .preferredColorScheme(isDarkMode ? .dark : .light)
                     .environment(\.locale, appLanguage.isEmpty ? .autoupdatingCurrent : Locale(identifier: appLanguage))
                     .onAppear {
-                        print("🚀 AptoveApp: ContentView appeared - app fully launched")
+                        Logger.app.debug("ContentView appeared — app fully launched")
                         PushNotificationManager.shared.requestAuthorization()
                     }
 

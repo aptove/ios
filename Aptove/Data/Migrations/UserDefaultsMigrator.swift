@@ -3,6 +3,7 @@
 
 import Foundation
 import CoreData
+import os
 
 /// Handles one-time migration from UserDefaults to CoreData
 class UserDefaultsMigrator {
@@ -27,7 +28,7 @@ class UserDefaultsMigrator {
     /// Check if migration is needed
     func needsMigration() -> Bool {
         if userDefaults.bool(forKey: Self.migrationCompleteKey) {
-            print("ℹ️ Migration: Already migrated to CoreData")
+            Logger.data.debug("Already migrated to CoreData")
             return false
         }
 
@@ -37,11 +38,11 @@ class UserDefaultsMigrator {
         let needsMigration = hasUserDefaultsData && coreDataEmpty
 
         if needsMigration {
-            print("🔄 Migration: Migration needed (UserDefaults has data, CoreData is empty)")
+            Logger.data.debug("Migration needed (UserDefaults has data, CoreData is empty)")
         } else if !hasUserDefaultsData {
-            print("ℹ️ Migration: No UserDefaults data to migrate")
+            Logger.data.debug("No UserDefaults data to migrate")
         } else if !coreDataEmpty {
-            print("ℹ️ Migration: CoreData already has data")
+            Logger.data.debug("CoreData already has data")
         }
 
         return needsMigration
@@ -49,7 +50,7 @@ class UserDefaultsMigrator {
 
     /// Perform migration from UserDefaults to CoreData
     func migrate() throws {
-        print("🚀 Migration: Starting migration from UserDefaults to CoreData...")
+        Logger.data.debug("Starting migration from UserDefaults to CoreData...")
 
         backupUserDefaults()
 
@@ -60,9 +61,9 @@ class UserDefaultsMigrator {
         let savedAgents: [LegacySavedAgent]
         do {
             savedAgents = try JSONDecoder().decode([LegacySavedAgent].self, from: data)
-            print("📦 Migration: Loaded \(savedAgents.count) agents from UserDefaults")
+            Logger.data.debug("Loaded \(savedAgents.count) agents from UserDefaults")
         } catch {
-            print("❌ Migration: Failed to decode agents: \(error)")
+            Logger.data.error("Failed to decode agents: \(error)")
             throw MigrationError.decodingFailed(error)
         }
 
@@ -89,7 +90,7 @@ class UserDefaultsMigrator {
                 if let sessionId = userDefaults.string(forKey: sessionIdKey) {
                     entity.activeSessionId = sessionId
                     entity.sessionStartedAt = Date()
-                    print("  📝 Migrated session ID for \(savedAgent.name): \(sessionId)")
+                    Logger.data.debug("Migrated session ID for \(savedAgent.name)")
                 }
 
                 migratedCount += 1
@@ -98,9 +99,9 @@ class UserDefaultsMigrator {
             // Save all agents
             do {
                 try context.save()
-                print("✅ Migration: Successfully migrated \(migratedCount) agents to CoreData")
+                Logger.data.debug("Successfully migrated \(migratedCount) agents to CoreData")
             } catch {
-                print("❌ Migration: Failed to save CoreData context: \(error)")
+                Logger.data.error("Failed to save CoreData context: \(error)")
                 throw MigrationError.saveFailed(error)
             }
         }
@@ -109,13 +110,13 @@ class UserDefaultsMigrator {
         userDefaults.set(true, forKey: Self.migrationCompleteKey)
         userDefaults.synchronize()
 
-        print("🎉 Migration: Migration complete! UserDefaults data preserved for safety.")
+        Logger.data.debug("Migration complete! UserDefaults data preserved for safety.")
     }
 
     /// Rollback migration (for testing)
     func rollback() {
         userDefaults.removeObject(forKey: Self.migrationCompleteKey)
-        print("🔙 Migration: Rollback complete - migration flag cleared")
+        Logger.data.debug("Rollback complete — migration flag cleared")
     }
 
     // MARK: - Private Helpers
@@ -125,7 +126,7 @@ class UserDefaultsMigrator {
 
         let backupKey = "\(Self.agentsKey)_backup_\(Date().timeIntervalSince1970)"
         userDefaults.set(data, forKey: backupKey)
-        print("💾 Migration: Backed up UserDefaults to key: \(backupKey)")
+        Logger.data.debug("Backed up UserDefaults to key: \(backupKey)")
     }
 }
 

@@ -1,6 +1,7 @@
 import Foundation
 import UserNotifications
 import UIKit
+import os
 
 /// Manages push notification registration and token delivery.
 /// Handles requesting permission, storing the device token, and
@@ -27,21 +28,21 @@ class PushNotificationManager: NSObject, ObservableObject {
     
     private override init() {
         super.init()
-        print("📲 PushNotificationManager: Initialized")
+        Logger.push.debug("PushNotificationManager initialized")
     }
     
     /// Request push notification permissions and register for remote notifications
     func requestAuthorization() {
-        print("📲 PushNotificationManager: Requesting notification authorization...")
+        Logger.push.debug("Requesting notification authorization...")
         
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { [weak self] granted, error in
             DispatchQueue.main.async {
                 if let error = error {
-                    print("❌ PushNotificationManager: Authorization error: \(error.localizedDescription)")
+                    Logger.push.error("Authorization error: \(error.localizedDescription)")
                     return
                 }
                 
-                print("📲 PushNotificationManager: Authorization \(granted ? "granted" : "denied")")
+                Logger.push.debug("Authorization \(granted ? "granted" : "denied")")
                 self?.isAuthorized = granted
                 
                 if granted {
@@ -54,7 +55,7 @@ class PushNotificationManager: NSObject, ObservableObject {
     /// Called by AppDelegate when APNs returns a device token
     func didRegisterForRemoteNotifications(deviceToken data: Data) {
         let token = data.map { String(format: "%02x", $0) }.joined()
-        print("📲 PushNotificationManager: Received APNs token: \(token.prefix(16))...")
+        Logger.push.debug("Received APNs token: \(token.prefix(16))...")
         
         #if DEBUG
         print("🔐 BRUNO TOKEN - iOS APNs: \(token)")
@@ -71,7 +72,7 @@ class PushNotificationManager: NSObject, ObservableObject {
     
     /// Called by AppDelegate when APNs registration fails
     func didFailToRegisterForRemoteNotifications(error: Error) {
-        print("❌ PushNotificationManager: Failed to register for remote notifications: \(error.localizedDescription)")
+        Logger.push.error("Failed to register for remote notifications: \(error.localizedDescription)")
     }
     
     /// Get the current device token, or wait for one to arrive
