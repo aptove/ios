@@ -17,7 +17,7 @@ struct ChatPatternBackground: View {
     private static var lightTile: UIImage?
     private static var darkTile: UIImage?
     // Bump this string to bust the in-memory cache after layout changes.
-    private static let tileVersion = "v3-no-overlap"
+    private static let tileVersion = "v4-denser"
 
     private static func tile(dark: Bool) -> UIImage {
         if dark, let cached = darkTile { return cached }
@@ -41,11 +41,10 @@ struct ChatPatternBackground: View {
     ]
 
     private static func makeTile(dark: Bool) -> UIImage {
-        // 400×400 tile with a 9×9 grid → cell = 44.4pt.
+        // 400×400 tile with an 11×11 grid → cell = 36.4pt.
         // Icons are centered in the middle 40% of each cell, giving a minimum
-        // center-to-center distance of 44.4 × 0.6 = 26.7pt. With a max icon size
-        // of 25pt the worst-case gap between two adjacent large icons is 1.7pt —
-        // overlap is impossible regardless of the sizes the RNG picks.
+        // center-to-center distance of 36.4 × 0.6 = 21.8pt. With a max icon size
+        // of 25pt the worst-case overlap between two adjacent large icons is ~3pt.
         let size = CGSize(width: 400, height: 400)
 
         // Background colour — slightly tinted so it reads as "tech"
@@ -65,7 +64,7 @@ struct ChatPatternBackground: View {
             return CGFloat(rng) / CGFloat(UInt32.max)
         }
 
-        let cols = 9, rows = 9   // 81 icons total
+        let cols = 11, rows = 11   // 121 icons total
         let cellW = size.width / CGFloat(cols)
         let cellH = size.height / CGFloat(rows)
 
@@ -79,8 +78,8 @@ struct ChatPatternBackground: View {
             for row in 0..<rows {
                 for col in 0..<cols {
                     // Constrain center to middle 40% of each cell so the minimum
-                    // distance between any two adjacent icon centers is cellW × 0.6 ≈ 14 pt.
-                    // Icon sizes are capped at 12 pt, guaranteeing no overlap.
+                    // distance between any two adjacent icon centers is cellW × 0.6 ≈ 21.8 pt.
+                    // Icons up to 25 pt; occasional slight overlap is acceptable.
                     let cx     = (CGFloat(col) + 0.3 + next() * 0.4) * cellW
                     let cy     = (CGFloat(row) + 0.3 + next() * 0.4) * cellH
                     let deg    = next() * 72 - 36
