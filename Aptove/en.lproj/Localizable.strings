@@ -211,3 +211,4 @@
 "schedule_summary_weekly" = "Weekly on %1$@ at %2$@";
 "schedule_summary_monthly" = "Monthly at %@";
 "tasks_connected_only_note" = "Only tasks from connected agents are shown";
+"voice_cloud_recognition_note" = "Speech recognition may use Apple's servers on this device";

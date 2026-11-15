@@ -626,6 +626,14 @@ struct ChatView: View {
             .padding(.horizontal)
             .padding(.top, 8)
 
+            if voiceViewModel.onDeviceUnavailable {
+                Text("voice_cloud_recognition_note")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+
             HStack {
                 Button { voiceViewModel.cancelRecording() } label: {
                     Image(systemName: "trash").font(.title2).foregroundColor(.red)

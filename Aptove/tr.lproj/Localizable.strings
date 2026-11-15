@@ -211,3 +211,4 @@
 "schedule_summary_weekly" = "Her %1$@ %2$@";
 "schedule_summary_monthly" = "Her ay %@";
 "tasks_connected_only_note" = "Yalnızca bağlı ajanların görevleri gösterilir";
+"voice_cloud_recognition_note" = "Konuşma tanıma bu cihazda Apple sunucularını kullanabilir";

@@ -23,6 +23,7 @@ class VoiceInputViewModel: ObservableObject {
     @Published var recordingState: RecordingState = .idle
     @Published var waveformSamples: [Float] = Array(repeating: 0, count: 40)
     @Published var elapsedSeconds: Int = 0
+    @Published var onDeviceUnavailable: Bool = false
 
     var onTranscriptReady: ((String) -> Void)?
 
@@ -94,6 +95,12 @@ class VoiceInputViewModel: ObservableObject {
 
             let request = SFSpeechAudioBufferRecognitionRequest()
             request.shouldReportPartialResults = true
+            if speechRecognizer?.supportsOnDeviceRecognition == true {
+                request.requiresOnDeviceRecognition = true
+                onDeviceUnavailable = false
+            } else {
+                onDeviceUnavailable = true
+            }
             recognitionRequest = request
 
             let inputNode = engine.inputNode
@@ -188,6 +195,7 @@ class VoiceInputViewModel: ObservableObject {
     }
 
     private func stopEngine() {
+        onDeviceUnavailable = false
         recordingTimer?.invalidate()
         recordingTimer = nil
         audioEngine?.inputNode.removeTap(onBus: 0)
