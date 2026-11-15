@@ -1,6 +1,7 @@
 import SwiftUI
 import AVFoundation
 import CoreImage
+import os
 
 // Local equivalents of the CodeScanner types used in QRScannerView —
 // keeps the handleScan closure unchanged.
@@ -116,17 +117,13 @@ struct NativeQRScannerRepresentable: UIViewControllerRepresentable {
 
         private func checkPermissionAndSetup() {
             let status = AVCaptureDevice.authorizationStatus(for: .video)
-            #if DEBUG
-            print("[NativeQR] checkPermissionAndSetup: authStatus=\(status.rawValue)")
-            #endif
+            Logger.scanner.debug("[NativeQR] checkPermissionAndSetup: authStatus=\(status.rawValue)")
             switch status {
             case .authorized:
                 setupSession()
             case .notDetermined:
                 AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
-                    #if DEBUG
-                    print("[NativeQR] requestAccess result: granted=\(granted)")
-                    #endif
+                    Logger.scanner.debug("[NativeQR] requestAccess result: granted=\(granted)")
                     if granted {
                         self?.setupSession()
                     } else {
@@ -134,9 +131,7 @@ struct NativeQRScannerRepresentable: UIViewControllerRepresentable {
                     }
                 }
             default:
-                #if DEBUG
-                print("[NativeQR] Permission denied/restricted, firing .permissionDenied")
-                #endif
+                Logger.scanner.debug("[NativeQR] Permission denied/restricted, firing .permissionDenied")
                 DispatchQueue.main.async { [weak self] in
                     self?.coordinator.completion(.failure(.permissionDenied))
                 }
@@ -146,30 +141,22 @@ struct NativeQRScannerRepresentable: UIViewControllerRepresentable {
         private func setupSession() {
             sessionQueue.async { [weak self] in
                 guard let self else { return }
-                #if DEBUG
-                print("[NativeQR] setupSession: starting on thread \(Thread.current)")
-                #endif
+                Logger.scanner.debug("[NativeQR] setupSession: starting on thread \(Thread.current)")
                 self.session.beginConfiguration()
                 self.session.sessionPreset = .hd1280x720
 
                 let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back)
-                #if DEBUG
-                print("[NativeQR] Back camera device: \(device?.localizedName ?? "nil")")
-                #endif
+                Logger.scanner.debug("[NativeQR] Back camera device: \(device?.localizedName ?? "nil")")
                 guard let device,
                       let input = try? AVCaptureDeviceInput(device: device),
                       self.session.canAddInput(input) else {
-                    #if DEBUG
-                    print("[NativeQR] FAILED: no back camera or cannot add input — firing .badOutput")
-                    #endif
+                    Logger.scanner.debug("[NativeQR] FAILED: no back camera or cannot add input — firing .badOutput")
                     self.session.commitConfiguration()
                     DispatchQueue.main.async { self.coordinator.completion(.failure(.badOutput)) }
                     return
                 }
                 self.session.addInput(input)
-                #if DEBUG
-                print("[NativeQR] Added camera input: \(device.localizedName)")
-                #endif
+                Logger.scanner.debug("[NativeQR] Added camera input: \(device.localizedName)")
 
                 try? device.lockForConfiguration()
                 if device.isFocusModeSupported(.continuousAutoFocus) {
@@ -180,17 +167,13 @@ struct NativeQRScannerRepresentable: UIViewControllerRepresentable {
 
                 let metadataOutput = AVCaptureMetadataOutput()
                 guard self.session.canAddOutput(metadataOutput) else {
-                    #if DEBUG
-                    print("[NativeQR] FAILED: cannot add metadata output — firing .badOutput")
-                    #endif
+                    Logger.scanner.debug("[NativeQR] FAILED: cannot add metadata output — firing .badOutput")
                     self.session.commitConfiguration()
                     DispatchQueue.main.async { self.coordinator.completion(.failure(.badOutput)) }
                     return
                 }
                 self.session.addOutput(metadataOutput)
-                #if DEBUG
-                print("[NativeQR] Added metadata output")
-                #endif
+                Logger.scanner.debug("[NativeQR] Added metadata output")
 
                 // Serialize metadata type setup across all ScannerVC instances.
                 // AVCaptureFigVideoDevice.supportedMetadataObjectIdentifiers has non-thread-safe
@@ -198,38 +181,26 @@ struct NativeQRScannerRepresentable: UIViewControllerRepresentable {
                 var metadataReady = false
                 ScannerVC.metadataSetupQueue.sync {
                     let availableTypes = metadataOutput.availableMetadataObjectTypes
-                    #if DEBUG
-                    print("[NativeQR] availableMetadataObjectTypes: \(availableTypes.map { $0.rawValue })")
-                    #endif
+                    Logger.scanner.debug("[NativeQR] availableMetadataObjectTypes: \(availableTypes.map { $0.rawValue })")
                     guard availableTypes.contains(.qr) else {
-                        #if DEBUG
-                        print("[NativeQR] FAILED: .qr NOT in available types")
-                        #endif
+                        Logger.scanner.debug("[NativeQR] FAILED: .qr NOT in available types")
                         return
                     }
                     metadataOutput.setMetadataObjectsDelegate(self.coordinator, queue: DispatchQueue.main)
-                    #if DEBUG
-                    print("[NativeQR] Setting metadataObjectTypes to [.qr]...")
-                    #endif
+                    Logger.scanner.debug("[NativeQR] Setting metadataObjectTypes to [.qr]...")
                     metadataOutput.metadataObjectTypes = [.qr]
-                    #if DEBUG
-                    print("[NativeQR] metadataObjectTypes set successfully")
-                    #endif
+                    Logger.scanner.debug("[NativeQR] metadataObjectTypes set successfully")
                     metadataReady = true
                 }
                 guard metadataReady else {
-                    #if DEBUG
-                    print("[NativeQR] FAILED: metadata setup did not complete — firing .badOutput")
-                    #endif
+                    Logger.scanner.debug("[NativeQR] FAILED: metadata setup did not complete — firing .badOutput")
                     self.session.commitConfiguration()
                     DispatchQueue.main.async { self.coordinator.completion(.failure(.badOutput)) }
                     return
                 }
 
                 self.session.commitConfiguration()
-                #if DEBUG
-                print("[NativeQR] Session configured, starting...")
-                #endif
+                Logger.scanner.debug("[NativeQR] Session configured, starting...")
 
                 DispatchQueue.main.async { [weak self] in
                     guard let self else { return }
@@ -239,18 +210,14 @@ struct NativeQRScannerRepresentable: UIViewControllerRepresentable {
                     self.view.layer.insertSublayer(preview, at: 0)
                     self.previewLayer = preview
                     self.addViewfinder()
-                    #if DEBUG
-                    print("[NativeQR] Preview layer added, bounds=\(self.view.bounds)")
-                    #endif
+                    Logger.scanner.debug("[NativeQR] Preview layer added, bounds=\(self.view.bounds)")
                     #if targetEnvironment(simulator)
                     self.coordinator.fireSimulated(after: 1.0)
                     #endif
                 }
 
                 self.session.startRunning()
-                #if DEBUG
-                print("[NativeQR] Session running=\(self.session.isRunning)")
-                #endif
+                Logger.scanner.debug("[NativeQR] Session running=\(self.session.isRunning)")
                 // Set rectOfInterest after startRunning so the preview layer transform is valid.
                 DispatchQueue.main.async { [weak self] in
                     self?.updateRectOfInterest()
@@ -391,17 +358,13 @@ struct SoftwareQRScannerRepresentable: UIViewControllerRepresentable {
 
         private func checkPermissionAndSetup() {
             let status = AVCaptureDevice.authorizationStatus(for: .video)
-            #if DEBUG
-            print("[SoftwareQR] checkPermissionAndSetup: authStatus=\(status.rawValue)")
-            #endif
+            Logger.scanner.debug("[SoftwareQR] checkPermissionAndSetup: authStatus=\(status.rawValue)")
             switch status {
             case .authorized:
                 setupSession()
             case .notDetermined:
                 AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
-                    #if DEBUG
-                    print("[SoftwareQR] requestAccess result: granted=\(granted)")
-                    #endif
+                    Logger.scanner.debug("[SoftwareQR] requestAccess result: granted=\(granted)")
                     if granted {
                         self?.setupSession()
                     } else {
@@ -409,9 +372,7 @@ struct SoftwareQRScannerRepresentable: UIViewControllerRepresentable {
                     }
                 }
             default:
-                #if DEBUG
-                print("[SoftwareQR] Permission denied/restricted, firing .permissionDenied")
-                #endif
+                Logger.scanner.debug("[SoftwareQR] Permission denied/restricted, firing .permissionDenied")
                 DispatchQueue.main.async { [weak self] in
                     self?.coordinator.completion(.failure(.permissionDenied))
                 }
@@ -421,31 +382,23 @@ struct SoftwareQRScannerRepresentable: UIViewControllerRepresentable {
         private func setupSession() {
             sessionQueue.async { [weak self] in
                 guard let self else { return }
-                #if DEBUG
-                print("[SoftwareQR] setupSession: starting on thread \(Thread.current)")
-                #endif
+                Logger.scanner.debug("[SoftwareQR] setupSession: starting on thread \(Thread.current)")
                 self.session.beginConfiguration()
                 self.session.sessionPreset = .hd1280x720
 
                 // Use default camera (no .back requirement — works on Mac front camera too)
                 let device = AVCaptureDevice.default(for: .video)
-                #if DEBUG
-                print("[SoftwareQR] Default video device: \(device?.localizedName ?? "nil")")
-                #endif
+                Logger.scanner.debug("[SoftwareQR] Default video device: \(device?.localizedName ?? "nil")")
                 guard let device,
                       let input = try? AVCaptureDeviceInput(device: device),
                       self.session.canAddInput(input) else {
-                    #if DEBUG
-                    print("[SoftwareQR] FAILED: no camera or cannot add input — firing .badOutput")
-                    #endif
+                    Logger.scanner.debug("[SoftwareQR] FAILED: no camera or cannot add input — firing .badOutput")
                     self.session.commitConfiguration()
                     DispatchQueue.main.async { self.coordinator.completion(.failure(.badOutput)) }
                     return
                 }
                 self.session.addInput(input)
-                #if DEBUG
-                print("[SoftwareQR] Added camera input: \(device.localizedName)")
-                #endif
+                Logger.scanner.debug("[SoftwareQR] Added camera input: \(device.localizedName)")
 
                 try? device.lockForConfiguration()
                 if device.isFocusModeSupported(.continuousAutoFocus) {
@@ -463,18 +416,14 @@ struct SoftwareQRScannerRepresentable: UIViewControllerRepresentable {
                 videoOutput.alwaysDiscardsLateVideoFrames = true
 
                 guard self.session.canAddOutput(videoOutput) else {
-                    #if DEBUG
-                    print("[SoftwareQR] FAILED: cannot add video output — firing .badOutput")
-                    #endif
+                    Logger.scanner.debug("[SoftwareQR] FAILED: cannot add video output — firing .badOutput")
                     self.session.commitConfiguration()
                     DispatchQueue.main.async { self.coordinator.completion(.failure(.badOutput)) }
                     return
                 }
                 self.session.addOutput(videoOutput)
                 self.session.commitConfiguration()
-                #if DEBUG
-                print("[SoftwareQR] Session configured with video data output")
-                #endif
+                Logger.scanner.debug("[SoftwareQR] Session configured with video data output")
 
                 DispatchQueue.main.async { [weak self] in
                     guard let self else { return }
@@ -484,15 +433,11 @@ struct SoftwareQRScannerRepresentable: UIViewControllerRepresentable {
                     self.view.layer.insertSublayer(preview, at: 0)
                     self.previewLayer = preview
                     self.addViewfinder()
-                    #if DEBUG
-                    print("[SoftwareQR] Preview layer added, bounds=\(self.view.bounds)")
-                    #endif
+                    Logger.scanner.debug("[SoftwareQR] Preview layer added, bounds=\(self.view.bounds)")
                 }
 
                 self.session.startRunning()
-                #if DEBUG
-                print("[SoftwareQR] Session running=\(self.session.isRunning)")
-                #endif
+                Logger.scanner.debug("[SoftwareQR] Session running=\(self.session.isRunning)")
             }
         }
 

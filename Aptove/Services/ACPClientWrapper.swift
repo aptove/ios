@@ -3,13 +3,14 @@ import ACP
 import ACPHTTP
 import ACPModel
 import CommonCrypto
+import os
 
 /// Client implementation that collects streaming responses
 @MainActor
 private class AptoveClient: @preconcurrency Client, ClientSessionOperations {
     
     init() {
-        print("👤 AptoveClient: Initializing...")
+        Logger.connection.debug("AptoveClient initializing...")
     }
     var capabilities: ClientCapabilities {
         ClientCapabilities(terminal: true) // Enable terminal to see if agent calls us
@@ -45,7 +46,7 @@ private class AptoveClient: @preconcurrency Client, ClientSessionOperations {
     // Terminal approval (not yet supported — terminalCreate auto-rejects)
     
     func onSessionUpdate(_ update: SessionUpdate) async {
-        print("📨 Session update: \(update)")
+        Logger.connection.debug("Session update: \(String(describing: update))")
 
         // Route availableCommandsUpdate through the persistent wrapper callback
         if case .availableCommandsUpdate(let u) = update {
@@ -57,12 +58,7 @@ private class AptoveClient: @preconcurrency Client, ClientSessionOperations {
 
         // Log tool calls specially to debug approval flow
         if case .toolCall(let toolCallUpdate) = update {
-            print("🔧 Tool call details:")
-            print("   - ID: \(toolCallUpdate.toolCallId.value)")
-            print("   - Title: \(toolCallUpdate.title)")
-            print("   - Kind: \(String(describing: toolCallUpdate.kind))")
-            print("   - Status: \(String(describing: toolCallUpdate.status))")
-            print("   - RawInput: \(String(describing: toolCallUpdate.rawInput))")
+            Logger.connection.debug("Tool call: ID=\(toolCallUpdate.toolCallId.value), title=\(toolCallUpdate.title), kind=\(String(describing: toolCallUpdate.kind)), status=\(String(describing: toolCallUpdate.status))")
         }
 
         onUpdate?(update)
@@ -73,35 +69,34 @@ private class AptoveClient: @preconcurrency Client, ClientSessionOperations {
         permissions: [PermissionOption],
         meta: MetaField?
     ) async throws -> RequestPermissionResponse {
-        print("🔐 requestPermissions CALLED for toolCallId: \(toolCall.toolCallId.value), title: \(toolCall.title ?? "nil")")
-        print("🔐 Permissions count: \(permissions.count)")
+        Logger.connection.debug("requestPermissions: toolCallId=\(toolCall.toolCallId.value), title=\(toolCall.title ?? "nil"), options=\(permissions.count)")
         return try await withCheckedThrowingContinuation { continuation in
             let requestId = toolCall.toolCallId.value
             pendingPermissions[requestId] = continuation
             pendingPermissionOptions[requestId] = permissions
-            print("🔐 Calling onPermissionRequest handler")
+            Logger.connection.debug("Calling onPermissionRequest handler")
             onPermissionRequest?(requestId, toolCall, permissions)
         }
     }
     
     func notify(notification: SessionUpdate, meta: MetaField?) async {
-        print("[push-dbg] AptoveClient.notify() onUpdate=\(onUpdate != nil ? "SET" : "NIL") — \(String(describing: notification).prefix(120))")
+        Logger.push.debug("AptoveClient.notify() onUpdate=\(onUpdate != nil ? "SET" : "NIL") — \(String(describing: notification).prefix(120))")
         await onSessionUpdate(notification)
     }
     
     // Terminal Operations — not yet supported on iOS; auto-reject to avoid hanging the agent.
     func terminalCreate(request: CreateTerminalRequest) async throws -> CreateTerminalResponse {
-        print("🖥️ terminalCreate CALLED - command: \(request.command) — auto-rejecting (unsupported)")
+        Logger.connection.debug("terminalCreate: command=\(request.command) — auto-rejecting (unsupported)")
         throw ClientError.notImplemented("Terminal commands are not supported on iOS")
     }
     
     func terminalOutput(sessionId: SessionId, terminalId: String, meta: MetaField?) async throws -> TerminalOutputResponse {
-        print("🖥️ terminalOutput CALLED for terminal: \(terminalId)")
+        Logger.connection.debug("terminalOutput: terminal=\(terminalId)")
         return TerminalOutputResponse(output: "", truncated: false, exitStatus: nil)
     }
     
     func terminalRelease(sessionId: SessionId, terminalId: String, meta: MetaField?) async throws {
-        print("🖥️ terminalRelease CALLED for terminal: \(terminalId)")
+        Logger.connection.debug("terminalRelease: terminal=\(terminalId)")
     }
     
     // FileSystemOperations stubs - not implemented
@@ -194,9 +189,7 @@ class ACPClientWrapper: ObservableObject {
     private var currentResponse: String = ""
     
     nonisolated init(config: ConnectionConfig, agentId: String, expectedBridgeAgentId: String? = nil, versionMode: ACPVersionMode = .auto, connectionTimeout: TimeInterval = 300, maxRetries: Int = 3, maxReconnectAttempts: Int = 1) {
-        print("🔌 ACPClientWrapper: Initializing for agent \(agentId)")
-        print("🔌 ACPClientWrapper: URL: \(config.websocketURL)")
-        print("🔌 ACPClientWrapper: Timeout: \(connectionTimeout)s, Max retries: \(maxRetries), Max reconnect: \(maxReconnectAttempts)")
+        Logger.connection.debug("ACPClientWrapper: Initializing for agent \(agentId), URL: \(config.websocketURL), timeout: \(connectionTimeout)s, retries: \(maxRetries)")
         self.config = config
         self.agentId = agentId
         self.expectedBridgeAgentId = expectedBridgeAgentId
@@ -205,7 +198,7 @@ class ACPClientWrapper: ObservableObject {
         self.maxRetries = maxRetries
         self.maxReconnectAttempts = maxReconnectAttempts
         self.cwd = config.cwd
-        print("🔌 ACPClientWrapper: Initialization complete (cwd: \(self.cwd), versionMode: \(versionMode.rawValue))")
+        Logger.connection.debug("ACPClientWrapper: Init complete (cwd: \(self.cwd), versionMode: \(versionMode.rawValue))")
     }
     
     func connect() async {
@@ -215,9 +208,9 @@ class ACPClientWrapper: ObservableObject {
     func connect(existingSessionId: String?) async {
         // An intentional disconnect is over — allow sendMessage() to reconnect again.
         isIntentionallyDisconnecting = false
-        print("🔌 ACPClientWrapper.connect(): Starting connection flow...")
+        Logger.connection.debug("ACPClientWrapper.connect(): Starting connection flow...")
         if let sessionId = existingSessionId {
-            print("🔌 ACPClientWrapper.connect(): Will try to load session: \(sessionId)")
+            Logger.connection.debug("ACPClientWrapper.connect(): Will try to load session: \(sessionId)")
         }
         connectionState = .connecting
         connectionMessage = "Connecting to agent..."
@@ -225,26 +218,26 @@ class ACPClientWrapper: ObservableObject {
         var lastError: Error?
         
         for attempt in 1...maxRetries {
-            print("🔌 ACPClientWrapper.connect(): Attempt \(attempt)/\(maxRetries)")
+            Logger.connection.debug("ACPClientWrapper.connect(): Attempt \(attempt)/\(self.maxRetries)")
             var attemptTransport: WebSocketTransport? = nil
             do {
                 if attempt > 1 {
                     connectionMessage = "Retrying connection (\(attempt)/\(maxRetries))..."
-                    print("🔌 ACPClientWrapper.connect(): Waiting 2s before retry...")
+                    Logger.connection.debug("ACPClientWrapper.connect(): Waiting 2s before retry...")
                     // Wait a bit before retrying
                     try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
                 }
                 
-                print("🔌 ACPClientWrapper.connect(): Validating URL...")
+                Logger.connection.debug("ACPClientWrapper.connect(): Validating URL...")
                 guard let url = URL(string: config.websocketURL) else {
-                    print("❌ ACPClientWrapper.connect(): Invalid URL: \(config.websocketURL)")
+                    Logger.connection.error("ACPClientWrapper.connect(): Invalid URL: \(self.config.websocketURL)")
                     connectionState = .error("Invalid URL")
                     return
                 }
-                print("🔌 ACPClientWrapper.connect(): URL valid: \(url)")
+                Logger.connection.debug("ACPClientWrapper.connect(): URL valid: \(url)")
                 
                 // Create URLSession with optional CF-Access headers
-                print("🔌 ACPClientWrapper.connect(): Configuring URLSession...")
+                Logger.connection.debug("ACPClientWrapper.connect(): Configuring URLSession...")
                 let configuration = URLSessionConfiguration.default
                 // Don't set timeouts for WebSocket connections - they need to stay open indefinitely
                 // Only use connectionTimeout for the initial connection attempt
@@ -255,18 +248,18 @@ class ACPClientWrapper: ObservableObject {
                 
                 // Only add CF-Access headers if credentials are provided
                 if let clientId = config.clientId, !clientId.isEmpty {
-                    print("🔌 ACPClientWrapper.connect(): Adding CF-Access-Client-Id header")
+                    Logger.connection.debug("ACPClientWrapper.connect(): Adding CF-Access-Client-Id header")
                     headers["CF-Access-Client-Id"] = clientId
                 }
                 
                 if let clientSecret = config.clientSecret, !clientSecret.isEmpty {
-                    print("🔌 ACPClientWrapper.connect(): Adding CF-Access-Client-Secret header")
+                    Logger.connection.debug("ACPClientWrapper.connect(): Adding CF-Access-Client-Secret header")
                     headers["CF-Access-Client-Secret"] = clientSecret
                 }
                 
                 // Add bridge auth token if provided
                 if let authToken = config.authToken, !authToken.isEmpty {
-                    print("🔌 ACPClientWrapper.connect(): Adding X-Bridge-Token header")
+                    Logger.connection.debug("ACPClientWrapper.connect(): Adding X-Bridge-Token header")
                     headers["X-Bridge-Token"] = authToken
                 }
 
@@ -274,27 +267,26 @@ class ACPClientWrapper: ObservableObject {
                 headers["X-Client-Id"] = deviceClientId
                 
                 if !headers.isEmpty {
-                    print("🔌 ACPClientWrapper.connect(): Setting \(headers.count) HTTP headers")
+                    Logger.connection.debug("ACPClientWrapper.connect(): Setting \(headers.count) HTTP headers")
                     configuration.httpAdditionalHeaders = headers
                 } else {
-                    print("🔌 ACPClientWrapper.connect(): No additional headers needed")
+                    Logger.connection.debug("ACPClientWrapper.connect(): No additional headers needed")
                 }
                 
                 // Create URLSession with optional certificate pinning delegate
                 let session: URLSession
                 if config.hasSelfSignedCert {
-                    print("🔌 ACPClientWrapper.connect(): Creating URLSession with self-signed cert support...")
-                    print("🔐 Expected fingerprint: \(config.certFingerprint ?? "none")")
+                    Logger.connection.debug("ACPClientWrapper.connect(): Creating URLSession with self-signed cert support (fingerprint: \(self.config.certFingerprint ?? "none"))")
                     let delegate = SelfSignedCertificateDelegate(expectedFingerprint: config.certFingerprint)
                     session = URLSession(configuration: configuration, delegate: delegate, delegateQueue: nil)
                 } else {
-                    print("🔌 ACPClientWrapper.connect(): Creating standard URLSession...")
+                    Logger.connection.debug("ACPClientWrapper.connect(): Creating standard URLSession...")
                     session = URLSession(configuration: configuration)
                 }
                 
                 connectionMessage = "Establishing connection...\nThis may take a moment if authorization is required."
                 
-                print("🔌 ACPClientWrapper.connect(): Creating WebSocketTransport...")
+                Logger.connection.debug("ACPClientWrapper.connect(): Creating WebSocketTransport...")
                 let wsTransport = WebSocketTransport(url: url, session: session)
                 attemptTransport = wsTransport
                 let filteredTransport = BridgeFilteringTransport(inner: wsTransport) { [weak self] notif in
@@ -302,19 +294,19 @@ class ACPClientWrapper: ObservableObject {
                 }
                 self.transport = wsTransport
 
-                print("🔌 ACPClientWrapper.connect(): Creating AptoveClient...")
+                Logger.connection.debug("ACPClientWrapper.connect(): Creating AptoveClient...")
                 // Cancel any continuations from the previous client before replacing it.
                 cancelPendingClientRequests()
                 let client = AptoveClient()
                 client.wrapper = self
                 self.client = client
-                print("🔌 ACPClientWrapper.connect(): Client created")
+                Logger.connection.debug("ACPClientWrapper.connect(): Client created")
 
                 // If sendMessage() was interrupted by an intentional disconnect (app backgrounded),
                 // restore the onUpdate handler so buffered agent messages appear in the UI when the
                 // bridge replays them after session resume.
                 if let pending = pendingOnUpdate {
-                    print("🔄 [push-dbg] Restoring pending response handler to new AptoveClient after reconnect")
+                    Logger.push.debug("Restoring pending response handler to new AptoveClient after reconnect")
                     client.onUpdate = pending
                 } else {
                     // No active sendMessage() — buffer agent message chunks from bridge replay
@@ -331,7 +323,7 @@ class ACPClientWrapper: ObservableObject {
                             if let msgId = chunk.messageId?.rawValue {
                                 self.coldStartMessageIds.insert(msgId)
                             }
-                            print("🔄 [push-dbg] Buffered agent chunk (cold-start): \(textContent.text)")
+                            Logger.push.debug("Buffered agent chunk (cold-start): \(textContent.text)")
                         }
                         // Debounce: after every update, reset the timer. When no more updates
                         // arrive for 150ms, all replayed messages have been processed.
@@ -341,7 +333,7 @@ class ACPClientWrapper: ObservableObject {
                             guard let self, !Task.isCancelled else { return }
                             guard let buffered = self.pendingBufferedResponse, !buffered.isEmpty else { return }
                             let messageCount = max(self.coldStartMessageIds.count, 1)
-                            print("🔄 [push-dbg] Cold-start debounce fired: \(buffered.count) chars, \(messageCount) message(s) — calling onColdStartReplayComplete")
+                            Logger.push.debug("Cold-start debounce fired: \(buffered.count) chars, \(messageCount) message(s) — calling onColdStartReplayComplete")
                             self.onColdStartReplayComplete?(buffered, messageCount)
                             self.coldStartMessageIds.removeAll()
                             self.coldStartDebounceTask = nil
@@ -350,9 +342,9 @@ class ACPClientWrapper: ObservableObject {
                 }
 
                 // Set up permission request handler
-                print("🔌 ACPClientWrapper.connect(): Setting up permission request handler...")
+                Logger.connection.debug("ACPClientWrapper.connect(): Setting up permission request handler...")
                 client.onPermissionRequest = { [weak self] requestId, toolCall, permissions in
-                    print("🔐 Permission request received in handler: \(requestId)")
+                    Logger.connection.debug("Permission request received in handler: \(requestId)")
                     Task { @MainActor in
                         guard let self = self else { return }
 
@@ -364,22 +356,22 @@ class ACPClientWrapper: ObservableObject {
                         }
 
                         let title = toolCall.title ?? "Tool Approval Required"
-                        print("⚠️ Permission request: \(title), options: \(permissions.count)")
+                        Logger.connection.debug("Permission request: \(title), options: \(permissions.count)")
                         self.onToolApprovalRequest?(requestId, title, command, permissions)
                     }
                 }
 
                 // Pass the connectionTimeout to ensure Protocol layer respects our extended timeout
-                print("🔌 ACPClientWrapper.connect(): Creating ACPProtocol...")
+                Logger.connection.debug("ACPClientWrapper.connect(): Creating ACPProtocol...")
                 let proto = ACPProtocol(transport: filteredTransport, defaultTimeoutSeconds: connectionTimeout)
-                print("🔌 ACPClientWrapper.connect(): ACPProtocol created")
+                Logger.connection.debug("ACPClientWrapper.connect(): ACPProtocol created")
 
                 // Connect and initialize with a short deadline so a silent bridge
                 // (connected but not responding) fails fast and triggers a retry.
                 // Always close the transport on failure so the bridge releases the connection slot.
                 let initializeTimeout: TimeInterval = 30
                 connectionMessage = "Initializing agent..."
-                print("🔌 ACPClientWrapper.connect(): Starting protocol (timeout: \(Int(initializeTimeout))s)...")
+                Logger.connection.debug("ACPClientWrapper.connect(): Starting protocol (timeout: \(Int(initializeTimeout))s)...")
                 let agentInfo = try await withThrowingTaskGroup(of: Implementation?.self) { group in
                     group.addTask {
                         try await proto.start()
@@ -394,18 +386,18 @@ class ACPClientWrapper: ObservableObject {
                     group.cancelAll()
                     return result
                 }
-                print("✅ ACPClientWrapper.connect(): Connected (protocol v\(self.negotiatedVersion))!")
+                Logger.connection.debug("ACPClientWrapper.connect(): Connected (protocol v\(self.negotiatedVersion))!")
 
                 // Store the agent's self-reported name from the InitializeResponse
                 self.connectedAgentName = agentInfo?.name
                 if let name = self.connectedAgentName {
-                    print("🤖 ACPClientWrapper.connect(): Agent name: \(name)")
+                    Logger.connection.debug("ACPClientWrapper.connect(): Agent name: \(name)")
                 }
 
                     self.rawProto = proto
                     connectionMessage = "Connected successfully!"
                     connectionState = .connected
-                    print("✅ ACPClientWrapper.connect(): Connection flow complete!")
+                    Logger.connection.debug("ACPClientWrapper.connect(): Connection flow complete!")
                     self.onReconnect?()
 
                     // Watch for unexpected transport close (network loss, bridge restart, etc.)
@@ -417,7 +409,7 @@ class ACPClientWrapper: ObservableObject {
                             guard let self else { return }
                             if state == .closed {
                                 if case .connected = self.connectionState {
-                                    print("🔌 ACPClientWrapper: Transport closed unexpectedly — signalling disconnect")
+                                    Logger.connection.debug("ACPClientWrapper: Transport closed unexpectedly — signalling disconnect")
                                     self.connectionState = .disconnected
                                     self.onUnexpectedDisconnect?()
                                 }
@@ -431,20 +423,18 @@ class ACPClientWrapper: ObservableObject {
                     // Close the transport explicitly so the bridge releases the connection slot.
                     // Without this, timed-out or failed WebSocketTasks linger on the server,
                     // eventually exhausting the bridge's concurrent connection limit.
-                    print("🔌 ACPClientWrapper.connect(): Closing transport after failed attempt \(attempt)")
+                    Logger.connection.debug("ACPClientWrapper.connect(): Closing transport after failed attempt \(attempt)")
                     await attemptTransport?.close()
                     self.transport = nil
 
                     lastError = error
-                    print("❌ Connection attempt \(attempt) failed: \(error)")
-                    print("❌ Error type: \(type(of: error))")
-                    print("❌ Error localized: \(error.localizedDescription)")
+                    Logger.connection.error("Connection attempt \(attempt) failed: \(error) (\(type(of: error)))")
 
                     // 401 Unauthorized means the stored auth token is stale — no point retrying.
                     // Signal this specifically so AgentManager can mark the endpoint invalid.
                     let errStr = "\(error)"
                     if errStr.contains("401") || errStr.lowercased().contains("unauthorized") {
-                        print("🔒 ACPClientWrapper.connect(): 401 Unauthorized — stopping retries, credentials invalid")
+                        Logger.connection.error("ACPClientWrapper.connect(): 401 Unauthorized — stopping retries, credentials invalid")
                         connectionState = .error("unauthorized: \(error.localizedDescription)")
                         return
                     }
@@ -452,7 +442,7 @@ class ACPClientWrapper: ObservableObject {
         }
         
         // All retries failed
-        print("❌ ACPClientWrapper.connect(): All \(maxRetries) attempts failed")
+        Logger.connection.error("ACPClientWrapper.connect(): All \(self.maxRetries) attempts failed")
         let errorMessage = lastError?.localizedDescription ?? "Connection failed"
         connectionMessage = ""
         connectionState = .error("Failed after \(maxRetries) attempts: \(errorMessage)")
@@ -483,7 +473,7 @@ class ACPClientWrapper: ObservableObject {
     /// Clear the conversation history while keeping the session ID and workspace.
     /// This reconnects with the same session ID, which causes the agent to clear session.md
     func clearSession() async {
-        print("🗑️ Clearing session conversation history...")
+        Logger.connection.debug("Clearing session conversation history...")
 
         // Disconnect current connection
         await disconnect()
@@ -491,7 +481,7 @@ class ACPClientWrapper: ObservableObject {
         // Reconnect - this will reuse the stored session ID and clear the conversation
         await connect()
 
-        print("✅ Session conversation cleared, workspace retained")
+        Logger.connection.debug("Session conversation cleared, workspace retained")
     }
     
     /// Register the APNs push token with the bridge for background notifications.
@@ -501,12 +491,12 @@ class ACPClientWrapper: ObservableObject {
         let pushManager = PushNotificationManager.shared
 
         guard let deviceToken = await pushManager.getDeviceToken() else {
-            print("📲 ACPClientWrapper: No push token available, skipping registration")
+            Logger.push.debug("ACPClientWrapper: No push token available, skipping registration")
             return
         }
         
         guard let transport = self.transport else {
-            print("📲 ACPClientWrapper: No transport, cannot register push token")
+            Logger.push.debug("ACPClientWrapper: No transport, cannot register push token")
             return
         }
         
@@ -523,11 +513,11 @@ class ACPClientWrapper: ObservableObject {
         let message = JsonRpcMessage.notification(notification)
         
         do {
-            print("📲 ACPClientWrapper: Registering push token with bridge (platform=apns, bundleId=\(bundleId))")
+            Logger.push.debug("ACPClientWrapper: Registering push token with bridge (bundleId=\(bundleId))")
             try await transport.send(message)
-            print("✅ ACPClientWrapper: Push token registered with bridge")
+            Logger.push.debug("ACPClientWrapper: Push token registered with bridge")
         } catch {
-            print("❌ ACPClientWrapper: Failed to register push token: \(error)")
+            Logger.push.error("ACPClientWrapper: Failed to register push token: \(error)")
         }
     }
     
@@ -546,10 +536,10 @@ class ACPClientWrapper: ObservableObject {
         let message = JsonRpcMessage.notification(notification)
         
         do {
-            print("📲 ACPClientWrapper: Unregistering push token from bridge")
+            Logger.push.debug("ACPClientWrapper: Unregistering push token from bridge")
             try await transport.send(message)
         } catch {
-            print("❌ ACPClientWrapper: Failed to unregister push token: \(error)")
+            Logger.push.error("ACPClientWrapper: Failed to unregister push token: \(error)")
         }
     }
     
@@ -563,7 +553,7 @@ class ACPClientWrapper: ObservableObject {
         do {
             try await transport.send(message)
         } catch {
-            print("❌ ACPClientWrapper: Failed to send setAgentName: \(error)")
+            Logger.connection.error("ACPClientWrapper: Failed to send setAgentName: \(error)")
         }
     }
 
@@ -618,14 +608,14 @@ class ACPClientWrapper: ObservableObject {
         do {
             try await transport.send(message)
         } catch {
-            print("❌ ACPClientWrapper: Failed to send \(method): \(error)")
+            Logger.connection.error("ACPClientWrapper: Failed to send \(method): \(error)")
         }
     }
 
     /// Append a memory entry to the bridge's MEMORY.md file.
     func sendMemoryEntry(_ text: String) async {
         guard let transport = self.transport else {
-            print("❌ ACPClientWrapper: No transport, cannot send memory entry")
+            Logger.connection.error("ACPClientWrapper: No transport, cannot send memory entry")
             return
         }
         let params: JsonValue = .object(["text": .string(text)])
@@ -633,9 +623,9 @@ class ACPClientWrapper: ObservableObject {
         let message = JsonRpcMessage.notification(notification)
         do {
             try await transport.send(message)
-            print("🧠 ACPClientWrapper: Memory entry sent")
+            Logger.connection.debug("ACPClientWrapper: Memory entry sent")
         } catch {
-            print("❌ ACPClientWrapper: Failed to send memory entry: \(error)")
+            Logger.connection.error("ACPClientWrapper: Failed to send memory entry: \(error)")
         }
     }
 
@@ -812,8 +802,7 @@ class ACPClientWrapper: ObservableObject {
             throw ClientError.noActiveSession
         }
 
-        print("📤 Sending prompt to session: \(sessionId.value)")
-        print("📤 Content blocks: \(content.count)")
+        Logger.connection.debug("Sending prompt to session: \(sessionId.value), blocks: \(content.count)")
         
         // Capture callbacks locally so each call's closure is fully isolated.
         // Do NOT write to instance properties here — concurrent calls would overwrite them
@@ -830,19 +819,19 @@ class ACPClientWrapper: ObservableObject {
                 switch update {
                 case .agentMessageChunk(let chunk):
                     if case .text(let textContent) = chunk.content {
-                        print("📥 Agent response chunk: \(textContent.text)")
+                        Logger.connection.debug("Agent response chunk: \(textContent.text)")
                         onChunk(textContent.text)
                     }
                 case .agentThoughtChunk(let chunk):
                     if case .text(let textContent) = chunk.content {
-                        print("💭 Agent thought: \(textContent.text)")
+                        Logger.connection.debug("Agent thought: \(textContent.text)")
                         capturedOnThought?(textContent.text)
                     }
                 case .toolCall(let toolCall):
-                    print("🔧 Tool call: \(toolCall.title) - status: \(String(describing: toolCall.status))")
+                    Logger.connection.debug("Tool call: \(toolCall.title) - status: \(String(describing: toolCall.status))")
                     capturedOnToolCall?(toolCall.title)
                 case .toolCallUpdate(let toolUpdate):
-                    print("🔧 Tool update: \(toolUpdate.toolCallId.value) - status: \(String(describing: toolUpdate.status))")
+                    Logger.connection.debug("Tool update: \(toolUpdate.toolCallId.value) - status: \(String(describing: toolUpdate.status))")
                     // Extract text content from the update
                     var textContent = ""
                     if let content = toolUpdate.content {
@@ -855,13 +844,13 @@ class ACPClientWrapper: ObservableObject {
                     }
                     // Only surface updates that carry actual text content
                     if !textContent.isEmpty {
-                        print("📥 Tool output: \(textContent)")
+                        Logger.connection.debug("Tool output: \(textContent)")
                         capturedOnToolUpdate?(toolUpdate.toolCallId.value, textContent)
                     } else if let status = toolUpdate.status {
-                        print("📥 Tool status change (suppressed from UI): \(status)")
+                        Logger.connection.debug("Tool status change (suppressed from UI): \(status)")
                     }
                 default:
-                    print("📨 Other update: \(update)")
+                    Logger.connection.debug("Other update: \(String(describing: update))")
                 }
             }
         }
@@ -892,7 +881,7 @@ class ACPClientWrapper: ObservableObject {
                         return nil
                     }
                     let v2Request = V2PromptRequest(sessionId: sessionId, prompt: v2Prompt)
-                    print("📤 V2 prompt request created for session: \(sessionId.value)")
+                    Logger.connection.debug("V2 prompt request for session: \(sessionId.value)")
 
                     let (stream, cont) = AsyncStream<V2SessionUpdate>.makeStream()
                     await MainActor.run { self.v2PromptContinuation = cont }
@@ -927,13 +916,13 @@ class ACPClientWrapper: ObservableObject {
                     stopReason = collectedStopReason
                 } else {
                     let promptRequest = PromptRequest(sessionId: sessionId, prompt: content)
-                    print("📤 V1 prompt request created for session: \(sessionId.value)")
+                    Logger.connection.debug("V1 prompt request for session: \(sessionId.value)")
                     let response = try await proto.request(
                         method: "session/prompt",
                         params: promptRequest,
                         responseType: PromptResponse.self
                     )
-                    print("📥 Prompt completed: \(response.stopReason)")
+                    Logger.connection.debug("Prompt completed: \(response.stopReason)")
                     stopReason = response.stopReason
                 }
 
@@ -947,13 +936,13 @@ class ACPClientWrapper: ObservableObject {
                     onComplete(stopReason, nil)
                 }
             } catch {
-                print("❌ Prompt error: \(error)")
+                Logger.connection.error("Prompt error: \(error)")
                 await MainActor.run { self.v2PromptContinuation = nil }
 
                 // --- Agent JSON-RPC errors (quota, invalid params, etc.) ---
                 // Do NOT reconnect — surface the error directly.
                 if let agentErrorMessage = Self.agentErrorMessage(from: error) {
-                    print("⚠️ Agent error (no reconnect): \(agentErrorMessage)")
+                    Logger.connection.debug("Agent error (no reconnect): \(agentErrorMessage)")
                     await MainActor.run {
                         self.pendingOnUpdate = nil
                         self.pendingOnComplete = nil
@@ -963,7 +952,7 @@ class ACPClientWrapper: ObservableObject {
                 }
 
                 guard reconnectLimit > 0 else {
-                    print("🔄 Auto-reconnect disabled (maxReconnectAttempts=0)")
+                    Logger.connection.debug("Auto-reconnect disabled (maxReconnectAttempts=0)")
                     await MainActor.run {
                         self.connectionState = .disconnected
                         self.pendingOnUpdate = nil
@@ -978,7 +967,7 @@ class ACPClientWrapper: ObservableObject {
                 // the response is already displayed and the UI is finalised — nothing to do.
                 let alreadyHandled = await MainActor.run { self.pendingOnComplete == nil }
                 if alreadyHandled {
-                    print("🔄 [push-dbg] Response already handled via buffer replay — done")
+                    Logger.push.debug("Response already handled via buffer replay — done")
                     return
                 }
 
@@ -986,7 +975,7 @@ class ACPClientWrapper: ObservableObject {
                 // and pendingOnComplete are already set above. Just return; the app will reconnect
                 // via autoConnectAllAgents() and bridge/bufferReplayComplete will fire them.
                 if await MainActor.run(body: { self.isIntentionallyDisconnecting }) {
-                    print("🔄 [push-dbg] Intentional disconnect — waiting for bridge/bufferReplayComplete on reconnect")
+                    Logger.push.debug("Intentional disconnect — waiting for bridge/bufferReplayComplete on reconnect")
                     await MainActor.run { self.connectionState = .disconnected }
                     return
                 }
@@ -995,12 +984,12 @@ class ACPClientWrapper: ObservableObject {
                 let isSessionNotFound = Self.isSessionNotFoundError(error)
                 let reconnectSessionId: String? = isSessionNotFound ? nil : savedSessionId
                 if isSessionNotFound {
-                    print("🔄 Session not found — will create new session on reconnect")
+                    Logger.connection.debug("Session not found — will create new session on reconnect")
                     await MainActor.run { self.currentSessionId = nil }
                 }
 
                 for attempt in 1...reconnectLimit {
-                    print("🔄 Transport error detected — reconnect attempt \(attempt)/\(reconnectLimit)")
+                    Logger.connection.debug("Transport error — reconnect attempt \(attempt)/\(reconnectLimit)")
                     await MainActor.run {
                         self.connectionState = .disconnected
                         self.rawProto = nil
@@ -1013,7 +1002,7 @@ class ACPClientWrapper: ObservableObject {
                     // and bridge/bufferReplayComplete may have fired during the await.
                     let handledDuringConnect = await MainActor.run { self.pendingOnComplete == nil }
                     if handledDuringConnect {
-                        print("🔄 [push-dbg] Response handled via buffer replay during reconnect — done")
+                        Logger.push.debug("Response handled via buffer replay during reconnect — done")
                         return
                     }
 
@@ -1022,7 +1011,7 @@ class ACPClientWrapper: ObservableObject {
                         return false
                     }
                     guard reconnected else {
-                        print("❌ Reconnect attempt \(attempt) failed — connection not restored")
+                        Logger.connection.error("Reconnect attempt \(attempt) failed — connection not restored")
                         continue
                     }
 
@@ -1030,15 +1019,15 @@ class ACPClientWrapper: ObservableObject {
                     // bridge/bufferReplayComplete → pendingOnComplete.
                     // Do NOT retry the prompt (would duplicate the request to the agent).
                     if await MainActor.run(body: { self.sessionWasResumed == true }) {
-                        print("🔄 [push-dbg] Session resumed after transport error — waiting for bridge/bufferReplayComplete")
+                        Logger.push.debug("Session resumed after transport error — waiting for bridge/bufferReplayComplete")
                         return
                     }
 
-                    print("✅ Reconnected to fresh session — retrying prompt")
+                    Logger.connection.debug("Reconnected to fresh session — retrying prompt")
 
                     guard let newProto = await MainActor.run(body: { self.rawProto }),
                           let newSessionId = await MainActor.run(body: { self.currentSessionId }) else {
-                        print("❌ Connection objects nil after reconnect")
+                        Logger.connection.error("Connection objects nil after reconnect")
                         continue
                     }
 
@@ -1062,7 +1051,7 @@ class ACPClientWrapper: ObservableObject {
                                 params: retryRequest,
                                 responseType: PromptResponse.self
                             )
-                            print("📥 Retry prompt completed: \(retryResponse.stopReason)")
+                            Logger.connection.debug("Retry prompt completed: \(retryResponse.stopReason)")
                             retryStopReason = retryResponse.stopReason
                         }
                         try? await Task.sleep(nanoseconds: 100_000_000)
@@ -1073,12 +1062,12 @@ class ACPClientWrapper: ObservableObject {
                         }
                         return
                     } catch {
-                        print("❌ Retry prompt also failed: \(error)")
+                        Logger.connection.error("Retry prompt also failed: \(error)")
                     }
                 }
 
                 // All reconnect attempts exhausted
-                print("❌ All \(reconnectLimit) reconnect attempt(s) failed")
+                Logger.connection.error("All \(reconnectLimit) reconnect attempt(s) failed")
                 await MainActor.run {
                     self.pendingOnUpdate = nil
                     self.pendingOnComplete = nil
@@ -1094,7 +1083,7 @@ class ACPClientWrapper: ObservableObject {
             throw ClientError.invalidToolCall
         }
         
-        print("✅ Tool approved: \(toolCallId) with option: \(optionId)")
+        Logger.connection.debug("Tool approved: \(toolCallId) with option: \(optionId)")
         
         // Resume the continuation with the selected option
         let response = RequestPermissionResponse(
@@ -1112,7 +1101,7 @@ class ACPClientWrapper: ObservableObject {
             throw ClientError.invalidToolCall
         }
         
-        print("❌ Tool rejected: \(toolCallId)")
+        Logger.connection.debug("Tool rejected: \(toolCallId)")
         
         // Resume the continuation with reject_once option
         let response = RequestPermissionResponse(
@@ -1178,7 +1167,7 @@ class ACPClientWrapper: ObservableObject {
 
     private func handleBridgeMismatch(receivedCwd: String?) {
         let cwdInfo = receivedCwd ?? "unknown"
-        print("⚠️ ACPClientWrapper: bridge identity mismatch — received cwd: \(cwdInfo), expected bridgeAgentId: \(expectedBridgeAgentId ?? "nil")")
+        Logger.connection.error("ACPClientWrapper: bridge identity mismatch — received cwd: \(cwdInfo), expected bridgeAgentId: \(self.expectedBridgeAgentId ?? "nil")")
         DispatchQueue.main.async {
             self.connectionMessage = "⚠️ A different Aptove Router instance is now at this address (project: \(cwdInfo)). Scan its QR code to add it as a new agent."
             self.connectionState = .error("wrongBridge:\(cwdInfo)")
@@ -1199,10 +1188,10 @@ class ACPClientWrapper: ObservableObject {
             self.cwd = receivedCwd
             if expectedBridgeAgentId == nil {
                 // Old agent — learn the bridge identity so future connections validate correctly.
-                print("📚 ACPClientWrapper: learning bridge identity (bridgeAgentId=\(receivedId), cwd=\(receivedCwd))")
+                Logger.connection.debug("ACPClientWrapper: learning bridge identity (bridgeAgentId=\(receivedId), cwd=\(receivedCwd))")
                 onLearnBridgeIdentity?(receivedId, receivedCwd)
             } else {
-                print("✅ ACPClientWrapper: bridge identity confirmed (bridgeAgentId=\(receivedId), cwd=\(receivedCwd))")
+                Logger.connection.debug("ACPClientWrapper: bridge identity confirmed (bridgeAgentId=\(receivedId), cwd=\(receivedCwd))")
             }
             // Notify caller of the bridge's configured agent name (if present).
             if case .string(let name) = p["agentName"] {
@@ -1232,12 +1221,12 @@ class ACPClientWrapper: ObservableObject {
             } else {
                 replayCount = 0
             }
-            print("🔄 [push-dbg] bridge/bufferReplayComplete received (count=\(replayCount))")
+            Logger.push.debug("bridge/bufferReplayComplete received (count=\(replayCount))")
 
             if replayCount > 0, let complete = pendingOnComplete {
                 // Buffered messages were replayed — finalise the response after giving the
                 // async ACP chain (notify → onUpdate → onChunk) time to update accumulatedText.
-                print("🔄 [push-dbg] scheduling pendingOnComplete to finalise buffered response")
+                Logger.push.debug("Scheduling pendingOnComplete to finalise buffered response")
                 pendingOnComplete = nil
                 pendingOnUpdate = nil
                 Task { @MainActor in
@@ -1248,12 +1237,12 @@ class ACPClientWrapper: ObservableObject {
                 // No buffered messages — agent may still be responding via the live connection.
                 // pendingOnUpdate is already restored on the new client by connect(); real-time
                 // chunks will arrive via notify(). The sendMessage() Task will handle completion.
-                print("🔄 [push-dbg] bridge/bufferReplayComplete count=0 — agent still responding via live connection")
+                Logger.push.debug("bridge/bufferReplayComplete count=0 — agent still responding via live connection")
             } else {
                 // Cold-start replay — onUpdate debounce handles the callback.
                 // bufferReplayComplete races with the protocol's AsyncStream processing,
                 // so we don't check pendingBufferedResponse here.
-                print("🔄 [push-dbg] bridge/bufferReplayComplete: cold-start — onUpdate debounce will handle callback")
+                Logger.push.debug("bridge/bufferReplayComplete: cold-start — onUpdate debounce will handle callback")
             }
             return
         }
@@ -1354,7 +1343,7 @@ class ACPClientWrapper: ObservableObject {
             agentInfo = v1Resp.agentInfo
             agentCapabilitiesV1 = v1Resp.agentCapabilities
             supportsLoadSession = v1Resp.agentCapabilities.loadSession
-            print("✅ V1 protocol (forced): \(v1Resp.agentInfo?.name ?? "unknown"), loadSession=\(supportsLoadSession)")
+            Logger.connection.debug("V1 protocol (forced): \(v1Resp.agentInfo?.name ?? "unknown"), loadSession=\(self.supportsLoadSession)")
         } else {
             struct VersionProbe: Decodable { let protocolVersion: ProtocolVersion }
             let probe = try JSONDecoder().decode(VersionProbe.self, from: respData)
@@ -1365,7 +1354,7 @@ class ACPClientWrapper: ObservableObject {
                 agentInfo = v2Resp.info
                 agentCapabilitiesV1 = nil
                 supportsLoadSession = false
-                print("✅ V2 protocol negotiated: \(v2Resp.info.name)")
+                Logger.connection.debug("V2 protocol negotiated: \(v2Resp.info.name)")
             } else if versionMode == .v2 {
                 // User explicitly required V2 but agent responded with V1.
                 throw ClientError.v2NotSupported
@@ -1376,7 +1365,7 @@ class ACPClientWrapper: ObservableObject {
                 agentInfo = v1Resp.agentInfo
                 agentCapabilitiesV1 = v1Resp.agentCapabilities
                 supportsLoadSession = v1Resp.agentCapabilities.loadSession
-                print("✅ V1 protocol negotiated (auto fallback): \(v1Resp.agentInfo?.name ?? "unknown"), loadSession=\(supportsLoadSession)")
+                Logger.connection.debug("V1 protocol negotiated (auto fallback): \(v1Resp.agentInfo?.name ?? "unknown"), loadSession=\(self.supportsLoadSession)")
             }
         }
 
@@ -1399,9 +1388,9 @@ class ACPClientWrapper: ObservableObject {
                     currentSessionId = SessionId(value: sessionIdToLoad)
                     sessionLoaded = true
                     sessionWasResumed = true
-                    print("✅ V2 session/resume: \(sessionIdToLoad)")
+                    Logger.connection.debug("V2 session/resume: \(sessionIdToLoad)")
                 } catch {
-                    print("⚠️ V2 session/resume failed: \(error.localizedDescription)")
+                    Logger.connection.debug("V2 session/resume failed: \(error.localizedDescription)")
                 }
             } else if supportsLoadSession {
                 do {
@@ -1418,9 +1407,9 @@ class ACPClientWrapper: ObservableObject {
                     currentSessionId = SessionId(value: sessionIdToLoad)
                     sessionLoaded = true
                     sessionWasResumed = true
-                    print("✅ V1 session/load: \(sessionIdToLoad)")
+                    Logger.connection.debug("V1 session/load: \(sessionIdToLoad)")
                 } catch {
-                    print("⚠️ V1 session/load failed: \(error.localizedDescription)")
+                    Logger.connection.debug("V1 session/load failed: \(error.localizedDescription)")
                 }
             }
         }
@@ -1435,7 +1424,7 @@ class ACPClientWrapper: ObservableObject {
                 )
                 currentSessionId = resp.sessionId
                 sessionWasResumed = false
-                print("✅ V2 session/new: \(resp.sessionId.value)")
+                Logger.connection.debug("V2 session/new: \(resp.sessionId.value)")
             } else {
                 let resp = try await proto.request(
                     method: "session/new",
@@ -1444,7 +1433,7 @@ class ACPClientWrapper: ObservableObject {
                 )
                 currentSessionId = resp.sessionId
                 sessionWasResumed = false
-                print("✅ V1 session/new: \(resp.sessionId.value)")
+                Logger.connection.debug("V1 session/new: \(resp.sessionId.value)")
             }
         }
 
@@ -1496,7 +1485,7 @@ class ACPClientWrapper: ObservableObject {
             let notificationParams = try JSONDecoder().decode(NotificationParams.self, from: data)
             await client?.onSessionUpdate(notificationParams.update)
         } catch {
-            print("⚠️ V1 session/update decode failed: \(error)")
+            Logger.connection.error("V1 session/update decode failed: \(error)")
         }
     }
 
@@ -1540,7 +1529,7 @@ class ACPClientWrapper: ObservableObject {
                 break
             }
         } catch {
-            print("⚠️ V2 session/update decode failed: \(error)")
+            Logger.connection.error("V2 session/update decode failed: \(error)")
         }
     }
 
@@ -1649,7 +1638,7 @@ class SelfSignedCertificateDelegate: NSObject, URLSessionDelegate {
         if #available(iOS 15.0, *) {
             guard let certificates = SecTrustCopyCertificateChain(serverTrust) as? [SecCertificate],
                   let serverCert = certificates.first else {
-                print("🔐 Failed to get server certificate")
+                Logger.connection.error("Failed to get server certificate")
                 completionHandler(.cancelAuthenticationChallenge, nil)
                 return
             }
@@ -1658,21 +1647,20 @@ class SelfSignedCertificateDelegate: NSObject, URLSessionDelegate {
             let certData = SecCertificateCopyData(serverCert) as Data
             let fingerprint = sha256Fingerprint(of: certData)
             
-            print("🔐 Server cert fingerprint: \(fingerprint)")
-            print("🔐 Expected fingerprint: \(expectedFingerprint)")
+            Logger.connection.debug("Server cert fingerprint: \(fingerprint), expected: \(expectedFingerprint)")
             
             // Compare fingerprints (case-insensitive)
             if fingerprint.lowercased() == expectedFingerprint.lowercased() {
-                print("🔐 Certificate fingerprint matches! Accepting connection.")
+                Logger.connection.debug("Certificate fingerprint matches — accepting connection")
                 let credential = URLCredential(trust: serverTrust)
                 completionHandler(.useCredential, credential)
             } else {
-                print("🔐 Certificate fingerprint MISMATCH! Rejecting connection.")
+                Logger.connection.error("Certificate fingerprint MISMATCH — rejecting connection")
                 completionHandler(.cancelAuthenticationChallenge, nil)
             }
         } else {
             // iOS 14 fallback - just trust if we have a fingerprint (less secure)
-            print("🔐 iOS 14: Trusting connection with fingerprint")
+            Logger.connection.debug("iOS 14: Trusting connection with fingerprint")
             let credential = URLCredential(trust: serverTrust)
             completionHandler(.useCredential, credential)
         }

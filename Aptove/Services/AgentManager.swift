@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import Combine
 import UserNotifications
+import os
 
 /// Thread-safe client cache using actor isolation
 actor ClientCache {
@@ -61,9 +62,9 @@ class AgentManager: ObservableObject {
 
     init(repository: AgentRepository = AgentRepository()) {
         self.repository = repository
-        print("📱 AgentManager: Initializing...")
+        Logger.connection.debug("AgentManager initializing...")
         setupAgentObserver()
-        print("📱 AgentManager: Initialization complete, \(agents.count) agents loaded")
+        Logger.connection.debug("AgentManager initialization complete, \(self.agents.count) agents loaded")
     }
 
     private func setupAgentObserver() {
@@ -80,7 +81,7 @@ class AgentManager: ObservableObject {
                     self.conversations[agent.id] = Conversation(agentId: agent.id, messages: persisted, unreadCount: storedUnread)
                 }
                 if wasEmpty && !updatedAgents.isEmpty {
-                    print("📱 AgentManager: Loaded \(updatedAgents.count) agents from CoreData")
+                    Logger.connection.debug("AgentManager: Loaded \(updatedAgents.count) agents from CoreData")
                     self.syncAppBadge()
                     autoConnectAllAgents()
                     startBackgroundRetry()
@@ -91,7 +92,7 @@ class AgentManager: ObservableObject {
 
     /// Auto-connect to all saved agents on first load.
     func autoConnectAllAgents() {
-        print("📱 AgentManager: Auto-connecting \(agents.count) agents...")
+        Logger.connection.debug("AgentManager: Auto-connecting \(self.agents.count) agents...")
         for agent in agents {
             let agentId = agent.id
             Task {
@@ -149,7 +150,7 @@ class AgentManager: ObservableObject {
                         // 30s, 60s, 120s, 240s, 480s, 600s cap
                         let backoff = min(30.0 * pow(2.0, Double(failures - 1)), 600.0)
                         self.retryNotBefore[agentId] = now.addingTimeInterval(backoff)
-                        print("📱 AgentManager: \(agentId) backoff \(Int(backoff))s (failure #\(failures))")
+                        Logger.connection.debug("AgentManager: \(agentId) backoff \(Int(backoff))s (failure #\(failures))")
                     }
                 }
             } while !Task.isCancelled
@@ -208,7 +209,7 @@ class AgentManager: ObservableObject {
         // Create conversation
         conversations[agentId] = Conversation(agentId: agentId)
 
-        print("✅ AgentManager: Added agent \(name) (\(agentId))")
+        Logger.connection.debug("AgentManager: Added agent \(name) (\(agentId))")
     }
 
     /// Find an agent by bridge agent ID (stable UUID from bridge used for multi-transport dedup).
@@ -317,7 +318,7 @@ class AgentManager: ObservableObject {
             )
             try? await TransportCredentialManager.saveAsync(credentials, for: endpointId)
             invalidCredentialEndpoints.remove(endpointId)
-            print("📱 AgentManager: Updated auth token for endpoint \(endpoint.transport ?? "?") of agent \(agentId)")
+            Logger.connection.debug("AgentManager: Updated auth token for endpoint \(endpoint.transport ?? "?") of agent \(agentId)")
         }
     }
 
@@ -325,7 +326,7 @@ class AgentManager: ObservableObject {
     func updateAgentCredentials(agentId: String, config: ConnectionConfig) async throws {
         try config.validate()
 
-        print("📱 AgentManager: Updating credentials for agent \(agentId)")
+        Logger.connection.debug("AgentManager: Updating credentials for agent \(agentId)")
 
         if let client = await clientCache.removeClient(for: agentId) {
             await client.disconnect()
@@ -345,7 +346,7 @@ class AgentManager: ObservableObject {
         conversations[agentId] = Conversation(agentId: agentId)
         messageRepository.deleteMessages(agentId: agentId)
 
-        print("📱 AgentManager: Credentials updated successfully for \(agentId)")
+        Logger.connection.debug("AgentManager: Credentials updated for \(agentId)")
     }
 
     func removeAgent(agentId: String) async {
@@ -359,39 +360,39 @@ class AgentManager: ObservableObject {
         conversations.removeValue(forKey: agentId)
         try? await KeychainManager.deleteAsync(for: agentId)
 
-        print("🗑️ AgentManager: Removed agent \(agentId)")
+        Logger.connection.debug("AgentManager: Removed agent \(agentId)")
     }
 
     func getClient(for agentId: String) async -> ACPClientWrapper? {
         let startTime = CFAbsoluteTimeGetCurrent()
-        print("📱 AgentManager.getClient: START for \(agentId)")
+        Logger.connection.debug("AgentManager.getClient: START for \(agentId)")
 
         if let existingClient = await clientCache.getClient(for: agentId) {
-            print("📱 AgentManager.getClient: Cache HIT (\(Int((CFAbsoluteTimeGetCurrent() - startTime) * 1000))ms)")
+            Logger.connection.debug("AgentManager.getClient: Cache HIT (\(Int((CFAbsoluteTimeGetCurrent() - startTime) * 1000))ms)")
             return existingClient
         }
 
-        print("📱 AgentManager.getClient: Cache MISS, creating new client...")
+        Logger.connection.debug("AgentManager.getClient: Cache MISS, creating new client...")
 
         let keychainStart = CFAbsoluteTimeGetCurrent()
         guard let config = try? await KeychainManager.retrieveAsync(for: agentId) else {
-            print("❌ AgentManager.getClient: Keychain FAILED (\(Int((CFAbsoluteTimeGetCurrent() - keychainStart) * 1000))ms)")
+            Logger.connection.error("AgentManager.getClient: Keychain FAILED (\(Int((CFAbsoluteTimeGetCurrent() - keychainStart) * 1000))ms)")
             return nil
         }
-        print("📱 AgentManager.getClient: Keychain retrieved (\(Int((CFAbsoluteTimeGetCurrent() - keychainStart) * 1000))ms)")
+        Logger.connection.debug("AgentManager.getClient: Keychain retrieved (\(Int((CFAbsoluteTimeGetCurrent() - keychainStart) * 1000))ms)")
 
         let existingSessionId = agents.first(where: { $0.id == agentId })?.activeSessionId
         if let sessionId = existingSessionId {
-            print("📱 AgentManager.getClient: Found existing session ID: \(sessionId)")
+            Logger.connection.debug("AgentManager.getClient: Found existing session ID: \(sessionId)")
         }
 
         let initStart = CFAbsoluteTimeGetCurrent()
         let versionMode = agents.first(where: { $0.id == agentId })?.acpVersionMode ?? .auto
         let client = ACPClientWrapper(config: config, agentId: agentId, versionMode: versionMode)
-        print("📱 AgentManager.getClient: Client created (\(Int((CFAbsoluteTimeGetCurrent() - initStart) * 1000))ms)")
+        Logger.connection.debug("AgentManager.getClient: Client created (\(Int((CFAbsoluteTimeGetCurrent() - initStart) * 1000))ms)")
 
         await clientCache.setClient(client, for: agentId)
-        print("📱 AgentManager.getClient: TOTAL TIME: \(Int((CFAbsoluteTimeGetCurrent() - startTime) * 1000))ms")
+        Logger.connection.debug("AgentManager.getClient: TOTAL TIME: \(Int((CFAbsoluteTimeGetCurrent() - startTime) * 1000))ms")
         return client
     }
 
@@ -431,7 +432,7 @@ class AgentManager: ObservableObject {
     /// Update agent's session information
     func updateAgentSessionInfo(agentId: String, sessionId: String?, supportsLoadSession: Bool) {
         repository.updateSessionInfo(agentId: agentId, sessionId: sessionId, supportsLoad: supportsLoadSession)
-        print("📱 AgentManager: Updated session info for \(agentId): sessionId=\(sessionId ?? "nil"), supportsLoad=\(supportsLoadSession)")
+        Logger.connection.debug("AgentManager: Updated session info for \(agentId): sessionId=\(sessionId ?? "nil"), supportsLoad=\(supportsLoadSession)")
     }
 
     /// Persist a newly-learned bridge identity for an agent that had no stored bridgeAgentId.
@@ -445,7 +446,7 @@ class AgentManager: ObservableObject {
         if let idx = agents.firstIndex(where: { $0.id == agentId }) {
             agents[idx].bridgeAgentId = bridgeAgentId
         }
-        print("📚 AgentManager: Learned bridge identity for \(agentId): bridgeAgentId=\(bridgeAgentId), cwd=\(cwd)")
+        Logger.connection.debug("AgentManager: Learned bridge identity for \(agentId): bridgeAgentId=\(bridgeAgentId), cwd=\(cwd)")
     }
 
     /// Clear the session for an agent (for "Clear Session" button)
@@ -458,7 +459,7 @@ class AgentManager: ObservableObject {
             await client.disconnect()
         }
 
-        print("📱 AgentManager: Cleared session for \(agentId)")
+        Logger.connection.debug("AgentManager: Cleared session for \(agentId)")
 
         // Reconnect immediately to start a fresh session so Aptove Router injects
         // MEMORY.md at session/new time before the user sends their first message.
@@ -474,7 +475,7 @@ class AgentManager: ObservableObject {
         // Because AgentManager is @MainActor, this Set is accessed serially between
         // suspension points, so no additional locking is needed.
         guard !connectingAgents.contains(agentId) else {
-            print("📱 AgentManager.connectAgent: Already connecting to \(agentId), skipping duplicate")
+            Logger.connection.debug("AgentManager.connectAgent: Already connecting to \(agentId), skipping duplicate")
             return false
         }
         connectingAgents.insert(agentId)
@@ -483,12 +484,12 @@ class AgentManager: ObservableObject {
         // If a live client is already connected, skip the reconnect.
         if let existingClient = await clientCache.getClient(for: agentId),
            case .connected = existingClient.connectionState {
-            print("📱 AgentManager.connectAgent: Agent \(agentId) already connected, skipping")
+            Logger.connection.debug("AgentManager.connectAgent: Agent \(agentId) already connected, skipping")
             return true
         }
 
         guard let entity = repository.getAgentEntity(agentId: agentId) else {
-            print("❌ AgentManager.connectAgent: Agent not found: \(agentId)")
+            Logger.connection.error("AgentManager.connectAgent: Agent not found: \(agentId)")
             return false
         }
 
@@ -510,10 +511,10 @@ class AgentManager: ObservableObject {
         for endpoint in endpoints {
             guard let endpointId = endpoint.endpointId, let url = endpoint.url else { continue }
             if invalidCredentialEndpoints.contains(endpointId) {
-                print("🔒 AgentManager.connectAgent: Skipping \(endpoint.transport ?? "?") — credentials invalid, re-pair required")
+                Logger.connection.debug("AgentManager.connectAgent: Skipping \(endpoint.transport ?? "?") — credentials invalid, re-pair required")
                 continue
             }
-            print("📱 AgentManager.connectAgent: Trying endpoint \(endpoint.transport ?? "?") @ \(url)")
+            Logger.connection.debug("AgentManager.connectAgent: Trying endpoint \(endpoint.transport ?? "?") @ \(url)")
 
             // Build ConnectionConfig from Keychain credentials for this endpoint (off main thread)
             let credentials = try? await TransportCredentialManager.retrieveAsync(for: endpointId)
@@ -537,7 +538,7 @@ class AgentManager: ObservableObject {
             client.onUnexpectedDisconnect = { [weak self] in
                 guard let self else { return }
                 Task { @MainActor in
-                    print("📱 AgentManager: Transport closed unexpectedly for \(agentId) — retrying all transports")
+                    Logger.connection.debug("AgentManager: Transport closed unexpectedly for \(agentId) — retrying all transports")
                     _ = await self.connectAgent(agentId: agentId)
                 }
             }
@@ -613,7 +614,7 @@ class AgentManager: ObservableObject {
             // If the bridge rejected us with 401 (stale token), stop retrying this endpoint
             // for 24 hours. The only recovery is a fresh QR scan to re-pair.
             if case .error(let msg) = client.connectionState, msg.hasPrefix("unauthorized:") {
-                print("🔒 AgentManager.connectAgent: 401 on endpoint \(endpoint.transport ?? "?") — backing off 24h")
+                Logger.connection.error("AgentManager.connectAgent: 401 on endpoint \(endpoint.transport ?? "?") — backing off 24h")
                 repository.updateConnectionStatus(agentId: agentId, status: .disconnected)
                 invalidCredentialEndpoints.insert(endpointId)
                 // Skip remaining endpoints — they all share the same token for this bridge
@@ -629,7 +630,7 @@ class AgentManager: ObservableObject {
                 if entity.preferredTransport != endpoint.transport {
                     setPreferredTransport(agentId: agentId, transport: endpoint.transport)
                 }
-                print("✅ AgentManager.connectAgent: Connected via \(endpoint.transport ?? "?")")
+                Logger.connection.debug("AgentManager.connectAgent: Connected via \(endpoint.transport ?? "?")")
                 // Clear backoff state so the retry loop picks this agent up immediately if it disconnects again
                 retryFailureCounts[agentId] = 0
                 retryNotBefore.removeValue(forKey: agentId)
@@ -649,12 +650,12 @@ class AgentManager: ObservableObject {
                 return true
             } else {
                 repository.updateEndpointStatus(endpointId: endpointId, isActive: false)
-                print("⚠️ AgentManager.connectAgent: Endpoint \(endpoint.transport ?? "?") failed")
+                Logger.connection.debug("AgentManager.connectAgent: Endpoint \(endpoint.transport ?? "?") failed")
             }
         }
 
         repository.updateConnectionStatus(agentId: agentId, status: .disconnected)
-        print("❌ AgentManager.connectAgent: All endpoints failed for \(agentId)")
+        Logger.connection.error("AgentManager.connectAgent: All endpoints failed for \(agentId)")
         return false
     }
 
@@ -676,7 +677,7 @@ class AgentManager: ObservableObject {
         let connectedIds = agents
             .filter { $0.status == .connected || $0.status == .reconnecting }
             .map { $0.id }
-        print("🌙 [push-dbg] AgentManager: disconnecting \(connectedIds.count) agent(s) for background")
+        Logger.connection.debug("AgentManager: disconnecting \(connectedIds.count) agent(s) for background")
         for agentId in connectedIds {
             await disconnectAgent(agentId: agentId)
         }

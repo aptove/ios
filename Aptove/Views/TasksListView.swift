@@ -1,4 +1,5 @@
 import SwiftUI
+import os
 
 /// Unified task list showing all scheduled tasks across every connected agent.
 /// Tasks are only created from the chat attachment panel.
@@ -212,7 +213,7 @@ struct TasksListView: View {
                     }
                 }
             } catch {
-                print("Failed to toggle task: \(error)")
+                Logger.data.error("Failed to toggle task: \(error)")
             }
         }
     }
@@ -227,7 +228,7 @@ struct TasksListView: View {
                 do {
                     try await agentManager.deleteTask(id: item.task.id, for: item.agentId)
                 } catch {
-                    print("Failed to delete task \(item.task.id): \(error)")
+                    Logger.data.error("Failed to delete task \(item.task.id): \(error)")
                     loadTasks()
                 }
             }

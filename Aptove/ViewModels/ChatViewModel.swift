@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import UIKit
 import ACPModel
+import os
 
 @MainActor
 class ChatViewModel: ObservableObject {
@@ -53,7 +54,7 @@ class ChatViewModel: ObservableObject {
     
     func setAgentManager(_ manager: AgentManager) {
         self.agentManager = manager
-        print("💬 ChatViewModel: AgentManager set for agent \(agentId)")
+        Logger.chat.debug("ChatViewModel: AgentManager set for agent \(self.agentId)")
         
         // Pre-warm client in background (fire-and-forget, don't await!)
         prewarmClient()
@@ -71,25 +72,25 @@ class ChatViewModel: ObservableObject {
         guard !isPrewarmingClient, cachedClient == nil else { return }
         isPrewarmingClient = true
         
-        print("🔥 ChatViewModel: Starting client pre-warm for agent \(agentId)")
+        Logger.chat.debug("ChatViewModel: Starting client pre-warm for agent \(self.agentId)")
         
         // Store task for potential cancellation
         prewarmTask = Task { [weak self, agentManager, agentId] in
-            print("🔥 ChatViewModel: Pre-warm task started")
+            Logger.chat.debug("ChatViewModel: Pre-warm task started")
             
             // Check for cancellation before expensive operations
             guard !Task.isCancelled else {
-                print("🔥 ChatViewModel: Pre-warm cancelled before getClient")
+                Logger.chat.debug("ChatViewModel: Pre-warm cancelled before getClient")
                 return
             }
             
             // Use getConnectedClient which handles session persistence
             let client = await agentManager?.getConnectedClient(for: agentId)
-            print("🔥 ChatViewModel: Pre-warm got client: \(client != nil)")
+            Logger.chat.debug("ChatViewModel: Pre-warm got client: \(client != nil)")
             
             // Check for cancellation before updating state
             guard !Task.isCancelled else {
-                print("🔥 ChatViewModel: Pre-warm cancelled before state update")
+                Logger.chat.debug("ChatViewModel: Pre-warm cancelled before state update")
                 return
             }
             
@@ -100,7 +101,7 @@ class ChatViewModel: ObservableObject {
             self.isClientReady = client != nil
 
             if let client = client {
-                print("🔥 ChatViewModel: Pre-warm complete, client cached, state: \(client.connectionState)")
+                Logger.chat.debug("ChatViewModel: Pre-warm complete, client cached, state: \(client.connectionState)")
                 
                 // Only show session indicator on fresh connections, not when returning to an already-connected session
                 // sessionWasResumed is nil until the first connect() call completes
@@ -122,7 +123,7 @@ class ChatViewModel: ObservableObject {
 
                 // Consume any buffered agent response from cold-start push replay
                 if let buffered = client.pendingBufferedResponse, !buffered.isEmpty {
-                    print("🔄 [push-dbg] ChatViewModel consuming cold-start buffer: \(buffered.count) chars")
+                    Logger.chat.debug("ChatViewModel consuming cold-start buffer: \(buffered.count) chars")
                     client.pendingBufferedResponse = nil
                     // Skip voice correction protocol responses — machine-readable JSON that
                     // must never appear in the chat UI.
@@ -145,7 +146,7 @@ class ChatViewModel: ObservableObject {
                     }
                 }
             } else {
-                print("🔥 ChatViewModel: Pre-warm complete but no client")
+                Logger.chat.debug("ChatViewModel: Pre-warm complete but no client")
             }
         }
     }
@@ -183,7 +184,7 @@ class ChatViewModel: ObservableObject {
             }
         }
 
-        print("💬 ChatViewModel: Setting up tool approval handler for agent \(agentId)")
+        Logger.chat.debug("ChatViewModel: Setting up tool approval handler for agent \(self.agentId)")
         client.onToolApprovalRequest = { [weak self] toolCallId, title, command, permissions in
             Task { @MainActor in
                 guard let self = self else { return }
@@ -266,9 +267,9 @@ class ChatViewModel: ObservableObject {
         let client: ACPClientWrapper?
         if let cached = cachedClient {
             client = cached
-            print("💬 ChatViewModel: Using pre-warmed client for tool approval handler")
+            Logger.chat.debug("ChatViewModel: Using pre-warmed client for tool approval handler")
         } else {
-            print("💬 ChatViewModel: Client not pre-warmed, getting now...")
+            Logger.chat.debug("ChatViewModel: Client not pre-warmed, getting now...")
             client = await agentManager?.getClient(for: agentId)
         }
         
@@ -295,11 +296,11 @@ class ChatViewModel: ObservableObject {
     }
     
     func sendMessage(_ text: String, images: [UIImage] = [], files: [FileAttachment] = []) async {
-        print("📤 ChatViewModel.sendMessage: Starting...")
+        Logger.chat.debug("ChatViewModel.sendMessage: Starting...")
         isSending = true
 
         guard !isVoiceCorrectionPending else {
-            print("⚠️ ChatViewModel: Blocked sendMessage — voice correction still in flight")
+            Logger.chat.debug("ChatViewModel: Blocked sendMessage — voice correction still in flight")
             isSending = false
             return
         }
@@ -322,17 +323,17 @@ class ChatViewModel: ObservableObject {
         // Use cached client if available (should be pre-warmed)
         let client: ACPClientWrapper?
         if let cached = cachedClient {
-            print("📤 ChatViewModel.sendMessage: Using pre-warmed client")
+            Logger.chat.debug("ChatViewModel.sendMessage: Using pre-warmed client")
             client = cached
         } else {
-            print("📤 ChatViewModel.sendMessage: Client not pre-warmed, getting connected client now...")
+            Logger.chat.debug("ChatViewModel.sendMessage: Client not pre-warmed, getting connected client now...")
             // Use getConnectedClient which handles session persistence
             client = await agentManager?.getConnectedClient(for: agentId)
             cachedClient = client
         }
         
         guard let client = client else {
-            print("❌ ChatViewModel.sendMessage: No client available")
+            Logger.chat.error("ChatViewModel.sendMessage: No client available")
             updateMessageStatus(userMessage.id, to: .error)
             isSending = false
             return
@@ -636,7 +637,7 @@ class ChatViewModel: ObservableObject {
 
         isVoiceCorrectionPending = true
 
-        print("🎤 [VoiceCorrection] Raw speech-to-text: \"\(rawTranscript)\"")
+        Logger.chat.debug("VoiceCorrection: Raw speech-to-text: \"\(rawTranscript)\"")
 
         // Per-language bridge instructions (hardcoded by design — sent to LLM, not user UI).
         // To add a language: add a case matching the 2-char language code prefix.
@@ -705,17 +706,17 @@ class ChatViewModel: ObservableObject {
                     )
                 } catch {
                     // sendMessage threw before spawning the prompt task (e.g. no session)
-                    print("❌ [VoiceCorrection] sendMessage threw: \(error.localizedDescription)")
+                    Logger.chat.error("VoiceCorrection: sendMessage threw: \(error.localizedDescription)")
                     cont.resume()
                 }
             }
         }
 
         if let corrected = parseCorrectedText(from: accumulated) {
-            print("🤖 [VoiceCorrection] Agent corrected to: \"\(corrected)\"")
+            Logger.chat.debug("VoiceCorrection: Agent corrected to: \"\(corrected)\"")
             voiceCorrectedText = corrected
         } else {
-            print("⚠️ [VoiceCorrection] Agent parse failed, using raw transcript. Agent response: \"\(accumulated)\"")
+            Logger.chat.debug("VoiceCorrection: Agent parse failed, using raw transcript. Agent response: \"\(accumulated)\"")
             voiceCorrectedText = rawTranscript
         }
 
@@ -837,7 +838,7 @@ class ChatViewModel: ObservableObject {
                 updateConversation()
                 saveMessagesToDisk()
             }
-            print("Tool approval expired after reconnect: \(error)")
+            Logger.chat.debug("Tool approval expired after reconnect: \(error)")
         }
     }
 
@@ -894,7 +895,7 @@ class ChatViewModel: ObservableObject {
                 updateConversation()
                 saveMessagesToDisk()
             }
-            print("Tool rejection expired after reconnect: \(error)")
+            Logger.chat.debug("Tool rejection expired after reconnect: \(error)")
         }
     }
     

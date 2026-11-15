@@ -3,6 +3,7 @@
 
 import Foundation
 import CoreData
+import os
 
 /// Manages CoreData persistent container and contexts
 class CoreDataStack {
@@ -25,11 +26,10 @@ class CoreDataStack {
         _ = storeOptions
         container.loadPersistentStores { storeDescription, error in
             if let error = error as NSError? {
-                print("❌ CoreData: Failed to load persistent store: \(error), \(error.userInfo)")
+                Logger.data.error("Failed to load persistent store: \(error), \(error.userInfo)")
                 fatalError("Unresolved error \(error), \(error.userInfo)")
             } else {
-                print("✅ CoreData: Persistent store loaded successfully")
-                print("📍 CoreData: Store location: \(storeDescription.url?.path ?? "unknown")")
+                Logger.data.debug("Persistent store loaded at \(storeDescription.url?.path ?? "unknown")")
             }
         }
         container.viewContext.automaticallyMergesChangesFromParent = true
@@ -60,10 +60,10 @@ class CoreDataStack {
         if context.hasChanges {
             do {
                 try context.save()
-                print("✅ CoreData: Changes saved successfully")
+                Logger.data.debug("Changes saved successfully")
             } catch {
                 let nsError = error as NSError
-                print("❌ CoreData: Failed to save context: \(nsError), \(nsError.userInfo)")
+                Logger.data.error("Failed to save context: \(nsError), \(nsError.userInfo)")
                 fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
             }
         }
@@ -77,10 +77,10 @@ class CoreDataStack {
         context.performAndWait {
             do {
                 try context.save()
-                print("✅ CoreData: Background context saved successfully")
+                Logger.data.debug("Background context saved successfully")
             } catch {
                 saveError = error
-                print("❌ CoreData: Failed to save background context: \(error)")
+                Logger.data.error("Failed to save background context: \(error)")
             }
         }
 
@@ -103,7 +103,7 @@ class CoreDataStack {
         }
 
         try viewContext.save()
-        print("✅ CoreData: All data deleted")
+        Logger.data.debug("All data deleted")
     }
 
     /// Create an in-memory stack for use in tests

@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import os
 
 enum BottomTab: Hashable { case chat, starred, tasks, settings }
 
@@ -49,7 +50,7 @@ struct ContentView: View {
     @State private var activeChatDestination: ChatDestination?
 
     init() {
-        print("🖥️  ContentView: Initializing...")
+        Logger.app.debug("ContentView initializing...")
     }
 
     private var isChatOpen: Bool { activeChatDestination != nil }
@@ -132,7 +133,7 @@ struct ContentView: View {
         }
         .animation(.easeInOut(duration: 0.3), value: isChatOpen)
         .onAppear {
-            print("🖥️  ContentView: View appeared and rendered")
+            Logger.app.debug("ContentView: View appeared and rendered")
         }
         .onChange(of: activeChatDestination) { _, dest in
             if dest == nil {
@@ -146,20 +147,20 @@ struct ContentView: View {
                     isInChat = true
                 }
                 guard hasGoneToBackground else {
-                    print("🌅 [push-dbg] App became ACTIVE (initial launch — skipping reconnect)")
+                    Logger.push.debug("App became ACTIVE (initial launch — skipping reconnect)")
                     break
                 }
-                print("🌅 [push-dbg] App became ACTIVE — reconnecting agents (0.5s delay for in-flight disconnect)")
+                Logger.push.debug("App became ACTIVE — reconnecting agents (0.5s delay for in-flight disconnect)")
                 Task {
                     try? await Task.sleep(nanoseconds: 500_000_000)
                     agentManager.autoConnectAllAgents()
                     agentManager.recheckAuthStatusForAllAgents()
                 }
             case .inactive:
-                print("🌄 [push-dbg] App became INACTIVE (transitioning)")
+                Logger.push.debug("App became INACTIVE (transitioning)")
             case .background:
                 hasGoneToBackground = true
-                print("🌙 [push-dbg] App entered BACKGROUND — closing WebSocket so bridge detects disconnect and pushes")
+                Logger.push.debug("App entered BACKGROUND — closing WebSocket so bridge detects disconnect and pushes")
                 final class BGTaskBox: @unchecked Sendable { var id = UIBackgroundTaskIdentifier.invalid }
                 let bgTask = BGTaskBox()
                 bgTask.id = UIApplication.shared.beginBackgroundTask(withName: "ws-background-disconnect") {
@@ -184,10 +185,10 @@ struct ContentView: View {
         .onChange(of: pushManager.tappedAgentName) { _, agentName in
             guard let agentName else { return }
             Task { @MainActor in pushManager.tappedAgentName = nil }
-            print("🔔 [push-dbg] Navigating to agent: \(agentName)")
+            Logger.push.debug("Navigating to agent: \(agentName)")
 
             guard let agent = agentManager.agents.first(where: { $0.name == agentName }) else {
-                print("🔔 [push-dbg] No agent found with name '\(agentName)'")
+                Logger.push.debug("No agent found with name '\(agentName)'")
                 return
             }
 

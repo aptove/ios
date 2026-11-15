@@ -4,6 +4,7 @@
 import Foundation
 import CoreData
 import Combine
+import os
 
 /// Repository for Agent data access, matching Android's AgentRepository API
 class AgentRepository {
@@ -53,7 +54,7 @@ class AgentRepository {
         do {
             return try coreDataStack.viewContext.fetch(request)
         } catch {
-            print("❌ AgentRepository: Failed to fetch agents: \(error)")
+            Logger.data.error("AgentRepository: Failed to fetch agents: \(error)")
             return []
         }
     }
@@ -96,7 +97,7 @@ class AgentRepository {
             saveContext(coreDataStack.viewContext)
             // refreshAgents() not needed: observer handles it
         } catch {
-            print("❌ AgentRepository: Failed to delete agent: \(error)")
+            Logger.data.error("AgentRepository: Failed to delete agent: \(error)")
         }
     }
 
@@ -116,7 +117,7 @@ class AgentRepository {
             let results = try coreDataStack.viewContext.fetch(request)
             return results.first
         } catch {
-            print("❌ AgentRepository: Failed to find agent by URL: \(error)")
+            Logger.data.error("AgentRepository: Failed to find agent by URL: \(error)")
             return nil
         }
     }
@@ -131,7 +132,7 @@ class AgentRepository {
             let results = try coreDataStack.viewContext.fetch(request)
             return results.first
         } catch {
-            print("❌ AgentRepository: Failed to get agent: \(error)")
+            Logger.data.error("AgentRepository: Failed to get agent: \(error)")
             return nil
         }
     }
@@ -141,7 +142,7 @@ class AgentRepository {
     /// Update session info for an agent
     func updateSessionInfo(agentId: String, sessionId: String?, supportsLoad: Bool) {
         guard let entity = getAgentEntity(agentId: agentId) else {
-            print("❌ AgentRepository: Agent not found for session update: \(agentId)")
+            Logger.data.error("AgentRepository: Agent not found for session update: \(agentId)")
             return
         }
 
@@ -151,13 +152,13 @@ class AgentRepository {
 
         saveContext(coreDataStack.viewContext)
 
-        print("📝 AgentRepository: Updated session info for \(agentId): sessionId=\(sessionId ?? "nil"), supportsLoad=\(supportsLoad)")
+        Logger.data.debug("AgentRepository: Updated session info for \(agentId): sessionId=\(sessionId ?? "nil"), supportsLoad=\(supportsLoad)")
     }
 
     /// Clear session info for an agent
     func clearSessionInfo(agentId: String) {
         guard let entity = getAgentEntity(agentId: agentId) else {
-            print("❌ AgentRepository: Agent not found for session clear: \(agentId)")
+            Logger.data.error("AgentRepository: Agent not found for session clear: \(agentId)")
             return
         }
 
@@ -166,7 +167,7 @@ class AgentRepository {
 
         saveContext(coreDataStack.viewContext)
 
-        print("🗑️ AgentRepository: Cleared session info for \(agentId)")
+        Logger.data.debug("AgentRepository: Cleared session info for \(agentId)")
     }
 
     // MARK: - Connection Status
@@ -174,7 +175,7 @@ class AgentRepository {
     /// Update connection status for an agent
     func updateConnectionStatus(agentId: String, status: ConnectionStatus) {
         guard let entity = getAgentEntity(agentId: agentId) else {
-            print("❌ AgentRepository: Agent not found for status update: \(agentId)")
+            Logger.data.error("AgentRepository: Agent not found for status update: \(agentId)")
             return
         }
 
@@ -196,7 +197,7 @@ class AgentRepository {
         do {
             return try coreDataStack.viewContext.fetch(request).first
         } catch {
-            print("❌ AgentRepository: Failed to find agent by bridgeAgentId: \(error)")
+            Logger.data.error("AgentRepository: Failed to find agent by bridgeAgentId: \(error)")
             return nil
         }
     }
@@ -210,7 +211,7 @@ class AgentRepository {
         priority: Int16
     ) -> TransportEndpointEntity? {
         guard let agentEntity = getAgentEntity(agentId: agentId) else {
-            print("❌ AgentRepository: Agent not found for endpoint upsert: \(agentId)")
+            Logger.data.error("AgentRepository: Agent not found for endpoint upsert: \(agentId)")
             return nil
         }
         let context = coreDataStack.viewContext
@@ -247,7 +248,7 @@ class AgentRepository {
             results.forEach { coreDataStack.viewContext.delete($0) }
             saveContext(coreDataStack.viewContext)
         } catch {
-            print("❌ AgentRepository: Failed to delete endpoint: \(error)")
+            Logger.data.error("AgentRepository: Failed to delete endpoint: \(error)")
         }
     }
 
@@ -263,7 +264,7 @@ class AgentRepository {
                 saveContext(coreDataStack.viewContext)
             }
         } catch {
-            print("❌ AgentRepository: Failed to update endpoint status: \(error)")
+            Logger.data.error("AgentRepository: Failed to update endpoint status: \(error)")
         }
     }
 
@@ -288,9 +289,9 @@ class AgentRepository {
 
         do {
             try context.save()
-            print("✅ AgentRepository: Context saved successfully")
+            Logger.data.debug("AgentRepository: Context saved successfully")
         } catch {
-            print("❌ AgentRepository: Failed to save context: \(error)")
+            Logger.data.error("AgentRepository: Failed to save context: \(error)")
         }
     }
 }

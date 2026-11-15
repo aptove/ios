@@ -1,4 +1,5 @@
 import SwiftUI
+import os
 
 /// View for manually entering a pairing code when QR scanning isn't possible
 struct ManualPairingView: View {
@@ -243,7 +244,7 @@ struct ManualPairingView: View {
             }
         }
         
-        print("🔗 ManualPairingView: Built pairing URL: \(urlString)")
+        Logger.pairing.debug("ManualPairingView: Built pairing URL: \(urlString)")
         
         // Validate URL
         guard URL(string: urlString) != nil else {

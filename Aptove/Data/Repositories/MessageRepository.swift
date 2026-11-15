@@ -3,6 +3,7 @@
 
 import Foundation
 import CoreData
+import os
 
 /// Extra fields that can't be mapped to first-class CoreData columns.
 /// `isThinking` is intentionally excluded — it reflects live streaming state only.
@@ -38,7 +39,7 @@ class MessageRepository {
             let entities = try stack.viewContext.fetch(request)
             return entities.compactMap { toModel($0) }
         } catch {
-            print("❌ MessageRepository: Failed to fetch messages for \(agentId): \(error)")
+            Logger.data.error("MessageRepository: Failed to fetch messages for \(agentId): \(error)")
             return []
         }
     }
@@ -60,7 +61,7 @@ class MessageRepository {
                 return (mid, e)
             })
         } catch {
-            print("❌ MessageRepository: Failed to pre-fetch for upsert: \(error)")
+            Logger.data.error("MessageRepository: Failed to pre-fetch for upsert: \(error)")
             return
         }
 
@@ -73,7 +74,7 @@ class MessageRepository {
         do {
             try context.save()
         } catch {
-            print("❌ MessageRepository: Failed to save messages: \(error)")
+            Logger.data.error("MessageRepository: Failed to save messages: \(error)")
         }
     }
 
@@ -94,7 +95,7 @@ class MessageRepository {
                 return StarredMessage(message: message, agentId: agentId, agentName: agentName)
             }
         } catch {
-            print("❌ MessageRepository: Failed to fetch starred messages: \(error)")
+            Logger.data.error("MessageRepository: Failed to fetch starred messages: \(error)")
             return []
         }
     }
@@ -126,9 +127,9 @@ class MessageRepository {
             if context.hasChanges {
                 try context.save()
             }
-            print("🗑️ MessageRepository: Deleted messages for \(agentId)")
+            Logger.data.debug("MessageRepository: Deleted messages for \(agentId)")
         } catch {
-            print("❌ MessageRepository: Failed to delete messages for \(agentId): \(error)")
+            Logger.data.error("MessageRepository: Failed to delete messages for \(agentId): \(error)")
         }
     }
 

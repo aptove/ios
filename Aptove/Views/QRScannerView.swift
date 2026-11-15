@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import os
 
 struct QRScannerView: View {
     @Binding var isPresented: Bool
@@ -168,19 +169,13 @@ struct QRScannerView: View {
             }
             .onAppear {
                 viewModel.setAgentManager(agentManager)
-                #if DEBUG
-                print("[QRScannerView] onAppear: scannerMode=\(scannerMode), isScannerActive=\(isScannerActive)")
-                #endif
+                Logger.scanner.debug("[QRScannerView] onAppear: scannerMode=\(scannerMode), isScannerActive=\(isScannerActive)")
                 let status = AVCaptureDevice.authorizationStatus(for: .video)
-                #if DEBUG
-                print("[QRScannerView] Camera auth status: \(status.rawValue)")
-                #endif
+                Logger.scanner.debug("[QRScannerView] Camera auth status: \(status.rawValue)")
                 if status == .denied || status == .restricted {
                     showingPermissionDenied = true
                 } else {
-                    #if DEBUG
-                    print("[QRScannerView] Activating scanner in mode: \(scannerMode)")
-                    #endif
+                    Logger.scanner.debug("[QRScannerView] Activating scanner in mode: \(scannerMode)")
                     isScannerActive = true
                 }
             }
@@ -208,17 +203,13 @@ struct QRScannerView: View {
     }
     
     private func handleScan(result: Result<ScanResult, ScanError>) {
-        #if DEBUG
-        print("[QRScannerView] handleScan: mode=\(scannerMode), result=\(result)")
-        #endif
+        Logger.scanner.debug("[QRScannerView] handleScan: mode=\(scannerMode), result=\(result)")
         // Deactivate scanner immediately to release camera
         isScannerActive = false
 
         switch result {
         case .success(let result):
-            #if DEBUG
-            print("[QRScannerView] Scan success via \(scannerMode), string length=\(result.string.count)")
-            #endif
+            Logger.scanner.debug("[QRScannerView] Scan success via \(scannerMode), string length=\(result.string.count)")
             isConnecting = true
             Task {
                 await viewModel.handleQRCode(result.string)
@@ -228,24 +219,18 @@ struct QRScannerView: View {
             }
         case .failure(let error):
             if case .permissionDenied = error {
-                #if DEBUG
-                print("[QRScannerView] Permission denied")
-                #endif
+                Logger.scanner.debug("[QRScannerView] Permission denied")
                 showingPermissionDenied = true
                 isScannerActive = false
             } else if scannerMode == .native {
                 // Native scanner failed (hardware QR unavailable) — try software fallback
-                #if DEBUG
-                print("[QRScannerView] Native scanner failed with .badOutput — switching to software fallback")
-                #endif
+                Logger.scanner.debug("[QRScannerView] Native scanner failed with .badOutput — switching to software fallback")
                 scannerMode = .software
                 scannerID = UUID()
                 isScannerActive = true
             } else {
                 // Software scanner also failed (no camera at all) — open manual pairing
-                #if DEBUG
-                print("[QRScannerView] Software scanner also failed — opening manual pairing")
-                #endif
+                Logger.scanner.debug("[QRScannerView] Software scanner also failed — opening manual pairing")
                 isScannerActive = false
                 showingPairingEntry = true
             }
