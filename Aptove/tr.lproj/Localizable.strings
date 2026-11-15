@@ -122,6 +122,8 @@
 "computer_files_forbidden" = "Erişim reddedildi";
 "retry_button" = "Tekrar Dene";
 "close_button" = "Kapat";
+"not_connected_title" = "Ajan Bağlı Değil";
+"not_connected_message" = "Bu özellik için ajana aktif bir bağlantı gereklidir. Yeniden bağlanmasını bekleyin ve tekrar deneyin.";
 
 /* File viewer */
 "file_viewer_add" = "Ekle";

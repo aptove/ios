@@ -122,6 +122,8 @@
 "computer_files_forbidden" = "Access denied";
 "retry_button" = "Retry";
 "close_button" = "Close";
+"not_connected_title" = "Agent Not Connected";
+"not_connected_message" = "This feature requires an active connection to the agent. Please wait for it to reconnect and try again.";
 
 /* File viewer */
 "file_viewer_add" = "Add";

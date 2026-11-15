@@ -35,6 +35,7 @@ struct ChatView: View {
     @State private var showComputerFileBrowser = false
     @StateObject private var computerFileService = ComputerFileService()
     @State private var showClearSessionAlert = false
+    @State private var showNotConnectedAlert = false
     @State private var showingAgentConfig = false
     @State private var loadedAvatarImage: UIImage?
     @State private var replyingToMessage: Message? = nil
@@ -50,6 +51,10 @@ struct ChatView: View {
         self._isInChat = isInChat
         self.onDismiss = onDismiss
         self._viewModel = StateObject(wrappedValue: ChatViewModel(agentId: agentId))
+    }
+
+    private var isAgentConnected: Bool {
+        agentManager.agents.first { $0.id == agentId }?.status == .connected
     }
 
     private var displayedMessages: [Message] {
@@ -192,6 +197,11 @@ struct ChatView: View {
                 Button("OK", role: .cancel) { fileErrorMessage = nil }
             } message: {
                 Text(fileErrorMessage ?? "")
+            }
+            .alert("not_connected_title", isPresented: $showNotConnectedAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("not_connected_message")
             }
             .alert("Clear Session?", isPresented: $showClearSessionAlert) {
                 Button("Cancel", role: .cancel) { }
@@ -730,18 +740,23 @@ struct ChatView: View {
                 showAttachmentPanel = false; showFilePicker = true
             }
             attachmentItem(icon: nil, slashLabel: "/", label: "attachment_commands", color: .purple) {
+                guard isAgentConnected else { showNotConnectedAlert = true; return }
                 showAttachmentPanel = false; commandQuery = ""; isInputFocused = true
             }
             attachmentItem(icon: "brain", label: "attachment_memory", color: .orange) {
+                guard isAgentConnected else { showNotConnectedAlert = true; return }
                 showAttachmentPanel = false; showMemoryEntry = true
             }
             attachmentItem(icon: "clock", label: "attachment_task", color: .cyan) {
+                guard isAgentConnected else { showNotConnectedAlert = true; return }
                 showAttachmentPanel = false; showTaskCreate = true
             }
             attachmentItem(icon: "arrow.counterclockwise", label: "attachment_clear_session", color: .red) {
+                guard isAgentConnected else { showNotConnectedAlert = true; return }
                 showAttachmentPanel = false; showClearSessionAlert = true
             }
             attachmentItem(icon: "desktopcomputer", label: "attachment_computer", color: .teal) {
+                guard isAgentConnected else { showNotConnectedAlert = true; return }
                 showAttachmentPanel = false
                 computerFileService.client = viewModel.acpClient
                 viewModel.acpClient?.onFileBrowseNotification = { [weak computerFileService] notif in
