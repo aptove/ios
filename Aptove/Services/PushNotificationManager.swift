@@ -57,10 +57,6 @@ class PushNotificationManager: NSObject, ObservableObject {
         let token = data.map { String(format: "%02x", $0) }.joined()
         Logger.push.debug("Received APNs token: \(token.prefix(16))...")
         
-        #if DEBUG
-        print("🔐 BRUNO TOKEN - iOS APNs: \(token)")
-        #endif
-        
         self.deviceToken = token
         
         // Notify any waiting callbacks

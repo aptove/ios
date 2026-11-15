@@ -681,7 +681,7 @@
 				DEVELOPMENT_ASSET_PATHS = "\"Aptove/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSAppTransportSecurity = "{\n    NSAllowsArbitraryLoads = YES;\n}";
+				INFOPLIST_KEY_NSAppTransportSecurity = "{\n    NSAllowsLocalNetworking = YES;\n}";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Aptove needs camera access to scan QR codes and capture photos for chat";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Aptove needs microphone access to record voice messages";
@@ -718,7 +718,7 @@
 				DEVELOPMENT_ASSET_PATHS = "\"Aptove/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSAppTransportSecurity = "{\n    NSAllowsArbitraryLoads = YES;\n}";
+				INFOPLIST_KEY_NSAppTransportSecurity = "{\n    NSAllowsLocalNetworking = YES;\n}";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Aptove needs camera access to scan QR codes and capture photos for chat";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Aptove needs microphone access to record voice messages";
