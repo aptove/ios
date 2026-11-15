@@ -48,7 +48,7 @@ class ComputerFileService: ObservableObject {
         }
         let key = path
         return try await withThrowingTaskGroup(of: FileListResult.self) { group in
-            group.addTask {
+            group.addTask { @MainActor in
                 try await withCheckedThrowingContinuation { cont in
                     self.pendingList[key] = cont
                     Task {
