@@ -100,14 +100,7 @@ struct TasksListView: View {
     private var taskList: some View {
         List {
             Section {
-                Text("tasks_connected_only_note")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-            }
-            ForEach(filtered) { item in
+                ForEach(filtered) { item in
                 TaskRowView(
                     item: item,
                     avatarImage: avatarImages[item.agentId],
@@ -121,6 +114,12 @@ struct TasksListView: View {
                 .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
             }
             .onDelete(perform: deleteFiltered)
+        } header: {
+            Text("tasks_connected_only_note")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .textCase(nil)
+        }
         }
         .listStyle(.plain)
         .sheet(item: $editingTask) { item in
