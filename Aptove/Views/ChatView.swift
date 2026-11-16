@@ -148,7 +148,7 @@ struct ChatView: View {
             }
             .background(ChatPatternBackground())
             .scrollDismissesKeyboard(.interactively)
-            .simultaneousGesture(TapGesture().onEnded { isInputFocused = false })
+            .simultaneousGesture(TapGesture().onEnded { isInputFocused = false; showAttachmentPanel = false; commandQuery = nil })
         }
     }
 
@@ -477,7 +477,10 @@ struct ChatView: View {
     
     private func applyCommand(_ command: AvailableCommand) {
         let hasInput = command.input != nil
-        messageText = hasInput ? "/\(command.name) " : "/\(command.name)"
+        // Always include a trailing space so onChange(of: messageText) sees a space
+        // and keeps commandQuery = nil. Without it, "/command" (no space) triggers
+        // the onChange to re-open the picker immediately after we close it.
+        messageText = "/\(command.name) "
         commandQuery = nil
         if hasInput { isInputFocused = true }
     }
@@ -977,7 +980,14 @@ struct MessageTextField: UIViewRepresentable {
         view.isScrollEnabled = needed > maxHeight
         // Focus
         if isFocused && !view.isFirstResponder { view.becomeFirstResponder() }
-        else if !isFocused && view.isFirstResponder { view.resignFirstResponder() }
+        else if !isFocused && view.isFirstResponder {
+            // Defer resignFirstResponder to the next run-loop turn so it fires
+            // outside SwiftUI's current render pass. Resigning synchronously here
+            // triggers the keyboard-dismiss notification mid-render, causing the
+            // keyboard safe-area inset to clear before the layout re-pass runs —
+            // which leaves the input bar floating at the keyboard's old position.
+            DispatchQueue.main.async { view.resignFirstResponder() }
+        }
     }
 
     class Coordinator: NSObject, UITextViewDelegate {
