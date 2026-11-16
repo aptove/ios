@@ -86,14 +86,6 @@
 "Disconnected" = "Disconnected";
 "Reconnecting" = "Reconnecting";
 "Transports" = "Transports";
-"Session Information" = "Session Information";
-"Session ID" = "Session ID";
-"Started" = "Started";
-"Messages" = "Messages";
-"Supports Resume" = "Supports Resume";
-"Yes" = "Yes";
-"No" = "No";
-"No active session" = "No active session";
 "Actions" = "Actions";
 "Clear Session" = "Clear Session";
 "Delete Agent" = "Delete Agent";

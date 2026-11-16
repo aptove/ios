@@ -86,14 +86,6 @@
 "Disconnected" = "Bağlı Değil";
 "Reconnecting" = "Yeniden Bağlanıyor";
 "Transports" = "Taşıyıcılar";
-"Session Information" = "Oturum Bilgileri";
-"Session ID" = "Oturum Kimliği";
-"Started" = "Başladı";
-"Messages" = "Mesajlar";
-"Supports Resume" = "Yeniden Başlatmayı Destekler";
-"Yes" = "Evet";
-"No" = "Hayır";
-"No active session" = "Etkin oturum yok";
 "Actions" = "İşlemler";
 "Clear Session" = "Oturumu Temizle";
 "Delete Agent" = "Ajanı Sil";

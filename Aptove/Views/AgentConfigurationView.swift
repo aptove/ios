@@ -104,43 +104,23 @@ struct AgentConfigurationView: View {
                     Text("ACP Version")
                 }
 
-                // Session Information Section
-                Section("Session Information") {
-                    if let sessionId = agent.activeSessionId {
-                        LabeledContent("Session ID") {
-                            Text(String(sessionId.prefix(16)) + "...")
-                                .font(.system(.body, design: .monospaced))
-                                .foregroundColor(.secondary)
-                        }
-
-                        if let startedAt = agent.sessionStartedAt {
-                            LabeledContent("Started") {
-                                Text(startedAt, format: .dateTime.month(.abbreviated).day().year().hour().minute())
-                            }
-                        }
-
-                        LabeledContent("Messages", value: "\(viewModel.messageCount)")
-                        LabeledContent("Supports Resume") {
-                            Text(agent.supportsLoadSession ? "Yes" : "No")
-                        }
-                    } else {
-                        Text("No active session")
-                            .foregroundColor(.secondary)
-                    }
-                }
-
                 // Actions Section
                 Section("Actions") {
                     Button(role: .destructive) {
                         showClearSessionAlert = true
                     } label: {
-                        HStack {
+                        HStack(alignment: .top) {
                             if viewModel.isClearingSession {
                                 ProgressView().scaleEffect(0.8)
                             } else {
                                 Image(systemName: "arrow.counterclockwise")
                             }
-                            Text("Clear Session")
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Clear Session")
+                                Text("Clear Session will delete all conversation history and start a fresh session.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
                     .disabled(viewModel.isClearingSession || agent.activeSessionId == nil)
@@ -148,26 +128,21 @@ struct AgentConfigurationView: View {
                     Button(role: .destructive) {
                         showDeleteAgentAlert = true
                     } label: {
-                        HStack {
+                        HStack(alignment: .top) {
                             if viewModel.isDeletingAgent {
                                 ProgressView().scaleEffect(0.8)
                             } else {
                                 Image(systemName: "trash")
                             }
-                            Text("Delete Agent")
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Delete Agent")
+                                Text("Delete Agent will permanently remove this agent and all associated data.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
                     .disabled(viewModel.isDeletingAgent)
-                }
-
-                Section {
-                    Text("Clear Session will delete all conversation history and start a fresh session.")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-
-                    Text("Delete Agent will permanently remove this agent and all associated data.")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
                 }
 
                 Color.clear
