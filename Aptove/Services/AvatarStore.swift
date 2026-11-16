@@ -1,5 +1,9 @@
 import UIKit
 
+extension Notification.Name {
+    static let avatarDidChange = Notification.Name("AvatarStoreDidChange")
+}
+
 /// Persists per-agent avatar images in the app's Documents directory.
 /// Files are stored as `{agentId}_avatar.jpg`.
 enum AvatarStore {
@@ -11,6 +15,7 @@ enum AvatarStore {
     static func save(_ image: UIImage, for agentId: String) {
         guard let data = image.jpegData(compressionQuality: 0.8) else { return }
         try? data.write(to: url(for: agentId), options: .atomic)
+        NotificationCenter.default.post(name: .avatarDidChange, object: nil, userInfo: ["agentId": agentId])
     }
 
     static func load(for agentId: String) -> UIImage? {
@@ -20,5 +25,6 @@ enum AvatarStore {
 
     static func delete(for agentId: String) {
         try? FileManager.default.removeItem(at: url(for: agentId))
+        NotificationCenter.default.post(name: .avatarDidChange, object: nil, userInfo: ["agentId": agentId])
     }
 }

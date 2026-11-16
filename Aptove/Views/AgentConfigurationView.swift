@@ -15,6 +15,7 @@ struct AgentConfigurationView: View {
     @State private var avatarImage: UIImage?
     @State private var showAvatarPicker = false
     @State private var avatarPickerItem: PhotosPickerItem?
+    @State private var showAvatarOptions = false
 
     init(agentId: String) {
         self.agentId = agentId
@@ -165,6 +166,14 @@ struct AgentConfigurationView: View {
             avatarImage = AvatarStore.load(for: agentId)
         }
         .photosPicker(isPresented: $showAvatarPicker, selection: $avatarPickerItem, matching: .images)
+        .confirmationDialog("", isPresented: $showAvatarOptions, titleVisibility: .hidden) {
+            Button("avatar_change_photo") { showAvatarPicker = true }
+            Button("avatar_remove_photo", role: .destructive) {
+                AvatarStore.delete(for: agentId)
+                avatarImage = nil
+            }
+            Button("Cancel", role: .cancel) { }
+        }
         .onChange(of: avatarPickerItem) { _, item in
             guard let item else { return }
             Task {
@@ -213,7 +222,13 @@ struct AgentConfigurationView: View {
         let initial = String(agent.name.prefix(1).uppercased())
         HStack {
             Spacer()
-            Button { showAvatarPicker = true } label: {
+            Button {
+                if avatarImage != nil {
+                    showAvatarOptions = true
+                } else {
+                    showAvatarPicker = true
+                }
+            } label: {
                 avatarBadge(color: color, initial: initial)
             }
             .buttonStyle(.plain)

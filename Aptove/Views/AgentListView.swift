@@ -96,6 +96,10 @@ struct AgentListView: View {
         .listStyle(.plain)
         .onChange(of: isSearching) { _, active in isSearchActive = active }
         .onAppear { loadAvatars() }
+        .onReceive(NotificationCenter.default.publisher(for: .avatarDidChange)) { notification in
+            guard let agentId = notification.userInfo?["agentId"] as? String else { return }
+            avatarImages[agentId] = AvatarStore.load(for: agentId)
+        }
         .task {
             // Poll while the list is visible so agents turn green quickly after
             // Aptove Router starts. connectAgent() is a no-op for connected agents;

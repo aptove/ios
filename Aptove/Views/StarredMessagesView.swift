@@ -62,6 +62,10 @@ struct StarredMessagesView: View {
             .onAppear {
                 loadAvatars()
             }
+            .onReceive(NotificationCenter.default.publisher(for: .avatarDidChange)) { notification in
+                guard let agentId = notification.userInfo?["agentId"] as? String else { return }
+                avatarImages[agentId] = AvatarStore.load(for: agentId)
+            }
             .onChange(of: selectedTab) { _, tab in
                 guard tab == .starred, !hasBeenSelected else { return }
                 // Defer by one frame so the navigation bar initialises in large-title mode

@@ -54,6 +54,10 @@ struct TasksListView: View {
                 prompt: Text("search_tasks_prompt")
             )
             .onAppear { loadTasks() }
+            .onReceive(NotificationCenter.default.publisher(for: .avatarDidChange)) { notification in
+                guard let agentId = notification.userInfo?["agentId"] as? String else { return }
+                avatarImages[agentId] = AvatarStore.load(for: agentId)
+            }
             .onChange(of: selectedTab) { _, tab in
                 if tab == .tasks { loadTasks() }
             }
