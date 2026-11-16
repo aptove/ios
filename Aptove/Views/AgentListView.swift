@@ -96,6 +96,15 @@ struct AgentListView: View {
         .listStyle(.plain)
         .onChange(of: isSearching) { _, active in isSearchActive = active }
         .onAppear { loadAvatars() }
+        .task {
+            // Poll while the list is visible so agents turn green quickly after
+            // Aptove Router starts. connectAgent() is a no-op for connected agents;
+            // per-agent backoffs are respected (wrongBridge/401 stay backed off).
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 5_000_000_000) // 5 s
+                agentManager.retryDisconnectedAgents()
+            }
+        }
         .sheet(isPresented: Binding(
             get: { agentToConfigureId != nil },
             set: { if !$0 { agentToConfigureId = nil } }
@@ -264,6 +273,10 @@ struct AgentRow: View {
                     Text("via \(transportShortName(activeTransport))")
                         .font(.caption)
                         .foregroundColor(.accentColor)
+                } else if agent.agentCommandError != nil {
+                    Text("agent_ai_offline")
+                        .font(.subheadline)
+                        .foregroundColor(.orange)
                 } else if let lastMessage = lastMessage {
                     Text(lastMessage.text)
                         .font(.subheadline)
@@ -307,6 +320,7 @@ struct AgentRow: View {
 
     private var statusColor: Color {
         if agent.isAuthenticated == false { return .orange }
+        if agent.agentCommandError != nil { return .orange }
         switch agent.status {
         case .connected:    return .green
         case .disconnected: return .gray
@@ -314,17 +328,10 @@ struct AgentRow: View {
         }
     }
 
-    @ViewBuilder
     private var statusIndicator: some View {
-        if agent.isAuthenticated == false {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
-                .font(.caption)
-        } else {
-            Circle()
-                .fill(statusColor)
-                .frame(width: 8, height: 8)
-        }
+        Circle()
+            .fill(statusColor)
+            .frame(width: 8, height: 8)
     }
 }
 

@@ -59,6 +59,9 @@ class AgentManager: ObservableObject {
     private var retryNotBefore: [String: Date] = [:]
     /// Endpoint IDs that responded with 401 Unauthorized — skipped until re-paired.
     private var invalidCredentialEndpoints: Set<String> = []
+    /// Per-agent background task that holds a bridge/ping WebSocket open.
+    /// Detects when Aptove Router stops while the agent is in the orange "AI offline" state.
+    private var bridgeHealthMonitorTasks: [String: Task<Void, Never>] = [:]
 
     init(repository: AgentRepository = AgentRepository()) {
         self.repository = repository
@@ -73,7 +76,18 @@ class AgentManager: ObservableObject {
             .sink { [weak self] updatedAgents in
                 guard let self else { return }
                 let wasEmpty = self.agents.isEmpty
-                self.agents = updatedAgents
+                // Preserve transient properties that are not stored in CoreData.
+                // CoreData updates (e.g. updateConnectionStatus) replace the entire
+                // agents array and would wipe these in-memory fields otherwise.
+                let previous = Dictionary(uniqueKeysWithValues: self.agents.map { ($0.id, $0) })
+                self.agents = updatedAgents.map { agent in
+                    guard let prev = previous[agent.id] else { return agent }
+                    var a = agent
+                    a.isAuthenticated = prev.isAuthenticated
+                    a.authMessage = prev.authMessage
+                    a.agentCommandError = prev.agentCommandError
+                    return a
+                }
                 // Create conversations for any new agents, loading persisted messages and unread count
                 for agent in updatedAgents where self.conversations[agent.id] == nil {
                     let persisted = self.messageRepository.fetchMessages(agentId: agent.id)
@@ -88,6 +102,19 @@ class AgentManager: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+    }
+
+    /// Retry disconnected agents that are not in a backoff window.
+    /// Called from the agent list view on a short interval so bridge-start is detected quickly.
+    /// Unlike `autoConnectAllAgents()`, this respects per-agent backoff (e.g. wrongBridge stays
+    /// backed off for 5 minutes; the list just polls fresh-disconnected agents faster).
+    func retryDisconnectedAgents() {
+        let now = Date()
+        for agent in agents where agent.status == .disconnected {
+            if let notBefore = retryNotBefore[agent.id], notBefore > now { continue }
+            let agentId = agent.id
+            Task { _ = await self.connectAgent(agentId: agentId) }
+        }
     }
 
     /// Auto-connect to all saved agents on first load.
@@ -147,10 +174,12 @@ class AgentManager: ObservableObject {
                     } else {
                         let failures = (self.retryFailureCounts[agentId] ?? 0) + 1
                         self.retryFailureCounts[agentId] = failures
-                        // 30s, 60s, 120s, 240s, 480s, 600s cap
-                        let backoff = min(30.0 * pow(2.0, Double(failures - 1)), 600.0)
+                        // AI spawn errors are config problems — back off 5 minutes so we
+                        // don't hammer the bridge repeatedly on every 30s tick.
+                        let isSpawnError = agent.agentCommandError != nil
+                        let backoff = isSpawnError ? 300.0 : min(30.0 * pow(2.0, Double(failures - 1)), 600.0)
                         self.retryNotBefore[agentId] = now.addingTimeInterval(backoff)
-                        Logger.connection.debug("AgentManager: \(agentId) backoff \(Int(backoff))s (failure #\(failures))")
+                        Logger.connection.debug("AgentManager: \(agentId) backoff \(Int(backoff))s (failure #\(failures), spawnError: \(isSpawnError))")
                     }
                 }
             } while !Task.isCancelled
@@ -508,6 +537,7 @@ class AgentManager: ObservableObject {
 
         repository.updateConnectionStatus(agentId: agentId, status: .reconnecting)
 
+        var anyEndpointReceivedAgentError = false
         for endpoint in endpoints {
             guard let endpointId = endpoint.endpointId, let url = endpoint.url else { continue }
             if invalidCredentialEndpoints.contains(endpointId) {
@@ -528,8 +558,12 @@ class AgentManager: ObservableObject {
                 pushRelayUrl: credentials?.pushRelayUrl
             )
 
-            // Swap client for this endpoint's config
-            _ = await clientCache.removeClient(for: agentId)
+            // Swap client for this endpoint's config — explicitly disconnect the old one
+            // so its WebSocket close doesn't fire onUnexpectedDisconnect and trigger a
+            // spurious reconnect loop alongside the one we're already running.
+            if let old = await clientCache.removeClient(for: agentId) {
+                await old.disconnect()
+            }
             let existingSessionId = agents.first { $0.id == agentId }?.activeSessionId
             let versionMode = agents.first(where: { $0.id == agentId })?.acpVersionMode ?? .auto
             let client = ACPClientWrapper(config: config, agentId: agentId, expectedBridgeAgentId: entity.bridgeAgentId, versionMode: versionMode)
@@ -539,6 +573,10 @@ class AgentManager: ObservableObject {
                 guard let self else { return }
                 Task { @MainActor in
                     Logger.connection.debug("AgentManager: Transport closed unexpectedly for \(agentId) — retrying all transports")
+                    // Clear AI spawn error on disconnect — if bridge is still up with a bad command,
+                    // the next connectAgent() will receive bridge/agentError and restore it.
+                    // If bridge is truly down, the error stays nil → shows gray.
+                    self.setAgentCommandError(agentId: agentId, error: nil)
                     _ = await self.connectAgent(agentId: agentId)
                 }
             }
@@ -561,6 +599,14 @@ class AgentManager: ObservableObject {
                 } else {
                     // Bridge name is authoritative — update local to match.
                     Task { @MainActor in self.renameAgentLocalOnly(agentId: agentId, newName: bridgeName) }
+                }
+            }
+
+            // Propagate AI spawn errors to the agent model so the UI shows the orange indicator.
+            client.onAgentError = { [weak self] errorMsg in
+                guard let self else { return }
+                Task { @MainActor in
+                    self.setAgentCommandError(agentId: agentId, error: errorMsg)
                 }
             }
 
@@ -602,6 +648,10 @@ class AgentManager: ObservableObject {
             await clientCache.setClient(client, for: agentId)
             await client.connect(existingSessionId: existingSessionId)
 
+            if client.receivedAgentError != nil {
+                anyEndpointReceivedAgentError = true
+            }
+
             // If the bridge rejected us due to identity mismatch, back off for 5 minutes
             // so the retry loop doesn't repeatedly reconnect and immediately disconnect.
             if case .error(let msg) = client.connectionState, msg.hasPrefix("wrongBridge:") {
@@ -635,6 +685,8 @@ class AgentManager: ObservableObject {
                 retryFailureCounts[agentId] = 0
                 retryNotBefore.removeValue(forKey: agentId)
                 bridgeMismatchWarnings.removeValue(forKey: agentId)
+                // AI is now running — clear any prior spawn error
+                setAgentCommandError(agentId: agentId, error: nil)
                 let agentIdCapture = agentId
                 Task { [weak self] in
                     guard let self else { return }
@@ -656,6 +708,12 @@ class AgentManager: ObservableObject {
 
         repository.updateConnectionStatus(agentId: agentId, status: .disconnected)
         Logger.connection.error("AgentManager.connectAgent: All endpoints failed for \(agentId)")
+        // If the bridge was completely unreachable (no bridge/agentError received this attempt),
+        // clear the AI spawn error — "Transport disconnected" (gray) is more accurate than "AI offline".
+        // If bridge/agentError WAS received, keep orange so it persists during the retry backoff.
+        if !anyEndpointReceivedAgentError {
+            setAgentCommandError(agentId: agentId, error: nil)
+        }
         return false
     }
 
@@ -704,6 +762,15 @@ class AgentManager: ObservableObject {
     }
 
     /// Set the user's preferred transport for an agent.
+    /// Returns the preferred transport name for an agent, or the first endpoint's transport.
+    /// Used when agentCommandError is set — the transport was reachable but isActive is never
+    /// set because ACP handshake never completes when the AI process fails to spawn.
+    func firstTransportName(for agentId: String) -> String? {
+        guard let entity = repository.getAgentEntity(agentId: agentId) else { return nil }
+        if let preferred = entity.preferredTransport { return preferred }
+        return entity.sortedEndpoints.first?.transport
+    }
+
     func setPreferredTransport(agentId: String, transport: String?) {
         guard let entity = repository.getAgentEntity(agentId: agentId) else { return }
         entity.preferredTransport = transport
@@ -716,6 +783,107 @@ class AgentManager: ObservableObject {
         guard let entity = repository.getAgentEntity(agentId: agentId) else { return }
         entity.acpVersionMode = mode.rawValue
         repository.updateAgent(entity)
+    }
+
+    /// Set or clear the AI agent spawn error on an agent.
+    /// Pass nil to clear (AI is now running); pass a message to set the orange warning.
+    func setAgentCommandError(agentId: String, error: String?) {
+        if let idx = agents.firstIndex(where: { $0.id == agentId }) {
+            agents[idx].agentCommandError = error
+        }
+        if error != nil {
+            startBridgeHealthMonitor(for: agentId)
+        } else {
+            stopBridgeHealthMonitor(for: agentId)
+        }
+    }
+
+    private func startBridgeHealthMonitor(for agentId: String) {
+        bridgeHealthMonitorTasks[agentId]?.cancel()
+        bridgeHealthMonitorTasks[agentId] = Task { [weak self] in
+            await self?.runBridgeHealthMonitor(agentId: agentId)
+        }
+    }
+
+    private func stopBridgeHealthMonitor(for agentId: String) {
+        bridgeHealthMonitorTasks[agentId]?.cancel()
+        bridgeHealthMonitorTasks.removeValue(forKey: agentId)
+    }
+
+    /// Opens a persistent `bridge/ping` WebSocket alongside the main ACP connection.
+    /// When Aptove Router stops, this connection drops immediately, clearing the orange
+    /// "AI offline" indicator without waiting for the full retry backoff (up to 5 min).
+    private func runBridgeHealthMonitor(agentId: String) async {
+        guard let entity = repository.getAgentEntity(agentId: agentId) else { return }
+
+        // Pick the highest-priority endpoint (same ordering as connectAgent)
+        var endpoints = entity.sortedEndpoints
+        if let preferred = entity.preferredTransport,
+           let preferredIdx = endpoints.firstIndex(where: { $0.transport == preferred }) {
+            let preferredEndpoint = endpoints.remove(at: preferredIdx)
+            endpoints.insert(preferredEndpoint, at: 0)
+        }
+        guard let endpoint = endpoints.first,
+              let endpointId = endpoint.endpointId,
+              let urlString = endpoint.url,
+              let url = URL(string: urlString) else { return }
+
+        let credentials = try? await TransportCredentialManager.retrieveAsync(for: endpointId)
+
+        // Build URLSession with the same auth headers as ACPClientWrapper
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = TimeInterval.infinity
+        configuration.timeoutIntervalForResource = TimeInterval.infinity
+
+        var headers: [String: String] = [:]
+        if let clientId = credentials?.clientId, !clientId.isEmpty { headers["CF-Access-Client-Id"] = clientId }
+        if let clientSecret = credentials?.clientSecret, !clientSecret.isEmpty { headers["CF-Access-Client-Secret"] = clientSecret }
+        if let authToken = credentials?.authToken, !authToken.isEmpty { headers["X-Bridge-Token"] = authToken }
+        if !headers.isEmpty { configuration.httpAdditionalHeaders = headers }
+
+        let session = URLSession(configuration: configuration)
+        let wsTask = session.webSocketTask(with: url)
+        wsTask.resume()
+
+        defer {
+            wsTask.cancel(with: .normalClosure, reason: nil)
+            session.invalidateAndCancel()
+        }
+
+        // Wait for bridge/identify (first message bridge always sends)
+        do {
+            _ = try await wsTask.receive()
+        } catch {
+            // Could not connect — bridge may already be down or endpoint unreachable.
+            // Don't clear orange; the main retry loop will handle recovery.
+            return
+        }
+
+        guard !Task.isCancelled else { return }
+
+        // Send bridge/ping — bridge will respond with bridge/pong and keep the connection open
+        do {
+            try await wsTask.send(.string(#"{"jsonrpc":"2.0","method":"bridge/ping","params":{}}"#))
+        } catch {
+            return
+        }
+
+        // Hold connection open — bridge TCP pings (RFC 6455) keep it alive.
+        // When Aptove Router stops, receive() throws immediately.
+        while !Task.isCancelled {
+            do {
+                _ = try await wsTask.receive()
+            } catch {
+                break
+            }
+        }
+
+        guard !Task.isCancelled else { return }
+
+        // Bridge stopped — clear orange indicator and trigger immediate reconnect
+        Logger.connection.debug("AgentManager: Health monitor detected bridge stopped for \(agentId) — clearing AI offline state")
+        setAgentCommandError(agentId: agentId, error: nil)
+        _ = await connectAgent(agentId: agentId)
     }
 
     /// Remove a transport endpoint from an agent.

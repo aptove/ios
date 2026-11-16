@@ -212,3 +212,15 @@
 "schedule_summary_monthly" = "Monthly at %@";
 "tasks_connected_only_note" = "Only tasks from connected agents are shown";
 "voice_cloud_recognition_note" = "Speech recognition may use Apple's servers on this device";
+
+/* Agent connection status */
+"agent_ai_offline" = "AI agent offline";
+"connection_status_section" = "Connection";
+"connection_transport" = "Transport";
+"connection_ai_agent" = "AI Agent";
+"connection_ai_running" = "Running";
+"connection_ai_offline" = "Offline";
+"connection_ai_unknown" = "Unknown";
+"connection_transport_connected" = "Connected via %@";
+"connection_transport_reconnecting" = "Reconnecting...";
+"connection_transport_disconnected" = "Disconnected";

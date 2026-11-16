@@ -166,7 +166,15 @@ class ACPClientWrapper: ObservableObject {
 
     /// The agent's self-reported name (from InitializeResponse)
     private(set) var connectedAgentName: String?
-    
+
+    /// Set when `bridge/agentError` is received — transport is reachable but the AI
+    /// agent process failed to start (e.g. bad command). Used by callers to create
+    /// the agent entity with an AI-offline warning even when ACP handshake never completes.
+    private(set) var receivedAgentError: String? = nil
+
+    /// Called when `bridge/agentError` is received during an active connection.
+    var onAgentError: ((String) -> Void)?
+
     /// Whether the agent supports loading sessions
     private(set) var supportsLoadSession: Bool = false
     
@@ -1260,6 +1268,16 @@ class ACPClientWrapper: ObservableObject {
 
         if notif.method == "bridge/files/listResponse" || notif.method == "bridge/files/contentResponse" {
             onFileBrowseNotification?(notif)
+            return
+        }
+
+        if notif.method == "bridge/agentError" {
+            if case .object(let p) = notif.params,
+               case .string(let msg) = p["error"] {
+                Logger.connection.error("ACPClientWrapper: bridge/agentError — AI process failed: \(msg)")
+                self.receivedAgentError = msg
+                self.onAgentError?(msg)
+            }
             return
         }
 

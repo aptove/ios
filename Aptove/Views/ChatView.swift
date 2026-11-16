@@ -369,7 +369,10 @@ struct ChatView: View {
     }
 
     private var agentStatusColor: Color {
-        switch agentManager.agents.first(where: { $0.id == agentId })?.status {
+        guard let agent = agentManager.agents.first(where: { $0.id == agentId }) else { return .gray }
+        if agent.isAuthenticated == false { return .orange }
+        if agent.agentCommandError != nil { return .orange }
+        switch agent.status {
         case .connected:    return .green
         case .reconnecting: return .orange
         default:            return .gray

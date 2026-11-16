@@ -212,3 +212,15 @@
 "schedule_summary_monthly" = "Her ay %@";
 "tasks_connected_only_note" = "Yalnızca bağlı ajanların görevleri gösterilir";
 "voice_cloud_recognition_note" = "Konuşma tanıma bu cihazda Apple sunucularını kullanabilir";
+
+/* Agent connection status */
+"agent_ai_offline" = "Yapay zeka ajanı çevrimdışı";
+"connection_status_section" = "Bağlantı";
+"connection_transport" = "Taşıma";
+"connection_ai_agent" = "Yapay Zeka Ajanı";
+"connection_ai_running" = "Çalışıyor";
+"connection_ai_offline" = "Çevrimdışı";
+"connection_ai_unknown" = "Bilinmiyor";
+"connection_transport_connected" = "%@ üzerinden bağlandı";
+"connection_transport_reconnecting" = "Yeniden bağlanıyor...";
+"connection_transport_disconnected" = "Bağlantı kesildi";

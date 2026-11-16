@@ -38,17 +38,37 @@ struct AgentConfigurationView: View {
                             .multilineTextAlignment(.trailing)
                             .onSubmit { viewModel.saveNameIfChanged() }
                     }
-                    LabeledContent("Status") {
-                        HStack {
+                }
+
+                // Connection Status Section — shows transport and AI agent states separately
+                Section("connection_status_section") {
+                    // Transport row — when agentCommandError is set, the transport was
+                    // reachable (bridge/agentError arrived over the connection) even though
+                    // the WebSocket is now closed. Show green "Connected" in that case.
+                    LabeledContent("connection_transport") {
+                        HStack(spacing: 6) {
                             Circle()
-                                .fill(statusColor(for: agent.status))
+                                .fill(agent.agentCommandError != nil ? Color.green : statusColor(for: agent.status))
                                 .frame(width: 8, height: 8)
-                            switch agent.status {
-                            case .connected:    Text("Connected")
-                            case .disconnected: Text("Disconnected")
-                            case .reconnecting: Text("Reconnecting")
-                            }
+                            Text(transportStatusText(agent: agent))
                         }
+                    }
+
+                    // AI Agent row
+                    LabeledContent("connection_ai_agent") {
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(aiStatusColor(agent: agent))
+                                .frame(width: 8, height: 8)
+                            Text(aiStatusText(agent: agent))
+                        }
+                    }
+
+                    // Error detail — shown when AI process failed to start
+                    if let error = agent.agentCommandError {
+                        Text(error)
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
                     }
                 }
 
@@ -212,7 +232,9 @@ struct AgentConfigurationView: View {
 
     @ViewBuilder
     private func avatarRow(agent: Agent) -> some View {
-        let color = statusColor(for: agent.status)
+        let color: Color = (agent.isAuthenticated == false || agent.agentCommandError != nil)
+            ? .orange
+            : statusColor(for: agent.status)
         let initial = String(agent.name.prefix(1).uppercased())
         HStack {
             Spacer()
@@ -262,6 +284,53 @@ struct AgentConfigurationView: View {
         case .disconnected: return .gray
         case .reconnecting: return .orange
         }
+    }
+
+    private func transportStatusText(agent: Agent) -> String {
+        // When the AI process fails to spawn, the WebSocket closes immediately after
+        // bridge/agentError is received — so agent.status is .disconnected by the time
+        // the user opens this view. But the transport IS reachable; show "Connected".
+        if agent.agentCommandError != nil {
+            let transport = agentManager.activeTransport(for: agent.id)
+                ?? agentManager.firstTransportName(for: agent.id)
+                ?? "local"
+            return String(format: NSLocalizedString("connection_transport_connected", comment: ""), transportShortName(transport))
+        }
+        switch agent.status {
+        case .connected:
+            let transport = agentManager.activeTransport(for: agent.id) ?? "local"
+            let name = transportShortName(transport)
+            return String(format: NSLocalizedString("connection_transport_connected", comment: ""), name)
+        case .reconnecting:
+            return NSLocalizedString("connection_transport_reconnecting", comment: "")
+        case .disconnected:
+            return NSLocalizedString("connection_transport_disconnected", comment: "")
+        }
+    }
+
+    private func transportShortName(_ transport: String) -> String {
+        switch transport {
+        case "local":           return "Local"
+        case "cloudflare":      return "Cloudflare"
+        case "tailscale-serve": return "Tailscale"
+        default:                return transport
+        }
+    }
+
+    private func aiStatusColor(agent: Agent) -> Color {
+        if agent.agentCommandError != nil { return .orange }
+        if agent.status == .connected { return .green }
+        return .gray
+    }
+
+    private func aiStatusText(agent: Agent) -> String {
+        if agent.agentCommandError != nil {
+            return NSLocalizedString("connection_ai_offline", comment: "")
+        }
+        if agent.status == .connected {
+            return NSLocalizedString("connection_ai_running", comment: "")
+        }
+        return NSLocalizedString("connection_ai_unknown", comment: "")
     }
 
 }

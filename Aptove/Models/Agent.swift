@@ -52,6 +52,11 @@ struct Agent: Identifiable, Codable, Equatable {
     var isAuthenticated: Bool? = nil
     var authMessage: String? = nil
 
+    // AI agent spawn error — set when bridge/agentError is received.
+    // Transport is reachable but the AI process failed to start (e.g. bad command).
+    // nil = no known error. Non-nil = orange warning indicator in the UI.
+    var agentCommandError: String? = nil
+
     init(
         id: String,
         name: String,

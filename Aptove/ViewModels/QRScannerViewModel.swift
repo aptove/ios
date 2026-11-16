@@ -206,7 +206,7 @@ class QRScannerViewModel: ObservableObject {
                 try await manager.updateAgentCredentials(agentId: existingAgent.id, config: config)
 
                 pairingStatus = "Testing connection..."
-                let (success, _) = await testConnectionWithName(config: config)
+                let (success, _, _) = await testConnectionWithName(config: config)
 
                 if success {
                     Logger.pairing.debug("Credentials updated and connection verified")
@@ -224,9 +224,9 @@ class QRScannerViewModel: ObservableObject {
         
         pairingStatus = "Testing connection to agent..."
         Logger.pairing.debug("Testing connection...")
-        let (success, agentName) = await testConnectionWithName(config: config)
-        Logger.pairing.debug("Connection test result: \(success), name: \(agentName ?? "nil")")
-        
+        let (success, agentName, agentError) = await testConnectionWithName(config: config)
+        Logger.pairing.debug("Connection test result: \(success), name: \(agentName ?? "nil"), agentError: \(agentError ?? "none")")
+
         if success {
             pairingStatus = "Adding agent..."
             Logger.pairing.debug("Connection successful, adding agent...")
@@ -234,7 +234,7 @@ class QRScannerViewModel: ObservableObject {
             let folderName = URL(fileURLWithPath: config.cwd).lastPathComponent
             let finalName = (!folderName.isEmpty && folderName != "/") ? folderName : (agentName ?? extractAgentName(from: config.url))
             Logger.pairing.debug("Agent ID: \(agentId), Name: \(finalName)")
-            
+
             Logger.pairing.debug("Calling manager.addAgent()...")
             try await manager.addAgent(
                 config: config,
@@ -248,8 +248,14 @@ class QRScannerViewModel: ObservableObject {
                 _ = try? await manager.addOrUpdateTransportEndpoint(agentId: agentId, transport: transport, config: config)
                 manager.setPreferredTransport(agentId: agentId, transport: transport)
             }
+
+            // If the AI process failed to start, mark the agent with an error so the
+            // mobile app shows the orange warning indicator from the start.
+            if let agentErr = agentError {
+                manager.setAgentCommandError(agentId: agentId, error: agentErr)
+            }
+
             Logger.pairing.debug("Agent added successfully")
-            
             showingSuccess = true
         } else {
             Logger.pairing.error("Connection test failed")
@@ -257,19 +263,29 @@ class QRScannerViewModel: ObservableObject {
         }
     }
     
-    /// Test connection and return both success status and agent's self-reported name
-    private func testConnectionWithName(config: ConnectionConfig) async -> (success: Bool, agentName: String?) {
+    /// Test connection and return success status, agent name, and any AI spawn error.
+    /// Returns `success: true` even when `agentError` is set — transport reachable but AI offline.
+    private func testConnectionWithName(config: ConnectionConfig) async -> (success: Bool, agentName: String?, agentError: String?) {
         Logger.pairing.debug("testConnectionWithName: creating test wrapper...")
         // Use unique agent ID for each test to avoid reusing session IDs
         let wrapper = ACPClientWrapper(config: config, agentId: "test-\(UUID().uuidString)", connectionTimeout: 300, maxRetries: 2)
         Logger.pairing.debug("Test wrapper created, calling connect()...")
-        
+
         await wrapper.connect()
         Logger.pairing.debug("Connect returned, checking state...")
-        
+
+        // If bridge/agentError was received, the transport is reachable but the AI command
+        // failed. Count as transport success so the agent entity is created with an AI-offline
+        // indicator rather than failing the entire pairing.
+        if let agentErr = wrapper.receivedAgentError {
+            Logger.pairing.warning("Test connection: transport reachable but AI offline — \(agentErr)")
+            await wrapper.disconnect()
+            return (success: true, agentName: nil, agentError: agentErr)
+        }
+
         let isConnected: Bool
         let agentName: String?
-        
+
         switch wrapper.connectionState {
         case .connected:
             Logger.pairing.debug("Test connection successful")
@@ -286,12 +302,12 @@ class QRScannerViewModel: ObservableObject {
             isConnected = false
             agentName = nil
         }
-        
+
         Logger.pairing.debug("Disconnecting test wrapper...")
         await wrapper.disconnect()
         Logger.pairing.debug("Test complete")
-        
-        return (isConnected, agentName)
+
+        return (success: isConnected, agentName: agentName, agentError: nil)
     }
     
     @available(*, deprecated, message: "Use testConnectionWithName instead")
