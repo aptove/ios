@@ -502,6 +502,7 @@ struct ChatView: View {
                 }
                 Text(LocalizedStringKey(label)).font(.caption).foregroundColor(.primary)
             }
+            .frame(maxWidth: .infinity)
         }
     }
 
@@ -746,40 +747,44 @@ struct ChatView: View {
 
     @ViewBuilder
     private var attachmentPanelView: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 72), spacing: 8)], spacing: 16) {
-            attachmentItem(icon: "photo", label: "attachment_photos", color: .blue) {
-                showAttachmentPanel = false; showPhotoPicker = true
-            }
-            attachmentItem(icon: "camera", label: "camera_label", color: .indigo) {
-                showAttachmentPanel = false; handleCameraAction()
-            }
-            attachmentItem(icon: "paperclip", label: "files_label", color: .green) {
-                showAttachmentPanel = false; showFilePicker = true
-            }
-            attachmentItem(icon: nil, slashLabel: "/", label: "attachment_commands", color: .purple) {
-                guard isAgentConnected else { showNotConnectedAlert = true; return }
-                showAttachmentPanel = false; commandQuery = ""
-            }
-            attachmentItem(icon: "brain", label: "attachment_memory", color: .orange) {
-                guard isAgentConnected else { showNotConnectedAlert = true; return }
-                showAttachmentPanel = false; showMemoryEntry = true
-            }
-            attachmentItem(icon: "clock", label: "attachment_task", color: .cyan) {
-                guard isAgentConnected else { showNotConnectedAlert = true; return }
-                showAttachmentPanel = false; showTaskCreate = true
-            }
-            attachmentItem(icon: "arrow.counterclockwise", label: "attachment_clear_session", color: .red) {
-                guard isAgentConnected else { showNotConnectedAlert = true; return }
-                showAttachmentPanel = false; showClearSessionAlert = true
-            }
-            attachmentItem(icon: "desktopcomputer", label: "attachment_computer", color: .teal) {
-                guard isAgentConnected else { showNotConnectedAlert = true; return }
-                showAttachmentPanel = false
-                computerFileService.client = viewModel.acpClient
-                viewModel.acpClient?.onFileBrowseNotification = { [weak computerFileService] notif in
-                    Task { @MainActor in computerFileService?.handleNotification(notif) }
+        Grid(horizontalSpacing: 8, verticalSpacing: 16) {
+            GridRow {
+                attachmentItem(icon: "photo", label: "attachment_photos", color: .blue) {
+                    showAttachmentPanel = false; showPhotoPicker = true
                 }
-                showComputerFileBrowser = true
+                attachmentItem(icon: "camera", label: "camera_label", color: .indigo) {
+                    showAttachmentPanel = false; handleCameraAction()
+                }
+                attachmentItem(icon: "paperclip", label: "files_label", color: .green) {
+                    showAttachmentPanel = false; showFilePicker = true
+                }
+                attachmentItem(icon: nil, slashLabel: "/", label: "attachment_commands", color: .purple) {
+                    guard isAgentConnected else { showNotConnectedAlert = true; return }
+                    showAttachmentPanel = false; commandQuery = ""
+                }
+            }
+            GridRow {
+                attachmentItem(icon: "brain", label: "attachment_memory", color: .orange) {
+                    guard isAgentConnected else { showNotConnectedAlert = true; return }
+                    showAttachmentPanel = false; showMemoryEntry = true
+                }
+                attachmentItem(icon: "clock", label: "attachment_task", color: .cyan) {
+                    guard isAgentConnected else { showNotConnectedAlert = true; return }
+                    showAttachmentPanel = false; showTaskCreate = true
+                }
+                attachmentItem(icon: "arrow.counterclockwise", label: "attachment_clear_session", color: .red) {
+                    guard isAgentConnected else { showNotConnectedAlert = true; return }
+                    showAttachmentPanel = false; showClearSessionAlert = true
+                }
+                attachmentItem(icon: "desktopcomputer", label: "attachment_computer", color: .teal) {
+                    guard isAgentConnected else { showNotConnectedAlert = true; return }
+                    showAttachmentPanel = false
+                    computerFileService.client = viewModel.acpClient
+                    viewModel.acpClient?.onFileBrowseNotification = { [weak computerFileService] notif in
+                        Task { @MainActor in computerFileService?.handleNotification(notif) }
+                    }
+                    showComputerFileBrowser = true
+                }
             }
         }
         .padding(.horizontal, 20)
