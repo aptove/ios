@@ -470,9 +470,8 @@ struct ChatView: View {
                     .scaledToFill()
                     .clipShape(Circle())
             } else {
-                Text(agentName.prefix(1).uppercased())
-                    .font(.system(size: size * 0.42, weight: .semibold))
-                    .foregroundColor(.white)
+                AgentIdenticon(name: agentName)
+                    .frame(width: size, height: size)
             }
         }
         .frame(width: size, height: size)

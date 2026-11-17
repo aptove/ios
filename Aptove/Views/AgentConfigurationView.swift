@@ -219,7 +219,6 @@ struct AgentConfigurationView: View {
         let color: Color = (agent.isAuthenticated == false || agent.agentCommandError != nil)
             ? .orange
             : statusColor(for: agent.status)
-        let initial = String(agent.name.prefix(1).uppercased())
         HStack {
             Spacer()
             Button {
@@ -229,7 +228,7 @@ struct AgentConfigurationView: View {
                     showAvatarPicker = true
                 }
             } label: {
-                avatarBadge(color: color, initial: initial)
+                avatarBadge(color: color, name: agent.name)
             }
             .buttonStyle(.plain)
             Spacer()
@@ -240,9 +239,9 @@ struct AgentConfigurationView: View {
     }
 
     @ViewBuilder
-    private func avatarBadge(color: Color, initial: String) -> some View {
+    private func avatarBadge(color: Color, name: String) -> some View {
         ZStack(alignment: .bottomTrailing) {
-            avatarCircle(color: color, initial: initial, size: 72)
+            avatarCircle(color: color, name: name, size: 72)
             Image(systemName: "pencil.circle.fill")
                 .font(.title2)
                 .foregroundColor(.accentColor)
@@ -251,7 +250,7 @@ struct AgentConfigurationView: View {
     }
 
     @ViewBuilder
-    private func avatarCircle(color: Color, initial: String, size: CGFloat) -> some View {
+    private func avatarCircle(color: Color, name: String, size: CGFloat) -> some View {
         ZStack {
             Circle().fill(color)
             if let img = avatarImage {
@@ -260,9 +259,8 @@ struct AgentConfigurationView: View {
                     .scaledToFill()
                     .clipShape(Circle())
             } else {
-                Text(initial)
-                    .font(.system(size: size * 0.42, weight: .semibold))
-                    .foregroundColor(.white)
+                AgentIdenticon(name: name)
+                    .frame(width: size, height: size)
             }
         }
         .frame(width: size, height: size)

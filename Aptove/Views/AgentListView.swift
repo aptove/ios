@@ -199,10 +199,7 @@ private struct SearchResultRow: View {
                         .scaledToFill()
                         .clipShape(Circle())
                 } else {
-                    Text(result.agentName.prefix(1).uppercased())
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
+                    AgentIdenticon(name: result.agentName)
                 }
             }
             .frame(width: 40, height: 40)
@@ -261,10 +258,8 @@ struct AgentRow: View {
                         .clipShape(Circle())
                         .padding(3)
                 } else {
-                    Text(agent.name.prefix(1).uppercased())
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
+                    AgentIdenticon(name: agent.name)
+                        .padding(3)
                 }
             }
             .frame(width: 48, height: 48)

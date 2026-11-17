@@ -166,10 +166,8 @@ private struct StarredMessageRow: View {
                         .clipShape(Circle())
                         .padding(3)
                 } else {
-                    Text(item.agentName.prefix(1).uppercased())
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
+                    AgentIdenticon(name: item.agentName)
+                        .padding(3)
                 }
             }
             .frame(width: 40, height: 40)
