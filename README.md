@@ -16,7 +16,7 @@ A mobile chat application for iOS that enables users to connect with AI agents u
 
 ## Requirements
 
-- iOS 15.0 or later
+- iOS 17.0 or later
 - Swift 6.0+
 - Xcode 16.0+ (for development)
 
@@ -46,7 +46,7 @@ Aptove/
 │   └── ConnectionConfig.swift # Connection configuration
 ├── Services/
 │   ├── AgentManager.swift    # Agent connection management (uses AgentRepository)
-│   ├── KeychainService.swift # Secure credential storage
+│   ├── KeychainManager.swift # Secure credential storage
 │   ├── PairingService.swift  # Secure pairing with cert pinning
 │   └── ClientCache.swift     # Thread-safe client caching
 ├── ViewModels/
@@ -244,22 +244,18 @@ This is useful when Aptove Router restarts and generates new credentials.
 
 ## Known Limitations
 
-1. **Background Sync**: Messages are not synced in background. App must be active for real-time communication.
-
-2. **Local Network Only**: Secure pairing requires device to be on same network as bridge.
+1. **Local Network Only**: Secure pairing requires device to be on same network as bridge (Local transport). Use Tailscale transport for remote access.
 
 ## Future Enhancements
 
 - [ ] Cloudflare tunnel support for remote access
-- [ ] Push notifications for messages
 - [ ] File attachments support
-- [ ] Voice input with Speech framework
 - [ ] Session management (fork, resume)
 - [ ] Widget support
 
 ## 🔐 Encryption Export Compliance
 
-This app is distributed via the Apple App Store and is subject to U.S. export regulations. The app declares `ITSAppUsesNonExemptEncryption = NO` in its build settings, which is accurate because:
+This app is distributed via TestFlight and is subject to U.S. export regulations. The app declares `ITSAppUsesNonExemptEncryption = NO` in its build settings, which is accurate because:
 
 - All network communication uses TLS via Apple's `URLSession` / `URLSessionWebSocketTask` (OS-provided encryption)
 - Credentials are stored in the iOS Keychain (OS-provided encryption)
