@@ -68,10 +68,13 @@ struct PairingURL {
 
         // Extract query parameters
         let queryItems = components.queryItems ?? []
-        let params = Dictionary(uniqueKeysWithValues: queryItems.compactMap { item -> (String, String)? in
-            guard let value = item.value else { return nil }
-            return (item.name, value)
-        })
+        let params = Dictionary(
+            queryItems.compactMap { item -> (String, String)? in
+                guard let value = item.value else { return nil }
+                return (item.name, value)
+            },
+            uniquingKeysWith: { _, last in last }
+        )
 
         // Code is required
         guard let code = params["code"], !code.isEmpty else {
