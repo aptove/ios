@@ -18,6 +18,11 @@
 "Are you sure you want to delete \"%@\"? This will remove all conversation history." = "\"%@\" ajanını silmek istediğinizden emin misiniz? Tüm sohbet geçmişi kaldırılacak.";
 
 /* SettingsView */
+"security_settings_section" = "Güvenlik";
+"biometric_lock_toggle" = "Biyometrik Kilit";
+"biometric_locked_title" = "Aptove Kilitli";
+"biometric_lock_reason" = "Aptove'u Aç";
+"biometric_unlock_button" = "Tekrar Dene";
 "Appearance" = "Görünüm";
 "Dark Mode" = "Ekran Modu";
 "settings_dark_theme_active" = "Karanlık tema etkin";

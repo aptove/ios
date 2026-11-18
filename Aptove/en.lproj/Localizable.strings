@@ -18,6 +18,11 @@
 "Are you sure you want to delete \"%@\"? This will remove all conversation history." = "Are you sure you want to delete \"%@\"? This will remove all conversation history.";
 
 /* SettingsView */
+"security_settings_section" = "Security";
+"biometric_lock_toggle" = "Biometric Lock";
+"biometric_locked_title" = "Aptove is Locked";
+"biometric_lock_reason" = "Unlock Aptove";
+"biometric_unlock_button" = "Try Again";
 "Appearance" = "Appearance";
 "Dark Mode" = "Screen Mode";
 "settings_dark_theme_active" = "Dark theme active";

@@ -60,7 +60,10 @@ struct AptoveApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @AppStorage("isDarkMode") private var isDarkMode: Bool = true
     @AppStorage("appLanguage") private var appLanguage: String = ""
+    @AppStorage("isBiometricLockEnabled") private var isBiometricLockEnabled = false
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showSplash = true
+    @State private var isLocked = false
 
     // Plain let — not @StateObject — so publishes from agentManager don't re-evaluate App.body.
     private let agentManager: AgentManager
@@ -96,17 +99,34 @@ struct AptoveApp: App {
                         PushNotificationManager.shared.requestAuthorization()
                     }
 
+                // Lock screen sits above ContentView but below the splash so there is
+                // never a flash of content between the splash fading and auth appearing.
+                if isLocked {
+                    BiometricLockView { isLocked = false }
+                        .ignoresSafeArea()
+                }
+
                 if showSplash {
                     SplashView()
                         .transition(.opacity)
                         .onAppear {
                             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                                // Set lock BEFORE the fade starts so the lock screen is
+                                // already in place when the splash disappears.
+                                if isBiometricLockEnabled { isLocked = true }
                                 withAnimation(.easeOut(duration: 0.4)) {
                                     showSplash = false
+                                }
+                                // Notify BiometricLockView to start auth once splash is gone.
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                                    NotificationCenter.default.post(name: .aptoveSplashComplete, object: nil)
                                 }
                             }
                         }
                 }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .background && isBiometricLockEnabled { isLocked = true }
             }
         }
     }

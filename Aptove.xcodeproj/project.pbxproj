@@ -73,6 +73,7 @@
 		C800000000000805 /* TaskCreateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000804 /* TaskCreateView.swift */; };
 		C800000000000807 /* Log.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000806 /* Log.swift */; };
 		C800000000000A02 /* HljsResources.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000A01 /* HljsResources.swift */; };
+		C800000000000A04 /* BiometricLockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000A03 /* BiometricLockView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -150,6 +151,7 @@
 		C800000000000804 /* TaskCreateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskCreateView.swift; sourceTree = "<group>"; };
 		C800000000000806 /* Log.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Log.swift; sourceTree = "<group>"; };
 		C800000000000A01 /* HljsResources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HljsResources.swift; sourceTree = "<group>"; };
+		C800000000000A03 /* BiometricLockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricLockView.swift; sourceTree = "<group>"; };
 		E27B6F572F4BE96D00311836 /* AptoveTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AptoveTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -234,6 +236,7 @@
 			C800000000000313 /* StarredMessagesView.swift */,
 				C800000000000802 /* TasksListView.swift */,
 				C800000000000804 /* TaskCreateView.swift */,
+				C800000000000A03 /* BiometricLockView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -526,6 +529,7 @@
 				C800000000000210 /* UserDefaultsMigrator.swift in Sources */,
 				C800000000000212 /* Aptove.xcdatamodeld in Sources */,
 				C800000000000A02 /* HljsResources.swift in Sources */,
+				C800000000000A04 /* BiometricLockView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -700,6 +704,7 @@
 				INFOPLIST_KEY_NSAppTransportSecurity = "{\n    NSAllowsLocalNetworking = YES;\n}";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Aptove needs camera access to scan QR codes and capture photos for chat";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Aptove uses Face ID to protect your agent connections.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Aptove needs microphone access to record voice messages";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Aptove uses your photo library to attach images to messages.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Aptove uses speech recognition to convert your voice to text for messages";
@@ -737,6 +742,7 @@
 				INFOPLIST_KEY_NSAppTransportSecurity = "{\n    NSAllowsLocalNetworking = YES;\n}";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Aptove needs camera access to scan QR codes and capture photos for chat";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Aptove uses Face ID to protect your agent connections.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Aptove needs microphone access to record voice messages";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Aptove uses your photo library to attach images to messages.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Aptove uses speech recognition to convert your voice to text for messages";

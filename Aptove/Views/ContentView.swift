@@ -55,7 +55,8 @@ struct ContentView: View {
 
     private var isChatOpen: Bool { activeChatDestination != nil }
 
-    var body: some View {
+    @ViewBuilder
+    private var mainContent: some View {
         ZStack {
             TabView(selection: $selectedTab) {
                 NavigationStack {
@@ -132,6 +133,10 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: isChatOpen)
+    }
+
+    var body: some View {
+        mainContent
         .onAppear {
             Logger.app.debug("ContentView: View appeared and rendered")
         }

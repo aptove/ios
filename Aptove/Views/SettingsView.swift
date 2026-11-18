@@ -1,11 +1,13 @@
 import SwiftUI
 import Speech
+import LocalAuthentication
 
 struct SettingsView: View {
     @AppStorage("isDarkMode") private var isDarkMode: Bool = true
     @AppStorage("appLanguage") private var appLanguage: String = ""
     @AppStorage("voiceLanguage") private var voiceLanguage: String = "en-US"
     @AppStorage("isVerboseMode") private var isVerboseMode: Bool = true
+    @AppStorage("isBiometricLockEnabled") private var isBiometricLockEnabled = false
     @Environment(\.tabBarHeight) private var tabBarHeight
 
     private var themeSubtitle: LocalizedStringKey {
@@ -23,6 +25,19 @@ struct SettingsView: View {
         return code == "tr" ? "Türkçe" : "English"
     }
 
+    private func verifyAndEnable() {
+        let context = LAContext()
+        var error: NSError?
+        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else { return }
+        context.evaluatePolicy(
+            .deviceOwnerAuthentication,
+            localizedReason: NSLocalizedString("biometric_lock_reason", comment: "")
+        ) { success, _ in
+            guard success else { return }
+            Task { @MainActor in isBiometricLockEnabled = true }
+        }
+    }
+
     private var currentVoiceLanguageName: String {
         let langCode = Locale(identifier: voiceLanguage).language.languageCode?.identifier ?? voiceLanguage
         return Locale.current.localizedString(forLanguageCode: langCode) ?? voiceLanguage
@@ -31,6 +46,36 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
+                Section(header: Text("security_settings_section")) {
+                    HStack(spacing: 14) {
+                        Image(systemName: "faceid")
+                            .font(.system(size: 18))
+                            .foregroundColor(.white)
+                            .frame(width: 32, height: 32)
+                            .background(Color.green)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                        Text("biometric_lock_toggle")
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+
+                        Spacer()
+
+                        Toggle("", isOn: Binding(
+                            get: { isBiometricLockEnabled },
+                            set: { newValue in
+                                if newValue {
+                                    verifyAndEnable()
+                                } else {
+                                    isBiometricLockEnabled = false
+                                }
+                            }
+                        ))
+                        .labelsHidden()
+                    }
+                    .padding(.vertical, 4)
+                }
+
                 Section(header: Text("Appearance")) {
                     HStack(spacing: 14) {
                         Image(systemName: isDarkMode ? "moon.fill" : "sun.max.fill")
