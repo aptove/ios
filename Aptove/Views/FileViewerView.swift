@@ -119,9 +119,7 @@ private struct CodeWebView: UIViewRepresentable {
         <html>
         <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=4">
-        <link rel="stylesheet"
-              href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github-dark.min.css">
-        <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+        <style>\(HljsResources.css)</style>
         <style>
           html, body { margin:0; padding:0; background:#0d1117; }
           body { padding:16px; }
@@ -129,12 +127,13 @@ private struct CodeWebView: UIViewRepresentable {
           code { font-family: 'JetBrains Mono', 'Courier New', monospace;
                  font-size: 13px; line-height: 1.5;
                  white-space: pre-wrap; word-break: break-all; }
-          /* Fallback: plain monospace if JS/CSS unavailable */
+          /* Fallback: plain monospace if JS unavailable */
           code:not(.hljs) { color: #e6edf3; background: transparent; }
         </style>
         </head>
         <body>
         <pre><code class="language-\(lang)">\(escaped)</code></pre>
+        <script>\(HljsResources.js)</script>
         <script>
         if (typeof hljs !== 'undefined') { hljs.highlightAll(); }
         </script>

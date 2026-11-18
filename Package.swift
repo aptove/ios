@@ -18,6 +18,9 @@ let package = Package(
                 "Aptove.entitlements",
                 "en.lproj",
                 "tr.lproj",
+                // Raw asset files — content is compiled into HljsResources.swift instead
+                "Resources/highlight.min.js",
+                "Resources/github-dark.min.css",
             ]
         ),
     ]
