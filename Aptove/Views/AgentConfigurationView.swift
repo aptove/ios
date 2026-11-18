@@ -16,6 +16,7 @@ struct AgentConfigurationView: View {
     @State private var showAvatarPicker = false
     @State private var avatarPickerItem: PhotosPickerItem?
     @State private var showAvatarOptions = false
+    @FocusState private var isNameFocused: Bool
 
     init(agentId: String) {
         self.agentId = agentId
@@ -37,6 +38,7 @@ struct AgentConfigurationView: View {
                         Spacer()
                         TextField("Agent Name", text: $viewModel.editableName)
                             .multilineTextAlignment(.trailing)
+                            .focused($isNameFocused)
                             .onSubmit { viewModel.saveNameIfChanged() }
                     }
                 }
@@ -158,6 +160,7 @@ struct AgentConfigurationView: View {
                 }
             }
         }
+        .simultaneousGesture(TapGesture().onEnded { isNameFocused = false })
         .onDisappear { viewModel.saveNameIfChanged() }
         .navigationTitle(Bundle.localized("Configuration", language: appLanguage))
         .navigationBarTitleDisplayMode(.inline)

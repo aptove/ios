@@ -72,6 +72,7 @@
 		C800000000000803 /* TasksListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000802 /* TasksListView.swift */; };
 		C800000000000805 /* TaskCreateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000804 /* TaskCreateView.swift */; };
 		C800000000000807 /* Log.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000806 /* Log.swift */; };
+		C800000000000A02 /* HljsResources.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000A01 /* HljsResources.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -148,6 +149,7 @@
 		C800000000000802 /* TasksListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasksListView.swift; sourceTree = "<group>"; };
 		C800000000000804 /* TaskCreateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskCreateView.swift; sourceTree = "<group>"; };
 		C800000000000806 /* Log.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Log.swift; sourceTree = "<group>"; };
+		C800000000000A01 /* HljsResources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HljsResources.swift; sourceTree = "<group>"; };
 		E27B6F572F4BE96D00311836 /* AptoveTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AptoveTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -194,6 +196,7 @@
 				C800000000000029 /* ViewModels */,
 				C80000000000002A /* Models */,
 				C80000000000002B /* Services */,
+				C800000000000A00 /* Resources */,
 				C800000000000006 /* Assets.xcassets */,
 				C80000000000002C /* Preview Content */,
 			);
@@ -274,6 +277,14 @@
 				C80000000000030D /* ComputerFileService.swift */,
 			);
 			path = Services;
+			sourceTree = "<group>";
+		};
+		C800000000000A00 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				C800000000000A01 /* HljsResources.swift */,
+			);
+			path = Resources;
 			sourceTree = "<group>";
 		};
 		C80000000000002C /* Preview Content */ = {
@@ -514,6 +525,7 @@
 				C800000000000401 /* SplashHighlighter.swift in Sources */,
 				C800000000000210 /* UserDefaultsMigrator.swift in Sources */,
 				C800000000000212 /* Aptove.xcdatamodeld in Sources */,
+				C800000000000A02 /* HljsResources.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
