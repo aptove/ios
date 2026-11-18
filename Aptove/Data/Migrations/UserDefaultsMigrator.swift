@@ -52,7 +52,7 @@ class UserDefaultsMigrator {
     func migrate() throws {
         Logger.data.debug("Starting migration from UserDefaults to CoreData...")
 
-        backupUserDefaults()
+        let backupKey = backupUserDefaults()
 
         guard let data = userDefaults.data(forKey: Self.agentsKey) else {
             throw MigrationError.noData
@@ -110,7 +110,14 @@ class UserDefaultsMigrator {
         userDefaults.set(true, forKey: Self.migrationCompleteKey)
         userDefaults.synchronize()
 
-        Logger.data.debug("Migration complete! UserDefaults data preserved for safety.")
+        // 5. Remove the backup now that migration succeeded — it held no credentials,
+        //    but there is no reason to keep it around indefinitely.
+        if let key = backupKey {
+            userDefaults.removeObject(forKey: key)
+            Logger.data.debug("Removed migration backup after successful migration")
+        }
+
+        Logger.data.debug("Migration complete.")
     }
 
     /// Rollback migration (for testing)
@@ -121,12 +128,37 @@ class UserDefaultsMigrator {
 
     // MARK: - Private Helpers
 
-    private func backupUserDefaults() {
-        guard let data = userDefaults.data(forKey: Self.agentsKey) else { return }
+    /// Creates a sanitized backup of the legacy agent list, stripping all credentials
+    /// (authToken, clientSecret, certificateFingerprint) so the backup is safe to store
+    /// in UserDefaults. Returns the backup key so the caller can delete it after migration.
+    @discardableResult
+    private func backupUserDefaults() -> String? {
+        guard let data = userDefaults.data(forKey: Self.agentsKey),
+              let agents = try? JSONDecoder().decode([LegacySavedAgent].self, from: data)
+        else { return nil }
+
+        // Strip credentials — the backup preserves structure/names for recovery only
+        let sanitized = agents.map { agent in
+            LegacySavedAgent(
+                id: agent.id,
+                name: agent.name,
+                config: LegacyConnectionConfig(
+                    url: agent.config.url,
+                    version: agent.config.version,
+                    authToken: nil,
+                    clientId: nil,
+                    clientSecret: nil,
+                    certificateFingerprint: nil
+                ),
+                agentDescription: agent.agentDescription
+            )
+        }
+        guard let sanitizedData = try? JSONEncoder().encode(sanitized) else { return nil }
 
         let backupKey = "\(Self.agentsKey)_backup_\(Date().timeIntervalSince1970)"
-        userDefaults.set(data, forKey: backupKey)
-        Logger.data.debug("Backed up UserDefaults to key: \(backupKey)")
+        userDefaults.set(sanitizedData, forKey: backupKey)
+        Logger.data.debug("Backed up sanitized agent list to key: \(backupKey)")
+        return backupKey
     }
 }
 
