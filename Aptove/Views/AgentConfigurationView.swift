@@ -49,11 +49,18 @@ struct AgentConfigurationView: View {
                     // reachable (bridge/agentError arrived over the connection) even though
                     // the WebSocket is now closed. Show green "Connected" in that case.
                     LabeledContent("connection_transport") {
-                        HStack(spacing: 6) {
-                            Circle()
-                                .fill(agent.agentCommandError != nil ? Color.green : statusColor(for: agent.status))
-                                .frame(width: 8, height: 8)
-                            Text(transportStatusText(agent: agent))
+                        VStack(alignment: .trailing, spacing: 2) {
+                            HStack(spacing: 6) {
+                                Circle()
+                                    .fill(agent.agentCommandError != nil ? Color.green : statusColor(for: agent.status))
+                                    .frame(width: 8, height: 8)
+                                Text(transportStatusText(agent: agent))
+                            }
+                            if let url = activeConnectionURL(agent: agent) {
+                                Text(url)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
 
@@ -72,20 +79,6 @@ struct AgentConfigurationView: View {
                         Text(error)
                             .font(.footnote)
                             .foregroundColor(.secondary)
-                    }
-                }
-
-                // Transports Section
-                if !viewModel.endpoints.isEmpty {
-                    Section("Transports") {
-                        ForEach(viewModel.endpoints) { endpoint in
-                            TransportEndpointRow(endpoint: endpoint)
-                        }
-                        .onDelete { indexSet in
-                            indexSet.forEach { i in
-                                viewModel.deleteEndpoint(id: viewModel.endpoints[i].id)
-                            }
-                        }
                     }
                 }
 
@@ -285,13 +278,12 @@ struct AgentConfigurationView: View {
             let transport = agentManager.activeTransport(for: agent.id)
                 ?? agentManager.firstTransportName(for: agent.id)
                 ?? "local"
-            return String(format: NSLocalizedString("connection_transport_connected", comment: ""), transportShortName(transport))
+            return connectedTransportText(transport)
         }
         switch agent.status {
         case .connected:
             let transport = agentManager.activeTransport(for: agent.id) ?? "local"
-            let name = transportShortName(transport)
-            return String(format: NSLocalizedString("connection_transport_connected", comment: ""), name)
+            return connectedTransportText(transport)
         case .reconnecting:
             return NSLocalizedString("connection_transport_reconnecting", comment: "")
         case .disconnected:
@@ -299,13 +291,28 @@ struct AgentConfigurationView: View {
         }
     }
 
+    private func connectedTransportText(_ transport: String) -> String {
+        let name = transportShortName(transport)
+        switch transport {
+        case "local", "tailscale-serve", "tailscale-ip":
+            return name
+        default:
+            return String(format: NSLocalizedString("connection_transport_connected", comment: ""), name)
+        }
+    }
+
     private func transportShortName(_ transport: String) -> String {
         switch transport {
         case "local":           return "Local"
         case "cloudflare":      return "Cloudflare"
-        case "tailscale-serve": return "Tailscale"
+        case "tailscale-serve", "tailscale-ip": return "Tailscale"
         default:                return transport
         }
+    }
+
+    private func activeConnectionURL(agent: Agent) -> String? {
+        guard agent.status == .connected || agent.agentCommandError != nil else { return nil }
+        return viewModel.endpoints.first(where: { $0.isActive })?.url
     }
 
     private func aiStatusColor(agent: Agent) -> Color {
@@ -324,40 +331,6 @@ struct AgentConfigurationView: View {
         return NSLocalizedString("connection_ai_unknown", comment: "")
     }
 
-}
-
-// MARK: - Transport Endpoint Row
-
-private struct TransportEndpointRow: View {
-    let endpoint: TransportEndpointInfo
-
-    var body: some View {
-        HStack(spacing: 12) {
-            // Active indicator — green when this transport is currently connected
-            Circle()
-                .fill(endpoint.isActive ? Color.green : Color.gray.opacity(0.4))
-                .frame(width: 8, height: 8)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(transportDisplayName(endpoint.transport))
-                    .font(.body)
-                Text(endpoint.url)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-            }
-        }
-        .padding(.vertical, 2)
-    }
-
-    private func transportDisplayName(_ transport: String) -> String {
-        switch transport {
-        case "local":           return "Local"
-        case "tailscale-serve": return "Tailscale"
-        default:
-            return FeatureRegistry.shared.provider(forTransport: transport)?.displayName ?? transport.capitalized
-        }
-    }
 }
 
 #Preview {
