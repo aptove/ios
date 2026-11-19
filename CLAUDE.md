@@ -433,3 +433,37 @@ The app declares `ITSAppUsesNonExemptEncryption = NO`. This is correct as of Nov
 Packages that are **always safe** (no disclosure needed): UI libraries, layout helpers, logging, data structures, image loading via standard HTTPS, Markdown renderers, syntax highlighters.
 
 Packages that **need scrutiny**: anything that imports `CryptoKit`, `CommonCrypto`, `Security` directly, links OpenSSL/BoringSSL/libsodium, or has "crypto", "JWT", "TLS", "cipher", "hash" in its description.
+
+---
+
+## CoreData Schema
+
+### AgentEntity
+
+| Attribute | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| `agentId` | String | ✅ | — | Primary key (unique constraint) |
+| `name` | String | ✅ | — | Display name |
+| `url` | String | ✅ | — | WebSocket endpoint |
+| `protocolVersion` | String | ✅ | — | ACP protocol version |
+| `agentDescription` | String | ❌ | — | Optional description |
+| `capabilities` | String | ✅ | `"[]"` | JSON-encoded dictionary |
+| `connectionStatus` | String | ✅ | `"DISCONNECTED"` | Raw value of `ConnectionStatus` enum |
+| `colorHue` | Float | ✅ | `0.0` | Avatar color (0.0–1.0) |
+| `createdAt` | Date | ✅ | — | Creation timestamp |
+| `lastConnectedAt` | Date | ❌ | — | Last successful connection |
+| `activeSessionId` | String | ❌ | — | Current ACP session ID |
+| `sessionStartedAt` | Date | ❌ | — | Session start timestamp |
+| `supportsLoadSession` | Bool | ✅ | `false` | Whether agent supports session resumption |
+
+`MessageEntity` is scaffolded in the schema but not actively used — messages are stored
+in-memory in `AgentManager.conversations` and cleared on app restart.
+
+### CoreData developer rules
+
+- **Schema changes**: use CoreData versioned models (`.xcdatamodeld` with multiple versions) and
+  lightweight migration. Never edit the existing model version in place.
+- **Testing**: use `CoreDataStack.makeInMemory()` for unit tests — in-memory stack, no disk I/O,
+  isolated per test.
+- **Thread safety**: always perform writes on `coreDataStack.backgroundContext` via `context.perform {}`;
+  read on `coreDataStack.viewContext` on the main thread only.
