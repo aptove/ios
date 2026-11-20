@@ -1627,17 +1627,35 @@ final class BridgeFilteringTransport: Transport, @unchecked Sendable {
 
 /// URLSession delegate to handle self-signed certificates
 /// When a certificate fingerprint is provided, we validate the certificate matches
-class SelfSignedCertificateDelegate: NSObject, URLSessionDelegate {
+class SelfSignedCertificateDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegate {
     let expectedFingerprint: String?
-    
+
     init(expectedFingerprint: String?) {
         self.expectedFingerprint = expectedFingerprint
         super.init()
     }
-    
+
+    // Session-level challenge (called for some connection types)
     func urlSession(
         _ session: URLSession,
         didReceive challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+        handleChallenge(challenge, completionHandler: completionHandler)
+    }
+
+    // Task-level challenge (called for URLSessionWebSocketTask TLS handshakes)
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didReceive challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+        handleChallenge(challenge, completionHandler: completionHandler)
+    }
+
+    private func handleChallenge(
+        _ challenge: URLAuthenticationChallenge,
         completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
     ) {
         // Only handle server trust challenges
@@ -1646,13 +1664,13 @@ class SelfSignedCertificateDelegate: NSObject, URLSessionDelegate {
             completionHandler(.performDefaultHandling, nil)
             return
         }
-        
+
         // If no fingerprint provided, reject self-signed certs
         guard let expectedFingerprint = expectedFingerprint else {
             completionHandler(.performDefaultHandling, nil)
             return
         }
-        
+
         // Get the server certificate
         if #available(iOS 15.0, *) {
             guard let certificates = SecTrustCopyCertificateChain(serverTrust) as? [SecCertificate],
@@ -1661,13 +1679,13 @@ class SelfSignedCertificateDelegate: NSObject, URLSessionDelegate {
                 completionHandler(.cancelAuthenticationChallenge, nil)
                 return
             }
-            
+
             // Calculate SHA256 fingerprint of the certificate
             let certData = SecCertificateCopyData(serverCert) as Data
             let fingerprint = sha256Fingerprint(of: certData)
-            
+
             Logger.connection.debug("Server cert fingerprint: \(fingerprint), expected: \(expectedFingerprint)")
-            
+
             // Compare fingerprints (case-insensitive)
             if fingerprint.lowercased() == expectedFingerprint.lowercased() {
                 Logger.connection.debug("Certificate fingerprint matches — accepting connection")
@@ -1684,7 +1702,7 @@ class SelfSignedCertificateDelegate: NSObject, URLSessionDelegate {
             completionHandler(.useCredential, credential)
         }
     }
-    
+
     /// Calculate SHA256 fingerprint of certificate data, formatted as colon-separated hex
     private func sha256Fingerprint(of data: Data) -> String {
         var hash = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
